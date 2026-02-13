@@ -1,0 +1,60 @@
+# Claude Code Instructions
+
+## Project Overview
+
+NestJS REST API with OIDC authentication, Prisma ORM, Redis, and OpenAPI documentation. See CLAUDE.md for full architecture details.
+
+## Core Rules
+
+### DTOs
+
+- All incoming data uses request DTOs with `class-validator` decorators
+- All outgoing data uses response DTOs with `@ApiProperty` decorators
+- Never return raw Prisma entities — always map to DTOs in the service layer
+- DTOs go in `src/rest/<module>/dto/`
+
+### OpenAPI
+
+- Every controller: `@ApiTags()`, `@ApiBearerAuth()`
+- Every endpoint: `@ApiOperation()`, `@ApiResponse()` for all status codes
+- Response DTOs must have `@ApiProperty` on every field with description + example
+
+### Imports
+
+Always use the `@/` path alias:
+```typescript
+import { prisma } from '@/shared/utils';      // correct
+import { prisma } from '../../shared/utils';   // wrong
+```
+
+### Auth
+
+- All routes are authenticated by default (`OidcAuthGuard` is global)
+- Use `@Public()` for unauthenticated routes
+- Use `@CurrentUser()` to inject `AuthenticatedUser`
+
+### Code Style
+
+- Controllers are thin — business logic goes in services
+- Async/await for all database operations
+- TypeScript strict mode — no `any`
+- Use NestJS exceptions (`NotFoundException`, `ForbiddenException`, etc.)
+
+### Adding a Module
+
+1. Create `src/rest/<name>/` with controller, service, module, `dto/`
+2. Register in `src/rest/modules.ts`
+
+### Commits
+
+Conventional Commits enforced by commitlint: `type(scope): description`
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+### Build
+
+- `pnpm dev` — development server
+- `pnpm build` — production build
+- `pnpm lint` — ESLint
+- `pnpm format` — Prettier
+- Use `pnpm` for all package operations
