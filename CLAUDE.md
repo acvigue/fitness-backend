@@ -11,7 +11,6 @@ NestJS REST API template with OIDC authentication, Prisma ORM, Redis, and OpenAP
 - **Auth**: OIDC JWT verification via `jose` (RS256/RS512)
 - **Docs**: Swagger/OpenAPI via `@nestjs/swagger`
 - **Validation**: `class-validator` + `class-transformer`
-- **Email**: Nodemailer + MJML templates + Handlebars
 - **Build**: Vite + SWC (ESM output)
 
 ## Commands
@@ -58,10 +57,7 @@ src/
 │   ├── utils.ts                    # Prisma client, Redis clients
 │   ├── auth.ts                     # Shared-secret JWT creation helper
 │   ├── current-user.decorator.ts   # @CurrentUser() param decorator
-│   ├── logger/                     # Custom LoggerService (NestJS-compatible)
-│   └── email/                      # MJML email service
-│       ├── email.service.ts
-│       └── templates/base.mjml
+│   └── logger/                     # Custom LoggerService (NestJS-compatible)
 └── generated/
     └── prisma/                     # Generated Prisma client
 prisma/
@@ -194,6 +190,17 @@ Two Redis clients exported from `src/shared/utils.ts`:
 
 `@/*` and `~/*` both resolve to `./src/*`.
 
+## Documentation
+
+The `docs/` folder contains detailed guides. **Check these before implementing** — they define the conventions for this project:
+
+- [DATABASE.md](docs/DATABASE.md) — Prisma commands, migrations, schema conventions, type-safe queries
+- [DTO.md](docs/DTO.md) — Request/response DTOs, validation rules, strong typing requirements
+- [OPENAPI.md](docs/OPENAPI.md) — Swagger decorators, error response helpers, endpoint documentation
+- [UNIT-TESTING.md](docs/UNIT-TESTING.md) — Vitest setup, mocking Prisma/Redis, test patterns
+
+All requests and responses must be strongly typed through DTO classes. Never use `any`, raw objects, or untyped Prisma returns in controller or service signatures.
+
 ## Environment Variables
 
 ```bash
@@ -210,10 +217,6 @@ REDIS_URL="redis://localhost:6379"
 OIDC_ISSUER="https://your-idp.com/realms/your-realm"
 OIDC_AUDIENCE="account"
 OIDC_JWKS_URI="https://your-idp.com/realms/your-realm/protocol/openid-connect/certs"
-
-# Email (SMTP)
-SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE
-SMTP_FROM, SMTP_FROM_NAME
 
 # Runtime
 NODE_ENV=development

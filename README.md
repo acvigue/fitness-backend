@@ -11,10 +11,25 @@ NestJS REST API with OIDC authentication, Prisma ORM, Redis, and OpenAPI documen
 
 ## Setup
 
+### 1. Start PostgreSQL & Redis
+
+```bash
+docker compose up -d
+```
+
+This starts PostgreSQL (port 5432) and Redis (port 6379) using the default credentials from `.env.example`.
+
+### 2. Install & Configure
+
 ```bash
 pnpm install
 cp .env.example .env
-# Edit .env with your database, Redis, and OIDC configuration
+```
+
+### 3. Run Migrations
+
+```bash
+pnpm dlx prisma migrate dev
 ```
 
 ## Development
@@ -75,18 +90,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines including AI usage po
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|---|---|---|
-| `REST_PORT` | Server port (default: 9090) | No |
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `REDIS_URL` | Redis connection string | Yes |
-| `OIDC_ISSUER` | OIDC token issuer URL | No |
-| `OIDC_AUDIENCE` | OIDC token audience | No |
-| `OIDC_JWKS_URI` | OIDC JWKS endpoint | Yes |
-| `SMTP_HOST` | SMTP server hostname | No |
-| `SMTP_PORT` | SMTP server port | No |
-| `SMTP_USER` | SMTP username | No |
-| `SMTP_PASS` | SMTP password | No |
+| Variable        | Description                  | Required |
+| --------------- | ---------------------------- | -------- |
+| `REST_PORT`     | Server port (default: 9090)  | No       |
+| `DATABASE_URL`  | PostgreSQL connection string | Yes      |
+| `REDIS_URL`     | Redis connection string      | Yes      |
+| `OIDC_ISSUER`   | OIDC token issuer URL        | No       |
+| `OIDC_AUDIENCE` | OIDC token audience          | No       |
+| `OIDC_JWKS_URI` | OIDC JWKS endpoint           | Yes      |
+| `SMTP_HOST`     | SMTP server hostname         | No       |
+| `SMTP_PORT`     | SMTP server port             | No       |
+| `SMTP_USER`     | SMTP username                | No       |
+| `SMTP_PASS`     | SMTP password                | No       |
 
 ## Tech Stack
 

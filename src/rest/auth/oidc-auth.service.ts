@@ -1,5 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyResult } from 'jose';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  jwtVerify,
+  type JWTPayload,
+  type JWTVerifyResult,
+  type FlattenedJWSInput,
+  type JWSHeaderParameters,
+  type GetKeyFunction,
+} from 'jose';
+import { JWKS_PROVIDER } from '@/rest/auth/auth.constants';
+
+export type JWKSFunction = GetKeyFunction<JWSHeaderParameters, FlattenedJWSInput>;
 
 export type AuthenticatedUser = {
   sub: string;
@@ -7,23 +17,15 @@ export type AuthenticatedUser = {
   name?: string;
   email?: string;
   scopes: string[];
-  organizationId?: string;
   payload: JWTPayload;
 };
 
 @Injectable()
 export class OidcAuthService {
-  private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
   private readonly issuer?: string;
   private readonly audience?: string;
 
-  constructor() {
-    const jwksUri = process.env.OIDC_JWKS_URI;
-    if (!jwksUri) {
-      throw new Error('OIDC_JWKS_URI environment variable must be set');
-    }
-
-    this.jwks = createRemoteJWKSet(new URL(jwksUri));
+  constructor(@Inject(JWKS_PROVIDER) private readonly jwks: JWKSFunction) {
     this.issuer = process.env.OIDC_ISSUER || undefined;
     this.audience = process.env.OIDC_AUDIENCE || undefined;
   }
@@ -55,7 +57,6 @@ export class OidcAuthService {
         username: payloadRecord.preferred_username ?? payloadRecord.username,
         name,
         email: payload.email as string | undefined,
-        organizationId: payloadRecord.organization_id,
         scopes,
         payload,
       };

@@ -10,3 +10,48 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id        String   @id // OIDC subject (sub) claim
+  email     String?
+  name      String?
+  username  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memberships OrganizationMember[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members OrganizationMember[]
+
+  @@map("organizations")
+}
+
+enum OrganizationRole {
+  MEMBER
+  STAFF
+  ADMIN
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  organizationId String           @map("organization_id")
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("organization_members")
+}

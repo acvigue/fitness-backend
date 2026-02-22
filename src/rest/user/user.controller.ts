@@ -22,7 +22,6 @@ export class UserController {
       username: user.username,
       name: user.name,
       email: user.email,
-      organizationId: user.organizationId,
       scopes: user.scopes,
     };
   }

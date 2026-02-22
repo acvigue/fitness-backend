@@ -30,13 +30,6 @@ export class UserResponseDto {
   })
   email?: string;
 
-  @ApiPropertyOptional({
-    description: 'Organization identifier the user belongs to',
-    example: 'org_12345',
-    type: String,
-  })
-  organizationId?: string;
-
   @ApiProperty({
     description: 'List of user scopes/permissions',
     example: ['read', 'write'],
