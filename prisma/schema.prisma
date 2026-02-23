@@ -20,8 +20,27 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   memberships OrganizationMember[]
+  sessions Session[]
 
   @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  location  String?  // optional approximate geo lookup
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 model Organization {
