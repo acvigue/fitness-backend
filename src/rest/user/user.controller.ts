@@ -6,6 +6,9 @@ import { ApiCommonErrorResponses } from '@/rest/common';
 import { UserService } from './user.service';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMembershipResponseDto } from './dto/user-membership-response.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
+import { UserProfilePictureDto, UserProfileResponseDto } from './dto/user-profile-response.dto';
+import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -17,8 +20,8 @@ export class UserController {
   @ApiOperation({ summary: 'Get current user information' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiCommonErrorResponses()
-  getCurrentUser(@CurrentUser() user: AuthenticatedUser): UserResponseDto {
-    return this.userService.getProfile(user);
+  getCurrentUser(@CurrentUser() user: AuthenticatedUser): Promise<UserResponseDto> {
+    return this.userService.getOrCreateMe(user);
   }
 
   @Get('me/memberships')
@@ -28,4 +31,25 @@ export class UserController {
   getMemberships(@CurrentUser() user: AuthenticatedUser): Promise<UserMembershipResponseDto[]> {
     return this.userService.getMemberships(user.sub);
   }
+
+
+
+  @Get('profile')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, type: UserProfileResponseDto })
+  async getProfile(@CurrentUser() user: AuthenticatedUser): Promise<UserProfileResponseDto> {
+    return this.userService.getProfile(user.sub);
+  }
+  
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, type: UserProfileResponseDto })
+  async updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateUserProfileDto,
+  ): Promise<UserProfileResponseDto> {
+    return this.userService.updateProfile(user.sub, dto);
+  }
+
+
 }
