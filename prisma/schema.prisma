@@ -9,6 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -19,6 +20,8 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  profile   UserProfile?
+
   memberships OrganizationMember[]
   report      Report[]
   Message     Message[]
@@ -26,6 +29,36 @@ model User {
 
   @@map("users")
 }
+
+
+model UserProfile {
+  userId String @id @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bio            String?   @db.Text
+  favoriteSports String[]  @default([])
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  pictures UserProfilePicture[]
+
+  @@map("user_profiles")
+}
+
+model UserProfilePicture {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  profile   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  url       String
+  alt       String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_profile_pictures")
+}
+
 
 model Organization {
   id        String   @id @default(cuid())
