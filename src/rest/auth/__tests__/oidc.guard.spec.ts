@@ -23,8 +23,8 @@ const { prisma } = await import('@/shared/utils');
 
 function createMockContext(
   request: Record<string, unknown> & { headers: Record<string, string> },
-  isPublic = false
-): { context: ExecutionContext; reflectorSpy: ReturnType<typeof vi.spyOn> | null } {
+  _isPublic = false
+): { context: ExecutionContext; reflectorSpy: null } {
   const context = {
     switchToHttp: () => ({
       getRequest: () => request,
@@ -173,6 +173,7 @@ describe('OidcAuthGuard', () => {
     // Give the fire-and-forget promise a tick to resolve
     await new Promise((r) => setTimeout(r, 10));
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(prisma.user.upsert).toHaveBeenCalledWith({
       where: { id: 'sync-user-id' },
       create: {

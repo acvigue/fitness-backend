@@ -19,8 +19,16 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  memberships OrganizationMember[]
-  sessions Session[]
+  profile   UserProfile?
+
+  memberships        OrganizationMember[]
+  submittedReports   Report[]             @relation("ReportSubmitter")
+  receivedReports    Report[]             @relation("ReportedUser")
+  Message            Message[]
+  createdGroupchats  Groupchat[]          @relation("GroupchatCreator")
+  groupchatMemberships Groupchat[]        @relation("GroupchatMembers")
+  
+  session Session[]
 
   @@map("users")
 }
@@ -31,7 +39,7 @@ model Session {
 
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent")
-  location  String?  // optional approximate geo lookup
+  location  String?  
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
@@ -42,6 +50,35 @@ model Session {
   @@index([userId])
   @@map("sessions")
 }
+
+model UserProfile {
+  userId String @id @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bio            String?   @db.Text
+  favoriteSports String[]  @default([])
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  pictures UserProfilePicture[]
+
+  @@map("user_profiles")
+}
+
+model UserProfilePicture {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  profile   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  url       String
+  alt       String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_profile_pictures")
+}
+
 
 model Organization {
   id        String   @id @default(cuid())
@@ -73,4 +110,41 @@ model OrganizationMember {
 
   @@unique([userId, organizationId])
   @@map("organization_members")
+}
+
+enum StatusOnReport {
+  OPEN
+  REVIEWING
+  CLOSED
+}
+
+model Report {
+  id           String         @id @default(cuid())
+  reporter     User           @relation("ReportSubmitter", fields: [userId1], references: [id])
+  userId1      String
+  reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id])
+  userId2      String
+  reason       String?
+  status       StatusOnReport @default(OPEN)
+  createdAt    DateTime       @default(now()) @map("created_at")
+}
+
+model Message {
+  id                String    @id @default(cuid())
+  sender            User      @relation(fields: [userId], references: [id])
+  userId            String
+  content           String
+  timeOfMessage     DateTime  @default(now()) @map("created_at")
+  groupChatLocation Groupchat @relation(fields: [groupChatId], references: [id])
+  groupChatId       String
+  read              Boolean   @default(false)
+}
+
+model Groupchat {
+  id      String    @id @default(cuid())
+  members User[]    @relation("GroupchatMembers")
+  name    String
+  creator User      @relation("GroupchatCreator", fields: [userId], references: [id])
+  userId  String
+  Message Message[]
 }

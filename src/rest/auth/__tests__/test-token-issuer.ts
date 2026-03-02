@@ -1,11 +1,4 @@
-import {
-  generateKeyPair,
-  SignJWT,
-  exportJWK,
-  createLocalJWKSet,
-  type KeyLike,
-  type JWK,
-} from 'jose';
+import { generateKeyPair, SignJWT, exportJWK, createLocalJWKSet, type JWK } from 'jose';
 import type { JWKSFunction } from '@/rest/auth/oidc-auth.service';
 
 export const TEST_ISSUER = 'https://test-issuer.local';
@@ -13,7 +6,7 @@ export const TEST_AUDIENCE = 'test-audience';
 
 export class TestTokenIssuer {
   private constructor(
-    private readonly privateKey: KeyLike,
+    private readonly privateKey: CryptoKey,
     public readonly publicJwk: JWK,
     public readonly jwks: JWKSFunction
   ) {}
@@ -22,7 +15,7 @@ export class TestTokenIssuer {
     const { privateKey, publicKey } = await generateKeyPair('RS256');
     const publicJwk = await exportJWK(publicKey);
     const jwks = createLocalJWKSet({ keys: [publicJwk] });
-    return new TestTokenIssuer(privateKey, publicJwk, jwks as JWKSFunction);
+    return new TestTokenIssuer(privateKey as CryptoKey, publicJwk, jwks as JWKSFunction);
   }
 
   async issueToken(claims: Record<string, unknown> = {}): Promise<string> {

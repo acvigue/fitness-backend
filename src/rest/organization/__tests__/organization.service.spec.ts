@@ -110,8 +110,8 @@ describe('OrganizationService', () => {
       const result = await service.findAll({ page: 1, per_page: 10 });
 
       expect(result.data).toHaveLength(2);
-      expect(result.data[0]!.memberCount).toBe(3);
-      expect(result.data[1]!.memberCount).toBe(5);
+      expect(result.data[0].memberCount).toBe(3);
+      expect(result.data[1].memberCount).toBe(5);
       expect(result.meta).toEqual({ page: 1, per_page: 10, total: 2, total_pages: 1 });
     });
 
