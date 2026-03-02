@@ -22,11 +22,12 @@ export class SessionService {
   }
 
   async revokeSession(sessionId: string, userId: string) {
-    return prisma.session.deleteMany({
+    const result = await prisma.session.deleteMany({
       where: {
         id: sessionId,
         userId,
       },
     });
+    return result.count;
   }
 }
