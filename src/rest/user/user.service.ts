@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { UserResponseDto } from './dto/user-response.dto';
-import { UserProfilePictureDto, UserProfileResponseDto } from './dto/user-profile-response.dto';
+import type { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import type { UserMembershipResponseDto } from './dto/user-membership-response.dto';
 
@@ -35,17 +35,17 @@ export class UserService {
       where: { userId },
       include: { pictures: true },
     });
-  
+
     if (!profile) {
       // Auto‑create profile if it doesn't exist (optional)
       return this.createProfile(userId);
     }
-  
+
     return {
       userId: profile.userId,
       bio: profile.bio,
       favoriteSports: profile.favoriteSports,
-      pictures: profile.pictures.map(p => ({
+      pictures: profile.pictures.map((p) => ({
         id: p.id,
         url: p.url,
         alt: p.alt ?? undefined,
@@ -54,18 +54,14 @@ export class UserService {
     };
   }
 
-
-  async updateProfile(
-    userId: string,
-    dto: UpdateUserProfileDto,
-  ): Promise<UserProfileResponseDto> {
+  async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfileResponseDto> {
     // Ensure profile exists
     await prisma.userProfile.upsert({
       where: { userId },
       update: {},
       create: { userId },
     });
-  
+
     const updated = await prisma.userProfile.update({
       where: { userId },
       data: {
@@ -74,12 +70,12 @@ export class UserService {
       },
       include: { pictures: true },
     });
-  
+
     return {
       userId: updated.userId,
       bio: updated.bio,
       favoriteSports: updated.favoriteSports,
-      pictures: updated.pictures.map(p => ({
+      pictures: updated.pictures.map((p) => ({
         id: p.id,
         url: p.url,
         alt: p.alt ?? undefined,
@@ -87,7 +83,7 @@ export class UserService {
       })),
     };
   }
-  
+
   private async createProfile(userId: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.create({
       data: { userId },
@@ -100,7 +96,6 @@ export class UserService {
       pictures: [],
     };
   }
-
 
   async getMemberships(userId: string): Promise<UserMembershipResponseDto[]> {
     const memberships = await prisma.organizationMember.findMany({

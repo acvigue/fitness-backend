@@ -26,7 +26,7 @@ export class OidcAuthGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<AuthenticatedRequest | (Request & { user?: any })>();
+      .getRequest<AuthenticatedRequest | (Request & { user?: unknown })>();
 
     if (request.user) {
       return true;

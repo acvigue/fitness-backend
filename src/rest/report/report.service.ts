@@ -1,48 +1,35 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
-import type { PaginationParams } from '@/rest/common/pagination';
-import { paginate, type PaginatedResult } from '@/rest/common/pagination';
-import type { ReportResponseDto } from './dto/report-reponse.dto'
-import type { CreateOrganizationDto } from '~/rest/organization/dto/create-organization.dto';
-@Injectable()
-export class OrganizationService {
-  async create(dto: ReportResponseDto, userId: string): Promise<ReportResponseDto> {
-    return prisma.$transaction(async (tx) => {
-      const reporter = await prisma.user.findUnique({ where: { id: dto.reportedId } })
-      if (reporter == null) {
-        throw new Error()
-      }
-      const reporterName = reporter.name
-      if (reporterName == null) {
-        throw new Error()
-      }
-      const reported = await prisma.user.findUnique({ where: { id: dto.reportedId } })
-      if (reported == null) {
-        throw new Error()
-      }
-      const reportedName = reported.name
-      const report = tx.report.create({
-        data: {
-          reporter: reporter,
-          reportedUser: reportedName,
-          reason: dto.reason,
-          status: dto.status,
-          createdAt: dto.status
-        }
-      });
-      return {
-        reporter: report.reporter,
-        reportedUser: report.reportedUser,
-        reason: report.reason,
-        status: report.status,
-        createAt: report.createdAt,
-      };
-    });
-  };
+import type { ReportResponseDto } from './dto/report-response.dto';
 
+@Injectable()
+export class ReportService {
+  async create(dto: ReportResponseDto, _userId: string): Promise<ReportResponseDto> {
+    const reporter = await prisma.user.findUnique({ where: { id: dto.reporterId } });
+    if (reporter == null) {
+      throw new NotFoundException('Reporter not found');
+    }
+
+    const reported = await prisma.user.findUnique({ where: { id: dto.reportedId } });
+    if (reported == null) {
+      throw new NotFoundException('Reported user not found');
+    }
+
+    const report = await prisma.report.create({
+      data: {
+        userId1: dto.reporterId,
+        userId2: dto.reportedId,
+        reason: dto.reason,
+        status: 'OPEN',
+      },
+    });
+
+    return {
+      reporterId: report.userId1,
+      reportedId: report.userId2,
+      reason: report.reason,
+      status: report.status,
+      createdAt: report.createdAt,
+    };
+  }
 }

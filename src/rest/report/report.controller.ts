@@ -1,23 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
-import {ReportResponseDto} from "./dto/report-reponse.dto"
+import { Controller, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ReportResponseDto } from './dto/report-response.dto';
 import { CurrentUser } from '~/shared/current-user.decorator';
 import type { AuthenticatedUser } from '~/rest/auth/oidc-auth.service';
 import { ReportService } from './report.service';
-import { UserService } from '~/rest/user/user.service';
-
-
 
 @ApiTags('Report')
 @ApiBearerAuth()

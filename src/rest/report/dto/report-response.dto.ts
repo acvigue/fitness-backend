@@ -10,10 +10,9 @@ export class ReportResponseDto {
   @ApiPropertyOptional({ description: 'Reason For Report', example: 'They Harassed Me' })
   reason!: string | null;
 
-  @ApiProperty({ description: 'Status', example: "Banned" })
+  @ApiProperty({ description: 'Status', example: 'Banned' })
   status!: string;
 
   @ApiProperty({ description: 'Created timestamp', format: 'date-time' })
   createdAt!: Date;
-  
 }

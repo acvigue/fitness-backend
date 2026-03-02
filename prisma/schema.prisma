@@ -9,7 +9,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -22,10 +21,12 @@ model User {
 
   profile   UserProfile?
 
-  memberships OrganizationMember[]
-  report      Report[]
-  Message     Message[]
-  Groupchat   Groupchat[]
+  memberships        OrganizationMember[]
+  submittedReports   Report[]             @relation("ReportSubmitter")
+  receivedReports    Report[]             @relation("ReportedUser")
+  Message            Message[]
+  createdGroupchats  Groupchat[]          @relation("GroupchatCreator")
+  groupchatMemberships Groupchat[]        @relation("GroupchatMembers")
 
   @@map("users")
 }
@@ -100,9 +101,9 @@ enum StatusOnReport {
 
 model Report {
   id           String         @id @default(cuid())
-  reporter     User           @relation(fields: [userId1], references: [id])
+  reporter     User           @relation("ReportSubmitter", fields: [userId1], references: [id])
   userId1      String
-  reportedUser User           @relation(fields: [userId2], references: [id])
+  reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id])
   userId2      String
   reason       String?
   status       StatusOnReport @default(OPEN)
@@ -122,9 +123,9 @@ model Message {
 
 model Groupchat {
   id      String    @id @default(cuid())
-  members User[]
+  members User[]    @relation("GroupchatMembers")
   name    String
-  creator User      @relation(fields: [userId], references: [id])
+  creator User      @relation("GroupchatCreator", fields: [userId], references: [id])
   userId  String
   Message Message[]
 }

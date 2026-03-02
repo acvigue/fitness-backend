@@ -8,4 +8,4 @@ import { AuthModule } from '@/rest/auth/auth.module';
   controllers: [ReportController],
   providers: [ReportService],
 })
-export class OrganizationModule {}
+export class ReportModule {}

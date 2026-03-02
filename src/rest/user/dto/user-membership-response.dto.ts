@@ -10,7 +10,11 @@ export class UserMembershipResponseDto {
   @ApiPropertyOptional({ description: 'Organization name', example: 'Acme Corp' })
   organizationName!: string | null;
 
-  @ApiProperty({ description: 'Member role', enum: ['MEMBER', 'STAFF', 'ADMIN'], example: 'MEMBER' })
+  @ApiProperty({
+    description: 'Member role',
+    enum: ['MEMBER', 'STAFF', 'ADMIN'],
+    example: 'MEMBER',
+  })
   role!: string;
 
   @ApiProperty({ description: 'Joined timestamp', format: 'date-time' })

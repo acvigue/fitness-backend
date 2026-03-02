@@ -63,7 +63,9 @@ export class LoggerService {
 
     for (const [key, value] of Object.entries(this.contextData)) {
       if (!['requestId', 'userId', 'deviceId'].includes(key) && value !== undefined) {
-        contextParts.push(`${key}=${String(value)}`);
+        contextParts.push(
+          `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value as string | number | boolean)}`
+        );
       }
     }
 

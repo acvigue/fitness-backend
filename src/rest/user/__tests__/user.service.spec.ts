@@ -152,7 +152,7 @@ describe('UserService', () => {
 
       const result = await service.getMemberships('user-1');
 
-      expect(result[0]!.organizationName).toBeNull();
+      expect(result[0].organizationName).toBeNull();
     });
 
     it('should query with the correct userId and include organization', async () => {
