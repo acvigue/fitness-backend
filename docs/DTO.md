@@ -36,21 +36,21 @@ export class CreateExerciseDto {
 
 ### Common Validators
 
-| Decorator | Purpose |
-| --- | --- |
-| `@IsString()` | String type check |
-| `@IsNotEmpty()` | Rejects empty strings |
-| `@IsOptional()` | Allows undefined/null |
-| `@IsInt()` | Integer check |
-| `@IsEnum(MyEnum)` | Enum membership |
-| `@IsUUID()` | UUID format |
-| `@IsEmail()` | Email format |
-| `@IsDateString()` | ISO 8601 date string |
-| `@Min(n)` / `@Max(n)` | Numeric bounds |
-| `@MaxLength(n)` | String length cap |
-| `@IsArray()` + `@ArrayMinSize(n)` | Array validation |
-| `@ValidateNested({ each: true })` | Nested object validation |
-| `@Type(() => NestedDto)` | Required for nested DTOs (from `class-transformer`) |
+| Decorator                         | Purpose                                             |
+| --------------------------------- | --------------------------------------------------- |
+| `@IsString()`                     | String type check                                   |
+| `@IsNotEmpty()`                   | Rejects empty strings                               |
+| `@IsOptional()`                   | Allows undefined/null                               |
+| `@IsInt()`                        | Integer check                                       |
+| `@IsEnum(MyEnum)`                 | Enum membership                                     |
+| `@IsUUID()`                       | UUID format                                         |
+| `@IsEmail()`                      | Email format                                        |
+| `@IsDateString()`                 | ISO 8601 date string                                |
+| `@Min(n)` / `@Max(n)`             | Numeric bounds                                      |
+| `@MaxLength(n)`                   | String length cap                                   |
+| `@IsArray()` + `@ArrayMinSize(n)` | Array validation                                    |
+| `@ValidateNested({ each: true })` | Nested object validation                            |
+| `@Type(() => NestedDto)`          | Required for nested DTOs (from `class-transformer`) |
 
 ### Update DTOs
 

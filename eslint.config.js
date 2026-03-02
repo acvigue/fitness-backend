@@ -3,24 +3,35 @@ import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import prettier from 'eslint-plugin-prettier';
 
-export default tseslint.config(
-  {
-    ignores: ['node_modules/**', 'dist/**', 'src/generated/**', 'src/protobufs/**', '*.js', '*.mjs', '*.config.ts'],
-  },
+export default [
   eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintConfigPrettier,
   {
+    files: ['src/*.ts'],
     languageOptions: {
+      parser: tsparser,
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
       },
     },
     plugins: {
+      '@typescript-eslint': tseslint,
       prettier: prettier,
     },
     rules: {
+      ...tseslint.configs.recommended.rules,
+      ...prettierConfig.rules,
       'prettier/prettier': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -28,4 +39,14 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'warn',
     },
   },
-);
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'src/generated/**',
+      'src/protobufs/**',
+      '*.js',
+      '*.mjs',
+    ],
+  },
+];

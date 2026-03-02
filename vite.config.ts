@@ -27,11 +27,7 @@ export default defineConfig({
         format: 'es',
         entryFileNames: '[name].js',
       },
-      external: [
-        '@prisma/client',
-        '@prisma/adapter-pg',
-        /^@prisma\//,
-      ],
+      external: ['@prisma/client', '@prisma/adapter-pg', /^@prisma\//],
     },
     minify: true,
     sourcemap: false,

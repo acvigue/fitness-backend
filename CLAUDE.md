@@ -83,6 +83,7 @@ getProtected(@CurrentUser() user: AuthenticatedUser) { ... }
 ```
 
 The `AuthenticatedUser` type:
+
 ```typescript
 {
   sub: string;           // User ID from IdP
@@ -176,6 +177,7 @@ const items = await prisma.item.findMany();
 ### Redis
 
 Two Redis clients exported from `src/shared/utils.ts`:
+
 - `redis` — general purpose (publish, get/set)
 - `redisSub` — dedicated subscriber connection
 

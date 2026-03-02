@@ -8,5 +8,5 @@ export default mergeConfig(
       include: ['src/**/*.spec.ts'],
       environment: 'node',
     },
-  }),
+  })
 );

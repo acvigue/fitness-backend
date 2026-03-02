@@ -72,13 +72,13 @@ delete(@Param('id') id: string): Promise<void> {
 
 Use the decorators from `@/rest/common` to document error responses consistently:
 
-| Decorator | Status | When to use |
-| --- | --- | --- |
-| `@ApiCommonErrorResponses()` | 401, 500 | Every authenticated endpoint |
-| `@ApiBadRequestResponse()` | 400 | Endpoints with request bodies |
-| `@ApiNotFoundResponse()` | 404 | Endpoints with path params |
-| `@ApiForbiddenResponse()` | 403 | Endpoints with authorization checks |
-| `@ApiValidationErrorResponse()` | 422 | Endpoints with strict validation |
+| Decorator                       | Status   | When to use                         |
+| ------------------------------- | -------- | ----------------------------------- |
+| `@ApiCommonErrorResponses()`    | 401, 500 | Every authenticated endpoint        |
+| `@ApiBadRequestResponse()`      | 400      | Endpoints with request bodies       |
+| `@ApiNotFoundResponse()`        | 404      | Endpoints with path params          |
+| `@ApiForbiddenResponse()`       | 403      | Endpoints with authorization checks |
+| `@ApiValidationErrorResponse()` | 422      | Endpoints with strict validation    |
 
 `@ApiCommonErrorResponses()` applies 401 + 500 together — use it on every authenticated endpoint.
 
