@@ -17,19 +17,19 @@ type(scope): description
 
 ### Types
 
-| Type | When to use |
-|---|---|
-| `feat` | New feature or functionality |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `style` | Formatting, semicolons, etc. (no logic change) |
-| `refactor` | Code restructuring (no feature or fix) |
-| `perf` | Performance improvement |
-| `test` | Adding or updating tests |
-| `build` | Build system or dependency changes |
-| `ci` | CI/CD configuration |
-| `chore` | Maintenance tasks |
-| `revert` | Reverting a previous commit |
+| Type       | When to use                                    |
+| ---------- | ---------------------------------------------- |
+| `feat`     | New feature or functionality                   |
+| `fix`      | Bug fix                                        |
+| `docs`     | Documentation only                             |
+| `style`    | Formatting, semicolons, etc. (no logic change) |
+| `refactor` | Code restructuring (no feature or fix)         |
+| `perf`     | Performance improvement                        |
+| `test`     | Adding or updating tests                       |
+| `build`    | Build system or dependency changes             |
+| `ci`       | CI/CD configuration                            |
+| `chore`    | Maintenance tasks                              |
+| `revert`   | Reverting a previous commit                    |
 
 ### Scope
 

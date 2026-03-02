@@ -3,7 +3,6 @@ import { prisma } from '@/shared/utils';
 
 @Injectable()
 export class SessionService {
-
   async logSession(userId: string, ip: string, userAgent: string, geoLocation?: string) {
     return prisma.session.create({
       data: {

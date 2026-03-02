@@ -75,9 +75,7 @@ const mockUser = {
 vi.mock('@/shared/utils', () => ({
   prisma: {
     user: mockUser,
-    $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ user: mockUser }),
-    ),
+    $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn({ user: mockUser })),
   },
   redis: {},
   redisSub: {},
@@ -100,10 +98,7 @@ When a service depends on injected providers, supply them in the testing module:
 
 ```typescript
 const module = await Test.createTestingModule({
-  providers: [
-    MyService,
-    { provide: SomeDependency, useValue: mockDependency },
-  ],
+  providers: [MyService, { provide: SomeDependency, useValue: mockDependency }],
 }).compile();
 ```
 
@@ -113,7 +108,7 @@ Guards need a mock `ExecutionContext`. Build one that returns a mock request:
 
 ```typescript
 function createMockContext(
-  request: Record<string, unknown> & { headers: Record<string, string> },
+  request: Record<string, unknown> & { headers: Record<string, string> }
 ): ExecutionContext {
   return {
     switchToHttp: () => ({
