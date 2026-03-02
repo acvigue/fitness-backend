@@ -15,7 +15,10 @@ export class SessionController {
   }
 
   @Post(':id/revoke')
-  async revokeSession(@Param('id') sessionId: string, @CurrentUser() user: { sub: string }): Promise<number> {
+  async revokeSession(
+    @Param('id') sessionId: string,
+    @CurrentUser() user: { sub: string }
+  ): Promise<number> {
     return this.sessionService.revokeSession(sessionId, user.sub);
   }
 }

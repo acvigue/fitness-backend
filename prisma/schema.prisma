@@ -28,7 +28,7 @@ model User {
   createdGroupchats  Groupchat[]          @relation("GroupchatCreator")
   groupchatMemberships Groupchat[]        @relation("GroupchatMembers")
   
-  session Session[]
+  sessions Session[]
 
   @@map("users")
 }

@@ -13,7 +13,10 @@ export class SessionResponseDto {
   @ApiPropertyOptional({ description: 'User agent of the session', example: 'Chrome 112' })
   userAgent?: string | null;
 
-  @ApiPropertyOptional({ description: 'Approximate location of the session', example: 'New York, USA' })
+  @ApiPropertyOptional({
+    description: 'Approximate location of the session',
+    example: 'New York, USA',
+  })
   location?: string | null;
 
   @ApiProperty({ description: 'Whether the session is active', example: true })
@@ -22,6 +25,9 @@ export class SessionResponseDto {
   @ApiProperty({ description: 'Timestamp when the session was created', format: 'date-time' })
   createdAt!: Date;
 
-  @ApiPropertyOptional({ description: 'Timestamp when the session was revoked', format: 'date-time' })
+  @ApiPropertyOptional({
+    description: 'Timestamp when the session was revoked',
+    format: 'date-time',
+  })
   revokedAt?: Date | null;
 }

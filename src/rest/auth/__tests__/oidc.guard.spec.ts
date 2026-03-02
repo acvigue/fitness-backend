@@ -173,7 +173,6 @@ describe('OidcAuthGuard', () => {
     // Give the fire-and-forget promise a tick to resolve
     await new Promise((r) => setTimeout(r, 10));
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(prisma.user.upsert).toHaveBeenCalledWith({
       where: { id: 'sync-user-id' },
       create: {

@@ -5,10 +5,11 @@ import prettier from 'eslint-plugin-prettier';
 
 export default [
   eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  eslintConfigPrettier,
   {
-    files: ['src/*.ts'],
+    files: ['src/**/*.ts'],
     languageOptions: {
-      parser: tsparser,
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
@@ -26,12 +27,9 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': tseslint,
-      prettier: prettier,
+      prettier,
     },
     rules: {
-      ...tseslint.configs.recommended.rules,
-      ...prettierConfig.rules,
       'prettier/prettier': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
