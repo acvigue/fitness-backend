@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReportResponseDto } from './dto/report-response.dto';
 import { CurrentUser } from '~/shared/current-user.decorator';
@@ -11,12 +11,18 @@ import { ReportService } from './report.service';
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
   @Post()
-  @ApiOperation({ summary: 'Create a new organization' })
+  @ApiOperation({ summary: 'Create a new Report' })
   @ApiResponse({ status: 201, type: ReportResponseDto })
   create(
     @Body() dto: ReportResponseDto,
     @CurrentUser() user: AuthenticatedUser
   ): Promise<ReportResponseDto> {
     return this.reportService.create(dto, user.sub);
+  }
+  @Get('all')
+  @ApiOperation({ summary: 'Get all reports' })
+  @ApiResponse({ status: 201, type: ReportResponseDto })
+  findAll() {
+    return null;
   }
 }

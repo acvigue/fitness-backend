@@ -15,7 +15,7 @@ export class ReportService {
       throw new NotFoundException('Reported user not found');
     }
 
-    const report = await prisma.report.create({
+    const reportCopy = await prisma.report.create({
       data: {
         userId1: dto.reporterId,
         userId2: dto.reportedId,
@@ -25,11 +25,21 @@ export class ReportService {
     });
 
     return {
-      reporterId: report.userId1,
-      reportedId: report.userId2,
-      reason: report.reason,
-      status: report.status,
-      createdAt: report.createdAt,
+      reporterId: reportCopy.userId1,
+      reportedId: reportCopy.userId2,
+      reason: reportCopy.reason,
+      status: reportCopy.status,
+      createdAt: reportCopy.createdAt,
     };
+  }
+  async getAllReports(): Promise<ReportResponseDto[]> {
+    const reports = await prisma.report.findMany();
+    return reports.map((m) => ({
+      reporterId: m.userId1,
+      reportedId: m.userId2,
+      reason: m.reason,
+      status: m.status,
+      createdAt: m.createdAt,
+    }));
   }
 }

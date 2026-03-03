@@ -175,4 +175,18 @@ describe('ReportService', () => {
       expect(result.reason).toBeNull();
     });
   });
+
+  // ─── get ────────────────────────────────────────────
+  describe('get', () => {
+    it('should return null when called', async () => {
+      const result = await service.getAllReports();
+      expect(result).toEqual({
+        reporterId: 'user-1',
+        reportedId: 'user-2',
+        reason: 'Harassment',
+        status: 'OPEN',
+        createdAt: NOW,
+      });
+    });
+  });
 });
