@@ -8,6 +8,7 @@ const mockUserModel = {
 
 const mockReportModel = {
   create: vi.fn(),
+  findMany: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -178,15 +179,27 @@ describe('ReportService', () => {
 
   // ─── get ────────────────────────────────────────────
   describe('get', () => {
-    it('should return null when called', async () => {
+    it('should return all reports', async () => {
+      mockReportModel.findMany.mockResolvedValue([
+        {
+          userId1: 'user-1',
+          userId2: 'user-2',
+          reason: 'Harassment',
+          status: 'OPEN',
+          createdAt: NOW,
+        },
+      ]);
+
       const result = await service.getAllReports();
-      expect(result).toEqual({
-        reporterId: 'user-1',
-        reportedId: 'user-2',
-        reason: 'Harassment',
-        status: 'OPEN',
-        createdAt: NOW,
-      });
+      expect(result).toEqual([
+        {
+          reporterId: 'user-1',
+          reportedId: 'user-2',
+          reason: 'Harassment',
+          status: 'OPEN',
+          createdAt: NOW,
+        },
+      ]);
     });
   });
 });

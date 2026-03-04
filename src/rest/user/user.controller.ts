@@ -1,13 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
-import { ApiCommonErrorResponses } from '@/rest/common';
+import { ApiCommonErrorResponses, ApiNotFoundResponse } from '@/rest/common';
 import { UserService } from './user.service';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMembershipResponseDto } from './dto/user-membership-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
+import { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
+import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
@@ -47,5 +49,35 @@ export class UserController {
     @Body() dto: UpdateUserProfileDto
   ): Promise<UserProfileResponseDto> {
     return this.userService.updateProfile(user.sub, dto);
+  }
+
+  @Get('sessions')
+  @ApiOperation({ summary: "List current user's identity provider sessions" })
+  @ApiResponse({ status: 200, type: [KeycloakSessionResponseDto] })
+  @ApiCommonErrorResponses()
+  getSessions(@CurrentUser() user: AuthenticatedUser): Promise<KeycloakSessionResponseDto[]> {
+    return this.userService.getSessions(user.sub);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke a specific identity provider session' })
+  @ApiResponse({ status: 204, description: 'Session revoked' })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  revokeSession(
+    @Param('id') sessionId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.userService.revokeSession(sessionId, user.sub);
+  }
+
+  @Post('sessions/logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Revoke all of the current user's identity provider sessions" })
+  @ApiResponse({ status: 200, type: RevokeSessionsResponseDto })
+  @ApiCommonErrorResponses()
+  revokeAllSessions(@CurrentUser() user: AuthenticatedUser): Promise<RevokeSessionsResponseDto> {
+    return this.userService.revokeAllSessions(user.sub);
   }
 }

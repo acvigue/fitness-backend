@@ -28,6 +28,7 @@ vi.mock('@/shared/utils', () => ({
 }));
 
 const { UserService } = await import('../user.service');
+const { KeycloakAdminService } = await import('../keycloak-admin.service');
 
 const NOW = new Date('2026-01-01T00:00:00Z');
 
@@ -73,12 +74,24 @@ function mockMembership(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const mockKeycloakAdmin = {
+  getUserSessions: vi.fn(),
+  deleteSession: vi.fn(),
+  logoutAllSessions: vi.fn(),
+};
+
 describe('UserService', () => {
   let service: InstanceType<typeof UserService>;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [UserService],
+      providers: [
+        UserService,
+        {
+          provide: KeycloakAdminService,
+          useValue: mockKeycloakAdmin,
+        },
+      ],
     }).compile();
 
     service = module.get(UserService);
@@ -341,6 +354,130 @@ describe('UserService', () => {
         where: { userId: 'user-42' },
         include: { organization: true },
         orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  // ─── getSessions ────────────────────────────────────
+
+  describe('getSessions', () => {
+    it('should return mapped session DTOs', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([
+        {
+          id: 'session-1',
+          username: 'testuser',
+          userId: 'user-1',
+          ipAddress: '10.0.0.1',
+          start: 1704067200,
+          lastAccess: 1704110400,
+          clients: { 'my-app': 'My Application' },
+          transientUser: false,
+          rememberMe: true,
+        },
+      ]);
+
+      const result = await service.getSessions('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: 'session-1',
+        username: 'testuser',
+        ipAddress: '10.0.0.1',
+        startedAt: new Date(1704067200 * 1000).toISOString(),
+        lastAccessedAt: new Date(1704110400 * 1000).toISOString(),
+        clients: [{ clientId: 'my-app', clientName: 'My Application' }],
+        rememberMe: true,
+      });
+    });
+
+    it('should return empty array when no sessions exist', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([]);
+
+      const result = await service.getSessions('user-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should map multiple clients in a session', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([
+        {
+          id: 'session-1',
+          username: 'testuser',
+          userId: 'user-1',
+          ipAddress: '10.0.0.1',
+          start: 1704067200,
+          lastAccess: 1704067200,
+          clients: { account: 'Account Console', 'my-app': 'My Application' },
+          transientUser: false,
+          rememberMe: false,
+        },
+      ]);
+
+      const result = await service.getSessions('user-1');
+
+      expect(result[0].clients).toHaveLength(2);
+      expect(result[0].clients).toEqual([
+        { clientId: 'account', clientName: 'Account Console' },
+        { clientId: 'my-app', clientName: 'My Application' },
+      ]);
+    });
+
+    it('should call keycloakAdmin.getUserSessions with correct userId', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([]);
+
+      await service.getSessions('user-42');
+
+      expect(mockKeycloakAdmin.getUserSessions).toHaveBeenCalledWith('user-42');
+    });
+  });
+
+  // ─── revokeSession ────────────────────────────────────
+
+  describe('revokeSession', () => {
+    it('should delete the session when it belongs to the user', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([
+        { id: 'session-1', username: 'testuser', userId: 'user-1' },
+        { id: 'session-2', username: 'testuser', userId: 'user-1' },
+      ]);
+      mockKeycloakAdmin.deleteSession.mockResolvedValue(undefined);
+
+      await service.revokeSession('session-1', 'user-1');
+
+      expect(mockKeycloakAdmin.deleteSession).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should throw NotFoundException when session does not belong to user', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([
+        { id: 'session-1', username: 'testuser', userId: 'user-1' },
+      ]);
+
+      await expect(service.revokeSession('session-other', 'user-1')).rejects.toThrow(
+        'Session not found'
+      );
+      expect(mockKeycloakAdmin.deleteSession).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when user has no sessions', async () => {
+      mockKeycloakAdmin.getUserSessions.mockResolvedValue([]);
+
+      await expect(service.revokeSession('session-1', 'user-1')).rejects.toThrow(
+        'Session not found'
+      );
+    });
+  });
+
+  // ─── revokeAllSessions ────────────────────────────────
+
+  describe('revokeAllSessions', () => {
+    it('should call logoutAllSessions and return success', async () => {
+      mockKeycloakAdmin.logoutAllSessions.mockResolvedValue(undefined);
+
+      const result = await service.revokeAllSessions('user-1');
+
+      expect(mockKeycloakAdmin.logoutAllSessions).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual({
+        success: true,
+        message: 'All sessions have been revoked',
       });
     });
   });
