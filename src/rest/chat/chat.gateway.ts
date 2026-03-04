@@ -8,7 +8,6 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { AsyncApiPub, AsyncApiSub } from 'nestjs-asyncapi';
 import type { Server, Socket } from 'socket.io';
 import { OidcAuthService, type AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { ChatService } from './chat.service';
@@ -98,10 +97,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ─── Events ─────────────────────────────────────────────
 
   @SubscribeMessage('send_message')
-  @AsyncApiPub({
-    channel: 'send_message',
-    message: { payload: WsSendMessageDto },
-  })
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: WsSendMessageDto
@@ -131,19 +126,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
   }
 
-  @AsyncApiSub({
-    channel: 'new_message',
-    message: { payload: MessageResponseDto },
-  })
   emitNewMessage(message: MessageResponseDto): void {
     this.server.to(`chat:${message.chatId}`).emit('new_message', message);
   }
 
   @SubscribeMessage('join_chat')
-  @AsyncApiPub({
-    channel: 'join_chat',
-    message: { payload: WsJoinChatDto },
-  })
   async handleJoinChat(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: WsJoinChatDto
@@ -168,10 +155,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   @SubscribeMessage('typing_start')
-  @AsyncApiPub({
-    channel: 'typing_start',
-    message: { payload: WsTypingDto },
-  })
   handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: WsTypingDto
@@ -185,19 +168,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     client.to(`chat:${payload.chatId}`).emit('typing_start', event);
   }
 
-  @AsyncApiSub({
-    channel: 'typing_start',
-    message: { payload: WsTypingEventDto },
-  })
-  private _typingStartDoc(): void {
-    // AsyncAPI documentation anchor for the typing_start broadcast
-  }
-
   @SubscribeMessage('typing_stop')
-  @AsyncApiPub({
-    channel: 'typing_stop',
-    message: { payload: WsTypingDto },
-  })
   handleTypingStop(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: WsTypingDto
@@ -208,14 +179,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       userId: client.data.user.sub,
     };
     client.to(`chat:${payload.chatId}`).emit('typing_stop', event);
-  }
-
-  @AsyncApiSub({
-    channel: 'typing_stop',
-    message: { payload: WsTypingStopEventDto },
-  })
-  private _typingStopDoc(): void {
-    // AsyncAPI documentation anchor for the typing_stop broadcast
   }
 
   // ─── Redis Pub/Sub ──────────────────────────────────────
