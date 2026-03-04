@@ -64,8 +64,10 @@ COPY . .
 RUN --mount=type=cache,id=build,target=/app/node_modules/.cache \
     pnpm run build
 
-# Prune dev dependencies
-RUN pnpm prune --prod
+# Remove dev dependencies with a clean production install
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile --ignore-scripts --prod
 
 # ============================================
 # Stage 3: Runner
