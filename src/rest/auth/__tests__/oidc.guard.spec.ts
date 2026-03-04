@@ -26,6 +26,7 @@ function createMockContext(
   _isPublic = false
 ): { context: ExecutionContext; reflectorSpy: null } {
   const context = {
+    getType: () => 'http',
     switchToHttp: () => ({
       getRequest: () => request,
     }),

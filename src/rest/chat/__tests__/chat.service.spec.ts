@@ -23,7 +23,7 @@ vi.mock('@/shared/utils', () => ({
     message: mockMessageModel,
     user: mockUserModel,
   },
-  redis: {},
+  redis: { publish: vi.fn() },
   redisSub: {},
 }));
 

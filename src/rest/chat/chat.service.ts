@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { prisma } from '@/shared/utils';
+import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
 import type { ChatResponseDto } from './dto/chat-response.dto';
 import type { MessageResponseDto } from './dto/message-response.dto';
@@ -151,10 +151,7 @@ export class ChatService {
       include: { sender: { select: MEMBER_SELECT } },
     });
 
-    // TODO: Publish to Redis for real-time delivery
-    // await redis.publish(`chat:${dto.chatId}`, JSON.stringify(response));
-
-    return {
+    const response: MessageResponseDto = {
       id: message.id,
       chatId: message.chatId,
       sender: message.sender,
@@ -164,5 +161,9 @@ export class ChatService {
       read: message.read,
       createdAt: message.createdAt,
     };
+
+    await redis.publish('chat:messages', JSON.stringify(response));
+
+    return response;
   }
 }
