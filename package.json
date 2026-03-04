@@ -15,7 +15,8 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "prepare": "husky",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed": "vite-node prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

@@ -12,6 +12,7 @@ import { ChatService } from './chat.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { ChatResponseDto } from './dto/chat-response.dto';
 import { ChatHistoryResponseDto } from './dto/chat-history-response.dto';
+import { UserChatResponseDto } from './dto/user-chat-response.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { chatPaginationSchema, type ChatPaginationParams } from './dto/chat-history-query.dto';
@@ -21,6 +22,14 @@ import { chatPaginationSchema, type ChatPaginationParams } from './dto/chat-hist
 @Controller({ path: 'chats', version: '1' })
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all chats for the authenticated user' })
+  @ApiResponse({ status: 200, type: [UserChatResponseDto] })
+  @ApiCommonErrorResponses()
+  getUserChats(@CurrentUser() user: AuthenticatedUser): Promise<UserChatResponseDto[]> {
+    return this.chatService.getUserChats(user.sub);
+  }
 
   @Post('create')
   @ApiOperation({ summary: 'Create a new chat (1-to-1 or group)' })

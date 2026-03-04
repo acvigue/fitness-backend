@@ -9,6 +9,7 @@ import { paginate } from '@/rest/common/pagination';
 import type { ChatResponseDto } from './dto/chat-response.dto';
 import type { MessageResponseDto } from './dto/message-response.dto';
 import type { ChatHistoryResponseDto } from './dto/chat-history-response.dto';
+import type { UserChatResponseDto } from './dto/user-chat-response.dto';
 import type { CreateChatDto } from './dto/create-chat.dto';
 import type { SendMessageDto } from './dto/send-message.dto';
 import type { ChatPaginationParams } from './dto/chat-history-query.dto';
@@ -17,6 +18,45 @@ const MEMBER_SELECT = { id: true, username: true, name: true } as const;
 
 @Injectable()
 export class ChatService {
+  async getUserChats(userId: string): Promise<UserChatResponseDto[]> {
+    const chats = await prisma.chat.findMany({
+      where: { members: { some: { id: userId } } },
+      include: {
+        members: { select: MEMBER_SELECT },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { sender: { select: MEMBER_SELECT } },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return chats.map((chat) => {
+      const lastMsg = chat.messages[0] ?? null;
+      return {
+        id: chat.id,
+        type: chat.type,
+        name: chat.name,
+        creatorId: chat.creatorId,
+        members: chat.members,
+        createdAt: chat.createdAt,
+        lastMessage: lastMsg
+          ? {
+              id: lastMsg.id,
+              chatId: lastMsg.chatId,
+              sender: lastMsg.sender,
+              content: lastMsg.content,
+              type: lastMsg.type,
+              mediaUrl: lastMsg.mediaUrl,
+              read: lastMsg.read,
+              createdAt: lastMsg.createdAt,
+            }
+          : null,
+      };
+    });
+  }
+
   async createChat(dto: CreateChatDto, creatorId: string): Promise<ChatResponseDto> {
     const uniqueRecipientIds = [...new Set(dto.recipientIds.filter((id) => id !== creatorId))];
 
