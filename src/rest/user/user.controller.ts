@@ -1,8 +1,8 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
-import { ApiCommonErrorResponses, ApiNotFoundResponse } from '@/rest/common';
+import { ApiCommonErrorResponses, ApiBadRequestResponse, ApiNotFoundResponse } from '@/rest/common';
 import { UserService } from './user.service';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMembershipResponseDto } from './dto/user-membership-response.dto';
@@ -10,6 +10,8 @@ import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
 import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
+import { UserLookupQueryDto } from './dto/user-lookup-query.dto';
+import { UserLookupResponseDto } from './dto/user-lookup-response.dto';
 import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
@@ -17,6 +19,18 @@ import { Body, Patch } from '@nestjs/common';
 @Controller({ path: 'user', version: '1' })
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @Get('lookup')
+  @ApiOperation({ summary: 'Search users by email, name, or username' })
+  @ApiResponse({ status: 200, type: UserLookupResponseDto })
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  lookupUsers(
+    @Query() query: UserLookupQueryDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<UserLookupResponseDto> {
+    return this.userService.lookupUsers(query.q, user.sub);
+  }
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user information' })

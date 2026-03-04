@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 
 const mockUser = {
   upsert: vi.fn(),
+  findMany: vi.fn(),
 };
 
 const mockUserProfile = {
@@ -479,6 +480,80 @@ describe('UserService', () => {
         success: true,
         message: 'All sessions have been revoked',
       });
+    });
+  });
+
+  // ─── lookupUsers ────────────────────────────────────────
+
+  describe('lookupUsers', () => {
+    it('should return matching users excluding the current user', async () => {
+      mockUser.findMany.mockResolvedValue([
+        { id: 'user-2', username: 'jane', name: 'Jane Doe', email: 'jane@example.com' },
+      ]);
+
+      const result = await service.lookupUsers('jane', 'user-1');
+
+      expect(result.users).toHaveLength(1);
+      expect(result.users[0]).toEqual({
+        id: 'user-2',
+        username: 'jane',
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+      });
+    });
+
+    it('should pass correct query with case-insensitive search', async () => {
+      mockUser.findMany.mockResolvedValue([]);
+
+      await service.lookupUsers('John', 'user-1');
+
+      expect(mockUser.findMany).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            { id: { not: 'user-1' } },
+            {
+              OR: [
+                { email: { contains: 'John', mode: 'insensitive' } },
+                { name: { contains: 'John', mode: 'insensitive' } },
+                { username: { contains: 'John', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+        select: { id: true, username: true, name: true, email: true },
+        take: 20,
+        orderBy: { name: 'asc' },
+      });
+    });
+
+    it('should return empty array when no users match', async () => {
+      mockUser.findMany.mockResolvedValue([]);
+
+      const result = await service.lookupUsers('nonexistent', 'user-1');
+
+      expect(result.users).toEqual([]);
+    });
+
+    it('should trim the search query', async () => {
+      mockUser.findMany.mockResolvedValue([]);
+
+      await service.lookupUsers('  john  ', 'user-1');
+
+      expect(mockUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: expect.arrayContaining([
+              {
+                OR: [
+                  { email: { contains: 'john', mode: 'insensitive' } },
+                  { name: { contains: 'john', mode: 'insensitive' } },
+                  { username: { contains: 'john', mode: 'insensitive' } },
+                ],
+              },
+            ]),
+          }),
+        })
+      );
     });
   });
 });

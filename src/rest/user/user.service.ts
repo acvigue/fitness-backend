@@ -7,6 +7,7 @@ import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import type { UserMembershipResponseDto } from './dto/user-membership-response.dto';
 import type { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
 import type { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
+import type { UserLookupResponseDto } from './dto/user-lookup-response.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
 
 @Injectable()
@@ -148,5 +149,36 @@ export class UserService {
   async revokeAllSessions(userId: string): Promise<RevokeSessionsResponseDto> {
     await this.keycloakAdmin.logoutAllSessions(userId);
     return { success: true, message: 'All sessions have been revoked' };
+  }
+
+  async lookupUsers(query: string, currentUserId: string): Promise<UserLookupResponseDto> {
+    const searchTerm = query.trim();
+
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: currentUserId } },
+          {
+            OR: [
+              { email: { contains: searchTerm, mode: 'insensitive' } },
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { username: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          },
+        ],
+      },
+      select: { id: true, username: true, name: true, email: true },
+      take: 20,
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      users: users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        email: u.email,
+      })),
+    };
   }
 }
