@@ -83,7 +83,9 @@ COPY --from=deps /package /package
 
 # Install runtime dependencies
 RUN apk add --no-cache openssl && \
-    rm -rf /var/cache/apk/*
+    rm -rf /var/cache/apk/* && \
+    mkdir -p /home/node/.npm && \
+    chown -R node:node /home/node/.npm
 
 # Copy application files from build stage
 COPY --from=build --chown=node:node /app/dist ./dist
@@ -98,6 +100,7 @@ COPY --chown=node:node --chmod=755 docker/run-migrations.sh /app/docker/run-migr
 
 # s6 runs as root but drops to node user for services
 ENV NODE_ENV=production
+ENV npm_config_cache=/home/node/.npm
 ENV S6_CMD_WAIT_FOR_SERVICES_MAXTIME=30000
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 ENV S6_KILL_FINISH_MAXTIME=5000
