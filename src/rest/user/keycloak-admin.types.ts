@@ -15,3 +15,7 @@ export type KeycloakSessionRaw = {
   transientUser: boolean;
   rememberMe: boolean;
 };
+
+export type KeycloakSessionTagged = KeycloakSessionRaw & {
+  offline: boolean;
+};

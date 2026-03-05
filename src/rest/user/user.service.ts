@@ -8,6 +8,7 @@ import type { UserMembershipResponseDto } from './dto/user-membership-response.d
 import type { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
 import type { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import type { UserLookupResponseDto } from './dto/user-lookup-response.dto';
+import type { EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
 
 @Injectable()
@@ -118,36 +119,63 @@ export class UserService {
     }));
   }
 
-  async getSessions(userId: string): Promise<KeycloakSessionResponseDto[]> {
+  async getSessions(
+    userId: string,
+    currentSessionId?: string
+  ): Promise<KeycloakSessionResponseDto[]> {
     const sessions = await this.keycloakAdmin.getUserSessions(userId);
 
-    return sessions.map((s) => ({
-      id: s.id,
-      username: s.username,
-      ipAddress: s.ipAddress,
-      startedAt: new Date(s.start * 1000).toISOString(),
-      lastAccessedAt: new Date(s.lastAccess * 1000).toISOString(),
-      clients: Object.entries(s.clients).map(([clientId, clientName]) => ({
-        clientId,
-        clientName,
-      })),
-      rememberMe: s.rememberMe,
-    }));
+    const enriched = await Promise.all(
+      sessions.map(async (s) => {
+        const hasToken = s.offline ? await this.keycloakAdmin.hasRefreshToken(s.id) : false;
+        return {
+          id: s.id,
+          username: s.username,
+          ipAddress: s.ipAddress,
+          startedAt: new Date(s.start).toISOString(),
+          lastAccessedAt: new Date(s.lastAccess).toISOString(),
+          clients: Object.entries(s.clients).map(([clientId, clientName]) => ({
+            clientId,
+            clientName,
+          })),
+          rememberMe: s.rememberMe,
+          offline: s.offline,
+          revocable: !s.offline || hasToken,
+          thisSession: s.id === currentSessionId,
+        };
+      })
+    );
+
+    return enriched;
+  }
+
+  async enrichSession(sessionId: string, refreshToken: string): Promise<EnrichSessionResponseDto> {
+    await this.keycloakAdmin.storeRefreshToken(sessionId, refreshToken);
+    return { success: true, sessionId };
   }
 
   async revokeSession(sessionId: string, userId: string): Promise<void> {
     const sessions = await this.keycloakAdmin.getUserSessions(userId);
-    const owned = sessions.some((s) => s.id === sessionId);
+    const session = sessions.find((s) => s.id === sessionId);
 
-    if (!owned) {
+    if (!session) {
       throw new NotFoundException('Session not found');
     }
 
-    await this.keycloakAdmin.deleteSession(sessionId);
+    if (session.offline) {
+      await this.keycloakAdmin.revokeSessionByToken(sessionId);
+    } else {
+      await this.keycloakAdmin.deleteSession(sessionId);
+    }
   }
 
   async revokeAllSessions(userId: string): Promise<RevokeSessionsResponseDto> {
+    const sessions = await this.keycloakAdmin.getUserSessions(userId);
     await this.keycloakAdmin.logoutAllSessions(userId);
+
+    // Blacklist all session IDs so in-flight access tokens are rejected
+    await Promise.all(sessions.map((s) => this.keycloakAdmin.blacklistSession(s.id)));
+
     return { success: true, message: 'All sessions have been revoked' };
   }
 

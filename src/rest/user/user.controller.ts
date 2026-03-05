@@ -1,4 +1,14 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
@@ -12,6 +22,7 @@ import { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto'
 import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import { UserLookupQueryDto } from './dto/user-lookup-query.dto';
 import { UserLookupResponseDto } from './dto/user-lookup-response.dto';
+import { EnrichSessionDto, EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
@@ -65,12 +76,30 @@ export class UserController {
     return this.userService.updateProfile(user.sub, dto);
   }
 
+  @Post('sessions/enrich')
+  @ApiOperation({
+    summary: 'Store refresh token for the current session to enable offline session revocation',
+  })
+  @ApiResponse({ status: 201, type: EnrichSessionResponseDto })
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  enrichSession(
+    @Body() dto: EnrichSessionDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<EnrichSessionResponseDto> {
+    const sessionId = user.payload.sid as string | undefined;
+    if (!sessionId) {
+      throw new BadRequestException('No session ID (sid) found in access token');
+    }
+    return this.userService.enrichSession(sessionId, dto.refreshToken);
+  }
+
   @Get('sessions')
   @ApiOperation({ summary: "List current user's identity provider sessions" })
   @ApiResponse({ status: 200, type: [KeycloakSessionResponseDto] })
   @ApiCommonErrorResponses()
   getSessions(@CurrentUser() user: AuthenticatedUser): Promise<KeycloakSessionResponseDto[]> {
-    return this.userService.getSessions(user.sub);
+    return this.userService.getSessions(user.sub, user.payload.sid as string | undefined);
   }
 
   @Delete('sessions/:id')

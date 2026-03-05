@@ -32,4 +32,13 @@ export class KeycloakSessionResponseDto {
 
   @ApiProperty({ description: 'Whether "remember me" was used', example: false })
   rememberMe!: boolean;
+
+  @ApiProperty({ description: 'Whether this is an offline session', example: false })
+  offline!: boolean;
+
+  @ApiProperty({ description: 'Whether this session can be individually revoked', example: true })
+  revocable!: boolean;
+
+  @ApiProperty({ description: 'Whether this is the session making the request', example: false })
+  thisSession!: boolean;
 }
