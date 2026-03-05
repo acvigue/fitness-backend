@@ -1,29 +1,30 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 
 export class UserProfilePictureDto {
-  @ApiProperty()
-  id: string;
+  @ApiProperty({ description: 'Picture ID', example: 'clr1abc2d0000' })
+  id!: string;
 
-  @ApiProperty()
-  url: string;
+  @ApiProperty({ description: 'Picture URL', example: 'https://example.com/photo.jpg' })
+  url!: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({ description: 'Alt text', example: 'Profile photo' })
   alt?: string;
 
-  @ApiProperty()
-  isPrimary: boolean;
+  @ApiProperty({ description: 'Whether this is the primary picture', example: true })
+  isPrimary!: boolean;
 }
 
 export class UserProfileResponseDto {
-  @ApiProperty()
-  userId: string;
+  @ApiProperty({ description: 'User ID', example: 'auth0|507f1f77bcf86cd799439011' })
+  userId!: string;
 
-  @ApiProperty({ required: false })
-  bio?: string;
+  @ApiPropertyOptional({ description: 'User bio', example: 'Fitness enthusiast' })
+  bio!: string | null;
 
-  @ApiProperty({ type: [String] })
-  favoriteSports: string[];
+  @ApiProperty({ type: [SportResponseDto], description: 'Favorite sports' })
+  favoriteSports!: SportResponseDto[];
 
-  @ApiProperty({ type: [UserProfilePictureDto] })
-  pictures: UserProfilePictureDto[];
+  @ApiProperty({ type: [UserProfilePictureDto], description: 'Profile pictures' })
+  pictures!: UserProfilePictureDto[];
 }

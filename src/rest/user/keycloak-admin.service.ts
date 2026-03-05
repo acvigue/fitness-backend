@@ -87,14 +87,22 @@ export class KeycloakAdminService {
     return this.cachedToken;
   }
 
-  private async adminRequest<T>(method: string, path: string): Promise<T | null> {
+  private async adminRequest<T>(
+    method: string,
+    path: string,
+    body?: Record<string, unknown>
+  ): Promise<T | null> {
     const token = await this.getAdminToken();
+
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (body) headers['Content-Type'] = 'application/json';
 
     let response: Response;
     try {
       response = await fetch(`${this.adminBaseUrl}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
       });
     } catch {
       this.logger.error(`Failed to reach Keycloak admin endpoint: ${method} ${path}`);
@@ -196,5 +204,17 @@ export class KeycloakAdminService {
 
   async logoutAllSessions(userId: string): Promise<void> {
     await this.adminRequest('POST', `/users/${userId}/logout`);
+  }
+
+  async disableUser(userId: string): Promise<void> {
+    await this.adminRequest('PUT', `/users/${userId}`, { enabled: false });
+  }
+
+  async enableUser(userId: string): Promise<void> {
+    await this.adminRequest('PUT', `/users/${userId}`, { enabled: true });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.adminRequest('DELETE', `/users/${userId}`);
   }
 }

@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, MaxLength, IsOptional, IsArray } from 'class-validator';
 
 export class SendMessageDto {
   @ApiProperty({ description: 'Chat ID to send the message to', example: 'clr1abc2d0000' })
@@ -12,4 +12,14 @@ export class SendMessageDto {
   @IsNotEmpty()
   @MaxLength(5000)
   content!: string;
+
+  @ApiPropertyOptional({
+    description: 'List of media asset IDs to attach (uploaded via /v1/utils/media-upload)',
+    example: ['cm1abc123def456'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mediaIds?: string[];
 }

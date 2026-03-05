@@ -23,6 +23,8 @@ import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import { UserLookupQueryDto } from './dto/user-lookup-query.dto';
 import { UserLookupResponseDto } from './dto/user-lookup-response.dto';
 import { EnrichSessionDto, EnrichSessionResponseDto } from './dto/enrich-session.dto';
+import { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
+import { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
 import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
@@ -122,5 +124,25 @@ export class UserController {
   @ApiCommonErrorResponses()
   revokeAllSessions(@CurrentUser() user: AuthenticatedUser): Promise<RevokeSessionsResponseDto> {
     return this.userService.revokeAllSessions(user.sub);
+  }
+
+  @Post('me/deactivate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deactivate current user account' })
+  @ApiResponse({ status: 200, type: DeactivateAccountResponseDto })
+  @ApiCommonErrorResponses()
+  deactivateAccount(
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<DeactivateAccountResponseDto> {
+    return this.userService.deactivateAccount(user.sub);
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Permanently delete current user account' })
+  @ApiResponse({ status: 200, type: DeleteAccountResponseDto })
+  @ApiCommonErrorResponses()
+  deleteAccount(@CurrentUser() user: AuthenticatedUser): Promise<DeleteAccountResponseDto> {
+    return this.userService.deleteAccount(user.sub);
   }
 }

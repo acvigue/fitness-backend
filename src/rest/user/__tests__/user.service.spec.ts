@@ -49,7 +49,10 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
   return {
     userId: 'user-1',
     bio: 'Hello world',
-    favoriteSports: ['basketball', 'tennis'],
+    favoriteSports: [
+      { id: 'sport-1', name: 'Basketball', icon: '🏀' },
+      { id: 'sport-2', name: 'Tennis', icon: '🎾' },
+    ],
     pictures: [],
     createdAt: NOW,
     updatedAt: NOW,
@@ -148,7 +151,7 @@ describe('UserService', () => {
       expect(mockUserProfile.upsert).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
         update: {},
-        create: { userId: 'user-1', bio: null, favoriteSports: [] },
+        create: { userId: 'user-1', bio: null },
       });
     });
 
@@ -183,7 +186,10 @@ describe('UserService', () => {
       expect(result).toEqual({
         userId: 'user-1',
         bio: 'Hello world',
-        favoriteSports: ['basketball', 'tennis'],
+        favoriteSports: [
+          { id: 'sport-1', name: 'Basketball', icon: '🏀' },
+          { id: 'sport-2', name: 'Tennis', icon: '🎾' },
+        ],
         pictures: [
           { id: 'pic-1', url: 'https://example.com/pic.jpg', alt: 'Photo', isPrimary: true },
         ],
@@ -214,7 +220,7 @@ describe('UserService', () => {
 
       expect(mockUserProfile.create).toHaveBeenCalledWith({
         data: { userId: 'user-1' },
-        include: { pictures: true },
+        include: { pictures: true, favoriteSports: true },
       });
       expect(result.userId).toBe('user-1');
       expect(result.pictures).toEqual([]);
@@ -227,7 +233,7 @@ describe('UserService', () => {
 
       expect(mockUserProfile.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-42' },
-        include: { pictures: true },
+        include: { pictures: true, favoriteSports: true },
       });
     });
   });
@@ -238,16 +244,19 @@ describe('UserService', () => {
     it('should ensure profile exists and update it', async () => {
       mockUserProfile.upsert.mockResolvedValue({});
       mockUserProfile.update.mockResolvedValue(
-        mockProfile({ bio: 'Updated bio', favoriteSports: ['soccer'] })
+        mockProfile({
+          bio: 'Updated bio',
+          favoriteSports: [{ id: 'sport-3', name: 'Soccer', icon: '⚽' }],
+        })
       );
 
       const result = await service.updateProfile('user-1', {
         bio: 'Updated bio',
-        favoriteSports: ['soccer'],
+        favoriteSportIds: ['sport-3'],
       });
 
       expect(result.bio).toBe('Updated bio');
-      expect(result.favoriteSports).toEqual(['soccer']);
+      expect(result.favoriteSports).toEqual([{ id: 'sport-3', name: 'Soccer', icon: '⚽' }]);
     });
 
     it('should upsert profile before updating to ensure it exists', async () => {
@@ -269,13 +278,16 @@ describe('UserService', () => {
 
       await service.updateProfile('user-1', {
         bio: 'New bio',
-        favoriteSports: ['running'],
+        favoriteSportIds: ['sport-1'],
       });
 
       expect(mockUserProfile.update).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        data: { bio: 'New bio', favoriteSports: ['running'] },
-        include: { pictures: true },
+        data: {
+          bio: 'New bio',
+          favoriteSports: { set: [{ id: 'sport-1' }] },
+        },
+        include: { pictures: true, favoriteSports: true },
       });
     });
 
@@ -289,7 +301,7 @@ describe('UserService', () => {
 
       const result = await service.updateProfile('user-1', { bio: 'test' });
 
-      expect(result.pictures[0].alt).toBeUndefined();
+      expect(result.pictures[0]!.alt).toBeUndefined();
     });
   });
 

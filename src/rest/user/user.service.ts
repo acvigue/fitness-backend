@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { UserResponseDto } from './dto/user-response.dto';
@@ -9,22 +9,33 @@ import type { KeycloakSessionResponseDto } from './dto/keycloak-session-response
 import type { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import type { UserLookupResponseDto } from './dto/user-lookup-response.dto';
 import type { EnrichSessionResponseDto } from './dto/enrich-session.dto';
+import type { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
+import type { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
 
 @Injectable()
 export class UserService {
   constructor(private readonly keycloakAdmin: KeycloakAdminService) {}
   async getOrCreateMe(user: AuthenticatedUser): Promise<UserResponseDto> {
+    const existing = await prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { active: true },
+    });
+
     await prisma.user.upsert({
       where: { id: user.sub },
-      update: { email: user.email, name: user.name, username: user.username },
+      update: { email: user.email, name: user.name, username: user.username, active: true },
       create: { id: user.sub, email: user.email, name: user.name, username: user.username },
     });
+
+    if (existing && !existing.active) {
+      await this.keycloakAdmin.enableUser(user.sub);
+    }
 
     await prisma.userProfile.upsert({
       where: { userId: user.sub },
       update: {},
-      create: { userId: user.sub, bio: null, favoriteSports: [] },
+      create: { userId: user.sub, bio: null },
     });
 
     return {
@@ -39,18 +50,21 @@ export class UserService {
   async getProfile(userId: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
-      include: { pictures: true },
+      include: { pictures: true, favoriteSports: true },
     });
 
     if (!profile) {
-      // Auto‑create profile if it doesn't exist (optional)
       return this.createProfile(userId);
     }
 
     return {
       userId: profile.userId,
       bio: profile.bio,
-      favoriteSports: profile.favoriteSports,
+      favoriteSports: profile.favoriteSports.map((s) => ({
+        id: s.id,
+        name: s.name,
+        icon: s.icon,
+      })),
       pictures: profile.pictures.map((p) => ({
         id: p.id,
         url: p.url,
@@ -68,19 +82,58 @@ export class UserService {
       create: { userId },
     });
 
+    const data: Record<string, unknown> = {};
+    if (dto.bio !== undefined) data.bio = dto.bio;
+    if (dto.favoriteSportIds !== undefined) {
+      data.favoriteSports = {
+        set: dto.favoriteSportIds.map((id) => ({ id })),
+      };
+    }
+
+    if (dto.pictureIds !== undefined) {
+      const uniqueIds = [...new Set(dto.pictureIds)];
+
+      // Resolve IDs from both media and existing profile pictures
+      const [media, existingPictures] = await Promise.all([
+        prisma.media.findMany({ where: { id: { in: uniqueIds }, userId } }),
+        prisma.userProfilePicture.findMany({ where: { id: { in: uniqueIds }, userId } }),
+      ]);
+
+      const resolvedUrls = new Map<string, string>();
+      for (const m of media) resolvedUrls.set(m.id, m.url);
+      for (const p of existingPictures) resolvedUrls.set(p.id, p.url);
+
+      const unresolved = uniqueIds.filter((id) => !resolvedUrls.has(id));
+      if (unresolved.length > 0) {
+        throw new BadRequestException(
+          'One or more picture IDs are invalid or do not belong to you'
+        );
+      }
+
+      await prisma.userProfilePicture.deleteMany({ where: { userId } });
+      await prisma.userProfilePicture.createMany({
+        data: dto.pictureIds.map((id, index) => ({
+          userId,
+          url: resolvedUrls.get(id) as string,
+          isPrimary: index === 0,
+        })),
+      });
+    }
+
     const updated = await prisma.userProfile.update({
       where: { userId },
-      data: {
-        bio: dto.bio,
-        favoriteSports: dto.favoriteSports,
-      },
-      include: { pictures: true },
+      data,
+      include: { pictures: true, favoriteSports: true },
     });
 
     return {
       userId: updated.userId,
       bio: updated.bio,
-      favoriteSports: updated.favoriteSports,
+      favoriteSports: updated.favoriteSports.map((s) => ({
+        id: s.id,
+        name: s.name,
+        icon: s.icon,
+      })),
       pictures: updated.pictures.map((p) => ({
         id: p.id,
         url: p.url,
@@ -93,12 +146,12 @@ export class UserService {
   private async createProfile(userId: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.create({
       data: { userId },
-      include: { pictures: true },
+      include: { pictures: true, favoriteSports: true },
     });
     return {
       userId: profile.userId,
       bio: profile.bio,
-      favoriteSports: profile.favoriteSports,
+      favoriteSports: [],
       pictures: [],
     };
   }
@@ -186,6 +239,7 @@ export class UserService {
       where: {
         AND: [
           { id: { not: currentUserId } },
+          { active: true },
           {
             OR: [
               { email: { contains: searchTerm, mode: 'insensitive' } },
@@ -208,5 +262,24 @@ export class UserService {
         email: u.email,
       })),
     };
+  }
+
+  async deactivateAccount(userId: string): Promise<DeactivateAccountResponseDto> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { active: false },
+    });
+
+    await this.keycloakAdmin.disableUser(userId);
+    await this.keycloakAdmin.logoutAllSessions(userId);
+
+    return { success: true, message: 'Account has been deactivated' };
+  }
+
+  async deleteAccount(userId: string): Promise<DeleteAccountResponseDto> {
+    await prisma.user.delete({ where: { id: userId } });
+    await this.keycloakAdmin.deleteUser(userId);
+
+    return { success: true, message: 'Account has been permanently deleted' };
   }
 }

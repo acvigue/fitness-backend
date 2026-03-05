@@ -16,6 +16,7 @@ model User {
   email     String?
   name      String?
   username  String?
+  active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -55,14 +56,24 @@ model UserProfile {
   userId String @id @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  bio            String?   @db.Text
-  favoriteSports String[]  @default([])
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  bio       String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  pictures UserProfilePicture[]
+  pictures       UserProfilePicture[]
+  favoriteSports Sport[]              @relation("UserFavoriteSports")
 
   @@map("user_profiles")
+}
+
+model Sport {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique
+  icon String?
+
+  profiles UserProfile[] @relation("UserFavoriteSports")
+
+  @@map("sports")
 }
 
 model UserProfilePicture {
@@ -156,6 +167,21 @@ model Chat {
   @@map("chats")
 }
 
+model Media {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  key       String    @unique
+  url       String
+  mimeType  String    @map("mime_type")
+  size      Int
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  messages  Message[] @relation("MessageMedia")
+
+  @@index([userId])
+  @@map("media")
+}
+
 model Message {
   id       String      @id @default(cuid())
   chatId   String      @map("chat_id")
@@ -165,6 +191,7 @@ model Message {
   content  String
   type     MessageType @default(TEXT)
   mediaUrl String?     @map("media_url")
+  media    Media[]     @relation("MessageMedia")
   read     Boolean     @default(false)
   createdAt DateTime   @default(now()) @map("created_at")
 

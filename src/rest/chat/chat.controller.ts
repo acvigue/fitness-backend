@@ -16,6 +16,8 @@ import { UserChatResponseDto } from './dto/user-chat-response.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { chatPaginationSchema, type ChatPaginationParams } from './dto/chat-history-query.dto';
+import { searchMessagesSchema, type SearchMessagesParams } from './dto/search-messages-query.dto';
+import { SearchMessagesResponseDto } from './dto/search-messages-response.dto';
 
 @ApiTags('Chats')
 @ApiBearerAuth()
@@ -56,6 +58,22 @@ export class ChatController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<ChatHistoryResponseDto> {
     return this.chatService.getHistory(chatId, user.sub, pagination);
+  }
+
+  @Get('search/:chatId')
+  @ApiOperation({ summary: 'Search messages in a chat thread' })
+  @ApiResponse({ status: 200, type: SearchMessagesResponseDto })
+  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20, description: 'Max results (1-50)' })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 50, description: 'Page size used by history endpoint (for page calculation)' })
+  @ApiForbiddenResponse()
+  @ApiCommonErrorResponses()
+  searchMessages(
+    @Param('chatId') chatId: string,
+    @Query(new ZodValidationPipe(searchMessagesSchema)) params: SearchMessagesParams,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<SearchMessagesResponseDto> {
+    return this.chatService.searchMessages(chatId, user.sub, params);
   }
 
   @Post('send-message')

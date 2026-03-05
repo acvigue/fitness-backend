@@ -115,7 +115,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     try {
       const message = await this.chatService.sendMessage(
-        { chatId: payload.chatId, content: payload.content },
+        { chatId: payload.chatId, content: payload.content, mediaIds: payload.mediaIds },
         user.sub
       );
 
