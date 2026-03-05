@@ -131,9 +131,7 @@ export class UserController {
   @ApiOperation({ summary: 'Deactivate current user account' })
   @ApiResponse({ status: 200, type: DeactivateAccountResponseDto })
   @ApiCommonErrorResponses()
-  deactivateAccount(
-    @CurrentUser() user: AuthenticatedUser
-  ): Promise<DeactivateAccountResponseDto> {
+  deactivateAccount(@CurrentUser() user: AuthenticatedUser): Promise<DeactivateAccountResponseDto> {
     return this.userService.deactivateAccount(user.sub);
   }
 

@@ -20,10 +20,7 @@ const ALLOWED_MIME_TYPES = new Set([
 
 @Injectable()
 export class UtilsService {
-  async uploadMedia(
-    file: Express.Multer.File,
-    userId: string
-  ): Promise<MediaUploadResponseDto> {
+  async uploadMedia(file: Express.Multer.File, userId: string): Promise<MediaUploadResponseDto> {
     if (!file) {
       throw new BadRequestException('No file provided');
     }

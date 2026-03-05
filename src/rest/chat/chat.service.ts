@@ -198,9 +198,7 @@ export class ChatService {
 
     // Resolve media attachments
     let messageType: 'TEXT' | 'IMAGE' | 'VIDEO' | 'FILE' = 'TEXT';
-    const mediaConnect = dto.mediaIds?.length
-      ? dto.mediaIds.map((id) => ({ id }))
-      : undefined;
+    const mediaConnect = dto.mediaIds?.length ? dto.mediaIds.map((id) => ({ id })) : undefined;
 
     if (dto.mediaIds?.length) {
       const mediaRecords = await prisma.media.findMany({

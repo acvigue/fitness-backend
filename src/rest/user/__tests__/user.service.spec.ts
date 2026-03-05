@@ -3,8 +3,11 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 
 const mockUser = {
+  findUnique: vi.fn(),
   upsert: vi.fn(),
   findMany: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 };
 
 const mockUserProfile = {
@@ -82,6 +85,10 @@ const mockKeycloakAdmin = {
   getUserSessions: vi.fn(),
   deleteSession: vi.fn(),
   logoutAllSessions: vi.fn(),
+  blacklistSession: vi.fn(),
+  disableUser: vi.fn(),
+  enableUser: vi.fn(),
+  deleteUser: vi.fn(),
 };
 
 describe('UserService', () => {
@@ -109,6 +116,7 @@ describe('UserService', () => {
 
   describe('getOrCreateMe', () => {
     it('should upsert user and profile, then return user info', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -125,6 +133,7 @@ describe('UserService', () => {
     });
 
     it('should call prisma.user.upsert with correct data', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -132,7 +141,12 @@ describe('UserService', () => {
 
       expect(mockUser.upsert).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        update: { email: 'test@example.com', name: 'Test User', username: 'testuser' },
+        update: {
+          email: 'test@example.com',
+          name: 'Test User',
+          username: 'testuser',
+          active: true,
+        },
         create: {
           id: 'user-1',
           email: 'test@example.com',
@@ -143,6 +157,7 @@ describe('UserService', () => {
     });
 
     it('should call prisma.userProfile.upsert to ensure profile exists', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -156,6 +171,7 @@ describe('UserService', () => {
     });
 
     it('should handle optional fields being undefined', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -301,7 +317,7 @@ describe('UserService', () => {
 
       const result = await service.updateProfile('user-1', { bio: 'test' });
 
-      expect(result.pictures[0]!.alt).toBeUndefined();
+      expect(result.pictures[0].alt).toBeUndefined();
     });
   });
 
@@ -381,11 +397,12 @@ describe('UserService', () => {
           username: 'testuser',
           userId: 'user-1',
           ipAddress: '10.0.0.1',
-          start: 1704067200,
-          lastAccess: 1704110400,
+          start: 1704067200000,
+          lastAccess: 1704110400000,
           clients: { 'my-app': 'My Application' },
           transientUser: false,
           rememberMe: true,
+          offline: false,
         },
       ]);
 
@@ -396,10 +413,13 @@ describe('UserService', () => {
         id: 'session-1',
         username: 'testuser',
         ipAddress: '10.0.0.1',
-        startedAt: new Date(1704067200 * 1000).toISOString(),
-        lastAccessedAt: new Date(1704110400 * 1000).toISOString(),
+        startedAt: new Date(1704067200000).toISOString(),
+        lastAccessedAt: new Date(1704110400000).toISOString(),
         clients: [{ clientId: 'my-app', clientName: 'My Application' }],
         rememberMe: true,
+        offline: false,
+        revocable: true,
+        thisSession: false,
       });
     });
 
@@ -523,6 +543,7 @@ describe('UserService', () => {
         where: {
           AND: [
             { id: { not: 'user-1' } },
+            { active: true },
             {
               OR: [
                 { email: { contains: 'John', mode: 'insensitive' } },

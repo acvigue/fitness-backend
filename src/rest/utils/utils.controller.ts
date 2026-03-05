@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -38,7 +33,11 @@ export class UtilsController {
       },
     },
   })
-  @ApiResponse({ status: 201, type: MediaUploadResponseDto, description: 'File uploaded successfully' })
+  @ApiResponse({
+    status: 201,
+    type: MediaUploadResponseDto,
+    description: 'File uploaded successfully',
+  })
   @ApiCommonErrorResponses()
   async uploadMedia(
     @UploadedFile() file: Express.Multer.File,

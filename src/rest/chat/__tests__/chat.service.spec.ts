@@ -58,6 +58,7 @@ function mockMessage(overrides: Record<string, unknown> = {}) {
     content: 'Hello!',
     type: 'TEXT',
     mediaUrl: null,
+    media: [],
     read: false,
     createdAt: NOW,
     ...overrides,
@@ -242,7 +243,10 @@ describe('ChatService', () => {
           content: 'Test',
           type: 'TEXT',
         },
-        include: { sender: { select: { id: true, username: true, name: true } } },
+        include: {
+          sender: { select: { id: true, username: true, name: true } },
+          media: { select: { id: true, url: true, mimeType: true } },
+        },
       });
     });
 

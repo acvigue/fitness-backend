@@ -64,8 +64,20 @@ export class ChatController {
   @ApiOperation({ summary: 'Search messages in a chat thread' })
   @ApiResponse({ status: 200, type: SearchMessagesResponseDto })
   @ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20, description: 'Max results (1-50)' })
-  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 50, description: 'Page size used by history endpoint (for page calculation)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 20,
+    description: 'Max results (1-50)',
+  })
+  @ApiQuery({
+    name: 'per_page',
+    required: false,
+    type: Number,
+    example: 50,
+    description: 'Page size used by history endpoint (for page calculation)',
+  })
   @ApiForbiddenResponse()
   @ApiCommonErrorResponses()
   searchMessages(

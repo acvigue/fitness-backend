@@ -15,7 +15,10 @@ export class MediaAttachmentDto {
   @ApiProperty({ description: 'Media asset ID', example: 'cm1abc123def456' })
   id!: string;
 
-  @ApiProperty({ description: 'Public URL', example: 'https://assets.fittime.app/fittime/assets/cm1abc123def456.jpg' })
+  @ApiProperty({
+    description: 'Public URL',
+    example: 'https://assets.fittime.app/fittime/assets/cm1abc123def456.jpg',
+  })
   url!: string;
 
   @ApiProperty({ description: 'MIME type', example: 'image/jpeg' })
