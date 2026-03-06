@@ -137,3 +137,6 @@ dist
 
 #Prisma
 src/generated/prisma
+
+#reporting
+report_generator.py
