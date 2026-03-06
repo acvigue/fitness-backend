@@ -8,7 +8,9 @@ const mockUserModel = {
 
 const mockReportModel = {
   create: vi.fn(),
+  findUnique: vi.fn(),
   findMany: vi.fn(),
+  update: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -51,7 +53,7 @@ describe('ReportService', () => {
         userId1: 'user-1',
         userId2: 'user-2',
         reason: 'Harassment',
-        status: 'OPEN',
+        status: 'PENDING',
         createdAt: NOW,
       });
 
@@ -60,7 +62,7 @@ describe('ReportService', () => {
           reporterId: 'user-1',
           reportedId: 'user-2',
           reason: 'Harassment',
-          status: 'OPEN',
+          status: 'PENDING',
           createdAt: NOW,
         },
         'user-1'
@@ -70,7 +72,7 @@ describe('ReportService', () => {
         reporterId: 'user-1',
         reportedId: 'user-2',
         reason: 'Harassment',
-        status: 'OPEN',
+        status: 'PENDING',
         createdAt: NOW,
       });
     });
@@ -84,7 +86,7 @@ describe('ReportService', () => {
         userId1: 'user-1',
         userId2: 'user-2',
         reason: 'Spam',
-        status: 'OPEN',
+        status: 'PENDING',
         createdAt: NOW,
       });
 
@@ -93,7 +95,7 @@ describe('ReportService', () => {
           reporterId: 'user-1',
           reportedId: 'user-2',
           reason: 'Spam',
-          status: 'OPEN',
+          status: 'PENDING',
           createdAt: NOW,
         },
         'user-1'
@@ -104,7 +106,7 @@ describe('ReportService', () => {
           userId1: 'user-1',
           userId2: 'user-2',
           reason: 'Spam',
-          status: 'OPEN',
+          status: 'PENDING',
         },
       });
     });
@@ -118,7 +120,7 @@ describe('ReportService', () => {
             reporterId: 'missing',
             reportedId: 'user-2',
             reason: null,
-            status: 'OPEN',
+            status: 'PENDING',
             createdAt: NOW,
           },
           'missing'
@@ -139,7 +141,7 @@ describe('ReportService', () => {
             reporterId: 'user-1',
             reportedId: 'missing',
             reason: null,
-            status: 'OPEN',
+            status: 'PENDING',
             createdAt: NOW,
           },
           'user-1'
@@ -158,7 +160,7 @@ describe('ReportService', () => {
         userId1: 'user-1',
         userId2: 'user-2',
         reason: null,
-        status: 'OPEN',
+        status: 'PENDING',
         createdAt: NOW,
       });
 
@@ -167,7 +169,7 @@ describe('ReportService', () => {
           reporterId: 'user-1',
           reportedId: 'user-2',
           reason: null,
-          status: 'OPEN',
+          status: 'PENDING',
           createdAt: NOW,
         },
         'user-1'
@@ -175,31 +177,122 @@ describe('ReportService', () => {
 
       expect(result.reason).toBeNull();
     });
+    it('should handle if a user reports another user multiple times', async () => {
+      mockReportModel.create.mockResolvedValue({
+        id: 'report-1',
+        userId1: 'user-1',
+        userId2: 'user-2',
+        reason: 'Harassment',
+        status: 'OPEN',
+        createdAt: NOW,
+      });
+      await expect(
+        service.create(
+          {
+            reporterId: 'user-1',
+            reportedId: 'user-2',
+            reason: null,
+            status: 'PENDING',
+            createdAt: NOW,
+          },
+          'user-1'
+        )
+      ).rejects.toThrow(Error);
+
+      expect(mockReportModel.create).not.toHaveBeenCalled();
+    });
   });
 
   // ─── get ────────────────────────────────────────────
   describe('get', () => {
     it('should return all reports', async () => {
+      mockReportModel.create.mockResolvedValue({
+        userId1: 'user-2',
+        userId2: 'user-1',
+        reason: 'Harassment',
+        status: 'PENDING',
+        createdAt: NOW,
+      });
       mockReportModel.findMany.mockResolvedValue([
         {
           userId1: 'user-1',
           userId2: 'user-2',
           reason: 'Harassment',
-          status: 'OPEN',
+          status: 'PENDING',
+          createdAt: NOW,
+        },
+        {
+          userId1: 'user-2',
+          userId2: 'user-1',
+          reason: 'Harassment',
+          status: 'PENDING',
           createdAt: NOW,
         },
       ]);
-
       const result = await service.getAllReports();
       expect(result).toEqual([
         {
           reporterId: 'user-1',
           reportedId: 'user-2',
           reason: 'Harassment',
-          status: 'OPEN',
+          status: 'PENDING',
+          createdAt: NOW,
+        },
+        {
+          reporterId: 'user-2',
+          reportedId: 'user-1',
+          reason: 'Harassment',
+          status: 'PENDING',
           createdAt: NOW,
         },
       ]);
+    });
+    it('should return only reports that the user made', async () => {
+      mockReportModel.findMany.mockResolvedValue([
+        {
+          userId1: 'user-1',
+          userId2: 'user-2',
+          reason: 'Harassment',
+          status: 'PENDING',
+          createdAt: NOW,
+        },
+      ]);
+      const result = await service.getReportsForUser('user-1');
+      expect(result).toEqual([
+        {
+          reporterId: 'user-1',
+          reportedId: 'user-2',
+          reason: 'Harassment',
+          status: 'PENDING',
+          createdAt: NOW,
+        },
+      ]);
+    });
+  });
+  // ─── update ────────────────────────────────────────────
+  describe('update', () => {
+    it('should update the status of the report', async () => {
+      mockReportModel.update.mockResolvedValue({
+        userId1: 'user-1',
+        userId2: 'user-2',
+        reason: 'Harassment',
+        status: 'RESOLVED',
+        createdAt: NOW,
+      });
+      const result = await service.updateStatus('user-1', 'user-2', 'RESOLVED');
+      expect(result).toEqual({
+        reporterId: 'user-1',
+        reportedId: 'user-2',
+        reason: 'Harassment',
+        status: 'RESOLVED',
+        createdAt: NOW,
+      });
+    });
+    it('should throw an error when the status string does not match a possible status', async () => {
+      await expect(
+       service.updateStatus('user-1', 'user-2', 'RESOewfiufweiLVED')
+      ).rejects.toThrow(Error)
+      expect(mockReportModel.update).not.toHaveBeenCalled();
     });
   });
 });

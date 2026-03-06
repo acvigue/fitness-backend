@@ -20,30 +20,30 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  profile   UserProfile?
+  profile UserProfile?
 
-  memberships        OrganizationMember[]
-  submittedReports   Report[]             @relation("ReportSubmitter")
-  receivedReports    Report[]             @relation("ReportedUser")
-  messages           Message[]
-  createdChats       Chat[]               @relation("ChatCreator")
-  chatMemberships    Chat[]               @relation("ChatMembers")
-  
+  memberships      OrganizationMember[]
+  submittedReports Report[]             @relation("ReportSubmitter")
+  receivedReports  Report[]             @relation("ReportedUser")
+  messages         Message[]
+  createdChats     Chat[]               @relation("ChatCreator")
+  chatMemberships  Chat[]               @relation("ChatMembers")
+
   sessions Session[]
 
   @@map("users")
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
+  id     String @id @default(cuid())
+  userId String @map("user_id")
 
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  location  String?  
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  location  String?
 
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
   revokedAt DateTime? @map("revoked_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -67,8 +67,8 @@ model UserProfile {
 }
 
 model Sport {
-  id   String @id @default(uuid()) @db.Uuid
-  name String @unique
+  id   String  @id @default(uuid()) @db.Uuid
+  name String  @unique
   icon String?
 
   profiles UserProfile[] @relation("UserFavoriteSports")
@@ -77,9 +77,9 @@ model Sport {
 }
 
 model UserProfilePicture {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  profile   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  id      String      @id @default(cuid())
+  userId  String      @map("user_id")
+  profile UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   url       String
   alt       String?
@@ -89,7 +89,6 @@ model UserProfilePicture {
   @@index([userId])
   @@map("user_profile_pictures")
 }
-
 
 model Organization {
   id        String   @id @default(cuid())
@@ -124,9 +123,10 @@ model OrganizationMember {
 }
 
 enum StatusOnReport {
-  OPEN
-  REVIEWING
-  CLOSED
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
 }
 
 model Report {
@@ -136,7 +136,7 @@ model Report {
   reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id])
   userId2      String
   reason       String?
-  status       StatusOnReport @default(OPEN)
+  status       StatusOnReport @default(PENDING)
   createdAt    DateTime       @default(now()) @map("created_at")
 }
 
@@ -153,47 +153,47 @@ enum MessageType {
 }
 
 model Chat {
-  id        String   @id @default(cuid())
-  type      ChatType @default(GROUP)
+  id        String    @id @default(cuid())
+  type      ChatType  @default(GROUP)
   name      String?
-  creatorId String   @map("creator_id")
-  creator   User     @relation("ChatCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  members   User[]   @relation("ChatMembers")
+  creatorId String    @map("creator_id")
+  creator   User      @relation("ChatCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members   User[]    @relation("ChatMembers")
   messages  Message[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@index([creatorId])
   @@map("chats")
 }
 
 model Media {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  key       String    @unique
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String   @unique
   url       String
-  mimeType  String    @map("mime_type")
+  mimeType  String   @map("mime_type")
   size      Int
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  messages  Message[] @relation("MessageMedia")
+  messages Message[] @relation("MessageMedia")
 
   @@index([userId])
   @@map("media")
 }
 
 model Message {
-  id       String      @id @default(cuid())
-  chatId   String      @map("chat_id")
-  chat     Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  senderId String      @map("sender_id")
-  sender   User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content  String
-  type     MessageType @default(TEXT)
-  mediaUrl String?     @map("media_url")
-  media    Media[]     @relation("MessageMedia")
-  read     Boolean     @default(false)
-  createdAt DateTime   @default(now()) @map("created_at")
+  id        String      @id @default(cuid())
+  chatId    String      @map("chat_id")
+  chat      Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId  String      @map("sender_id")
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  type      MessageType @default(TEXT)
+  mediaUrl  String?     @map("media_url")
+  media     Media[]     @relation("MessageMedia")
+  read      Boolean     @default(false)
+  createdAt DateTime    @default(now()) @map("created_at")
 
   @@index([chatId, createdAt])
   @@index([senderId])

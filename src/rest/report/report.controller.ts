@@ -22,7 +22,19 @@ export class ReportController {
   @Get('all')
   @ApiOperation({ summary: 'Get all reports' })
   @ApiResponse({ status: 201, type: ReportResponseDto })
-  findAll() {
-    return null;
+  findAll(): Promise<ReportResponseDto[]> {
+    return this.reportService.getAllReports();
+  }
+  @Get('user')
+  @ApiOperation({ summary: 'Get all user reports' })
+  @ApiResponse({ status: 201, type: ReportResponseDto })
+  findAllUserReports(@CurrentUser() user: AuthenticatedUser): Promise<ReportResponseDto[]> {
+    return this.reportService.getReportsForUser(user.sub);
+  }
+  @Post('status')
+  @ApiOperation({ summary: 'Set a user report' })
+  @ApiResponse({ status: 201, type: ReportResponseDto })
+  setReportStatus(@Body() dto: ReportResponseDto): Promise<ReportResponseDto> {
+    return this.reportService.updateStatus(dto.reporterId, dto.reportedId, dto.status);
   }
 }
