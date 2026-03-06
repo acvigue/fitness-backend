@@ -1,96 +1,88 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
-import { StatusOnReport } from '../../generated/prisma/enums';
+import type { StatusOnReport } from '@/generated/prisma/enums';
+import type { CreateReportDto } from './dto/create-report.dto';
 import type { ReportResponseDto } from './dto/report-response.dto';
 
 @Injectable()
 export class ReportService {
-  async create(dto: ReportResponseDto, _userId: string): Promise<ReportResponseDto> {
-    const reporter = await prisma.user.findUnique({ where: { id: dto.reporterId } });
-    if (reporter == null) {
-      throw new NotFoundException('Reporter not found');
+  async create(dto: CreateReportDto, userId: string): Promise<ReportResponseDto> {
+    if (dto.reportedId === userId) {
+      throw new BadRequestException('You cannot report yourself');
     }
 
     const reported = await prisma.user.findUnique({ where: { id: dto.reportedId } });
-    if (reported == null) {
+    if (!reported) {
       throw new NotFoundException('Reported user not found');
     }
 
-    const duplicate = await prisma.report.findUnique({
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      where: { AND: [{ userId1: dto.reporterId }, { userId2: dto.reportedId }] },
+    const duplicate = await prisma.report.findFirst({
+      where: { userId1: userId, userId2: dto.reportedId },
     });
-    if (duplicate != null) {
-      throw new Error('Repeated Report from Reporter towards Reported');
+    if (duplicate) {
+      throw new BadRequestException('You have already reported this user');
     }
 
-    const reportCopy = await prisma.report.create({
+    const report = await prisma.report.create({
       data: {
-        userId1: dto.reporterId,
+        userId1: userId,
         userId2: dto.reportedId,
-        reason: dto.reason,
+        reason: dto.reason ?? null,
         status: 'PENDING',
       },
     });
 
     return {
-      reporterId: reportCopy.userId1,
-      reportedId: reportCopy.userId2,
-      reason: reportCopy.reason,
-      status: reportCopy.status,
-      createdAt: reportCopy.createdAt,
+      reporterId: report.userId1,
+      reportedId: report.userId2,
+      reason: report.reason,
+      status: report.status,
+      createdAt: report.createdAt,
     };
   }
+
   async getAllReports(): Promise<ReportResponseDto[]> {
-    const reports = await prisma.report.findMany();
-    return reports.map((m) => ({
-      reporterId: m.userId1,
-      reportedId: m.userId2,
-      reason: m.reason,
-      status: m.status,
-      createdAt: m.createdAt,
+    const reports = await prisma.report.findMany({ orderBy: { createdAt: 'desc' } });
+    return reports.map((r) => ({
+      reporterId: r.userId1,
+      reportedId: r.userId2,
+      reason: r.reason,
+      status: r.status,
+      createdAt: r.createdAt,
     }));
   }
-  async getReportsForUser(_userId: string): Promise<ReportResponseDto[]> {
-    const reports = await prisma.report.findMany({ where: { userId1: _userId } });
-    return reports.map((m) => ({
-      reporterId: m.userId1,
-      reportedId: m.userId2,
-      reason: m.reason,
-      status: m.status,
-      createdAt: m.createdAt,
-    }));
-  }
-  async updateStatus(
-    userId1: string,
-    userId2: string,
-    statusString: string
-  ): Promise<ReportResponseDto> {
-    let newStatus = null;
-    if (statusString === 'PENDING') {
-      newStatus = StatusOnReport.PENDING;
-    } else if (statusString === 'REVIEWED') {
-      newStatus = StatusOnReport.PENDING;
-    } else if (statusString === 'RESOLVED') {
-      newStatus = StatusOnReport.PENDING;
-    } else if (statusString === 'DISMISSED') {
-      newStatus = StatusOnReport.PENDING;
-    } else {
-      throw Error('Invalid Input');
-    }
-    const updateReport = await prisma.report.update({
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      where: { AND: [{ userId1: userId1 }, { userId2: userId2 }] },
-      data: { status: newStatus },
+
+  async getReportsForUser(userId: string): Promise<ReportResponseDto[]> {
+    const reports = await prisma.report.findMany({
+      where: { userId1: userId },
+      orderBy: { createdAt: 'desc' },
     });
+    return reports.map((r) => ({
+      reporterId: r.userId1,
+      reportedId: r.userId2,
+      reason: r.reason,
+      status: r.status,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async updateStatus(reportId: string, status: StatusOnReport): Promise<ReportResponseDto> {
+    const report = await prisma.report.findUnique({ where: { id: reportId } });
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    const updated = await prisma.report.update({
+      where: { id: reportId },
+      data: { status },
+    });
+
     return {
-      reporterId: updateReport.userId1,
-      reportedId: updateReport.userId2,
-      reason: updateReport.reason,
-      status: updateReport.status,
-      createdAt: updateReport.createdAt,
+      reporterId: updated.userId1,
+      reportedId: updated.userId2,
+      reason: updated.reason,
+      status: updated.status,
+      createdAt: updated.createdAt,
     };
   }
 }

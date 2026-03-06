@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
 const mockUserModel = {
@@ -9,6 +9,7 @@ const mockUserModel = {
 const mockReportModel = {
   create: vi.fn(),
   findUnique: vi.fn(),
+  findFirst: vi.fn(),
   findMany: vi.fn(),
   update: vi.fn(),
 };
@@ -45,9 +46,8 @@ describe('ReportService', () => {
 
   describe('create', () => {
     it('should create a report and return the response', async () => {
-      mockUserModel.findUnique
-        .mockResolvedValueOnce({ id: 'user-1', name: 'Reporter' })
-        .mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockUserModel.findUnique.mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockReportModel.findFirst.mockResolvedValueOnce(null);
       mockReportModel.create.mockResolvedValue({
         id: 'report-1',
         userId1: 'user-1',
@@ -57,16 +57,7 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
 
-      const result = await service.create(
-        {
-          reporterId: 'user-1',
-          reportedId: 'user-2',
-          reason: 'Harassment',
-          status: 'PENDING',
-          createdAt: NOW,
-        },
-        'user-1'
-      );
+      const result = await service.create({ reportedId: 'user-2', reason: 'Harassment' }, 'user-1');
 
       expect(result).toEqual({
         reporterId: 'user-1',
@@ -78,9 +69,8 @@ describe('ReportService', () => {
     });
 
     it('should call prisma.report.create with correct data', async () => {
-      mockUserModel.findUnique
-        .mockResolvedValueOnce({ id: 'user-1', name: 'Reporter' })
-        .mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockUserModel.findUnique.mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockReportModel.findFirst.mockResolvedValueOnce(null);
       mockReportModel.create.mockResolvedValue({
         id: 'report-1',
         userId1: 'user-1',
@@ -90,16 +80,7 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
 
-      await service.create(
-        {
-          reporterId: 'user-1',
-          reportedId: 'user-2',
-          reason: 'Spam',
-          status: 'PENDING',
-          createdAt: NOW,
-        },
-        'user-1'
-      );
+      await service.create({ reportedId: 'user-2', reason: 'Spam' }, 'user-1');
 
       expect(mockReportModel.create).toHaveBeenCalledWith({
         data: {
@@ -111,50 +92,27 @@ describe('ReportService', () => {
       });
     });
 
-    it('should throw NotFoundException when reporter does not exist', async () => {
+    it('should throw NotFoundException when reported user does not exist', async () => {
       mockUserModel.findUnique.mockResolvedValueOnce(null);
 
-      await expect(
-        service.create(
-          {
-            reporterId: 'missing',
-            reportedId: 'user-2',
-            reason: null,
-            status: 'PENDING',
-            createdAt: NOW,
-          },
-          'missing'
-        )
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create({ reportedId: 'missing' }, 'user-1')).rejects.toThrow(
+        NotFoundException
+      );
 
       expect(mockReportModel.create).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException when reported user does not exist', async () => {
-      mockUserModel.findUnique
-        .mockResolvedValueOnce({ id: 'user-1', name: 'Reporter' })
-        .mockResolvedValueOnce(null);
-
-      await expect(
-        service.create(
-          {
-            reporterId: 'user-1',
-            reportedId: 'missing',
-            reason: null,
-            status: 'PENDING',
-            createdAt: NOW,
-          },
-          'user-1'
-        )
-      ).rejects.toThrow(NotFoundException);
+    it('should throw BadRequestException when reporting yourself', async () => {
+      await expect(service.create({ reportedId: 'user-1' }, 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
 
       expect(mockReportModel.create).not.toHaveBeenCalled();
     });
 
-    it('should handle null reason', async () => {
-      mockUserModel.findUnique
-        .mockResolvedValueOnce({ id: 'user-1', name: 'Reporter' })
-        .mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+    it('should handle undefined reason', async () => {
+      mockUserModel.findUnique.mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockReportModel.findFirst.mockResolvedValueOnce(null);
       mockReportModel.create.mockResolvedValue({
         id: 'report-1',
         userId1: 'user-1',
@@ -164,55 +122,31 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
 
-      const result = await service.create(
-        {
-          reporterId: 'user-1',
-          reportedId: 'user-2',
-          reason: null,
-          status: 'PENDING',
-          createdAt: NOW,
-        },
-        'user-1'
-      );
+      const result = await service.create({ reportedId: 'user-2' }, 'user-1');
 
       expect(result.reason).toBeNull();
     });
-    it('should handle if a user reports another user multiple times', async () => {
-      mockReportModel.create.mockResolvedValue({
+
+    it('should throw BadRequestException for duplicate report', async () => {
+      mockUserModel.findUnique.mockResolvedValueOnce({ id: 'user-2', name: 'Reported' });
+      mockReportModel.findFirst.mockResolvedValueOnce({
         id: 'report-1',
         userId1: 'user-1',
         userId2: 'user-2',
-        reason: 'Harassment',
-        status: 'OPEN',
-        createdAt: NOW,
       });
+
       await expect(
-        service.create(
-          {
-            reporterId: 'user-1',
-            reportedId: 'user-2',
-            reason: null,
-            status: 'PENDING',
-            createdAt: NOW,
-          },
-          'user-1'
-        )
-      ).rejects.toThrow(Error);
+        service.create({ reportedId: 'user-2', reason: 'Harassment' }, 'user-1')
+      ).rejects.toThrow(BadRequestException);
 
       expect(mockReportModel.create).not.toHaveBeenCalled();
     });
   });
 
   // ─── get ────────────────────────────────────────────
+
   describe('get', () => {
     it('should return all reports', async () => {
-      mockReportModel.create.mockResolvedValue({
-        userId1: 'user-2',
-        userId2: 'user-1',
-        reason: 'Harassment',
-        status: 'PENDING',
-        createdAt: NOW,
-      });
       mockReportModel.findMany.mockResolvedValue([
         {
           userId1: 'user-1',
@@ -229,7 +163,9 @@ describe('ReportService', () => {
           createdAt: NOW,
         },
       ]);
+
       const result = await service.getAllReports();
+
       expect(result).toEqual([
         {
           reporterId: 'user-1',
@@ -247,6 +183,7 @@ describe('ReportService', () => {
         },
       ]);
     });
+
     it('should return only reports that the user made', async () => {
       mockReportModel.findMany.mockResolvedValue([
         {
@@ -257,7 +194,9 @@ describe('ReportService', () => {
           createdAt: NOW,
         },
       ]);
+
       const result = await service.getReportsForUser('user-1');
+
       expect(result).toEqual([
         {
           reporterId: 'user-1',
@@ -269,9 +208,12 @@ describe('ReportService', () => {
       ]);
     });
   });
-  // ─── update ────────────────────────────────────────────
-  describe('update', () => {
+
+  // ─── updateStatus ────────────────────────────────────────────
+
+  describe('updateStatus', () => {
     it('should update the status of the report', async () => {
+      mockReportModel.findUnique.mockResolvedValueOnce({ id: 'report-1' });
       mockReportModel.update.mockResolvedValue({
         userId1: 'user-1',
         userId2: 'user-2',
@@ -279,7 +221,9 @@ describe('ReportService', () => {
         status: 'RESOLVED',
         createdAt: NOW,
       });
-      const result = await service.updateStatus('user-1', 'user-2', 'RESOLVED');
+
+      const result = await service.updateStatus('report-1', 'RESOLVED');
+
       expect(result).toEqual({
         reporterId: 'user-1',
         reportedId: 'user-2',
