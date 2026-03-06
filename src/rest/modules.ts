@@ -5,6 +5,7 @@ import { ReportModule } from '@/rest/report/report.module';
 import { SportModule } from '@/rest/sport/sport.module';
 import { UserModule } from '@/rest/user/user.module';
 import { UtilsModule } from '@/rest/utils/utils.module';
+import { SessionsModule } from '@/rest/session/session.module';
 
 export const restFeatureModules = [
   ChatModule,
@@ -14,4 +15,5 @@ export const restFeatureModules = [
   SportModule,
   UserModule,
   UtilsModule,
+  SessionsModule,
 ] as const;
