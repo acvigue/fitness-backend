@@ -12,6 +12,13 @@ export class WsSendMessageDto {
     example: 'Hey, want to work out?',
   })
   content!: string;
+
+  @ApiPropertyOptional({
+    description: 'List of media asset IDs to attach',
+    example: ['cm1abc123def456'],
+    type: [String],
+  })
+  mediaIds?: string[];
 }
 
 export class WsJoinChatDto {

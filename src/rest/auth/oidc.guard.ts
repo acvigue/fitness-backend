@@ -5,7 +5,7 @@ import type { Request } from 'express';
 import { OidcAuthService, type AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { AuthenticatedRequest } from '@/rest/auth/auth.types';
 import { IS_PUBLIC_KEY } from '@/rest/auth/public.decorator';
-import { prisma } from '@/shared/utils';
+import { prisma, redis } from '@/shared/utils';
 
 @Injectable()
 export class OidcAuthGuard implements CanActivate {
@@ -39,6 +39,12 @@ export class OidcAuthGuard implements CanActivate {
 
     const token = this.extractBearerToken(request);
     const user = await this.authService.verifyToken(token);
+
+    const sessionId = user.payload.sid as string | undefined;
+    if (sessionId && (await redis.exists(`session:revoked:${sessionId}`))) {
+      throw new UnauthorizedException('Session has been revoked');
+    }
+
     request.user = user;
 
     // Fire-and-forget: upsert user in the background

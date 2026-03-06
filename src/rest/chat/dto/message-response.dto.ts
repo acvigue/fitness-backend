@@ -11,6 +11,20 @@ export class MessageSenderDto {
   name!: string | null;
 }
 
+export class MediaAttachmentDto {
+  @ApiProperty({ description: 'Media asset ID', example: 'cm1abc123def456' })
+  id!: string;
+
+  @ApiProperty({
+    description: 'Public URL',
+    example: 'https://assets.fittime.app/fittime/assets/cm1abc123def456.jpg',
+  })
+  url!: string;
+
+  @ApiProperty({ description: 'MIME type', example: 'image/jpeg' })
+  mimeType!: string;
+}
+
 export class MessageResponseDto {
   @ApiProperty({ description: 'Message ID', example: 'clr1abc2d0001' })
   id!: string;
@@ -32,10 +46,16 @@ export class MessageResponseDto {
   type!: string;
 
   @ApiPropertyOptional({
-    description: 'Media URL for non-text messages',
+    description: 'Media URL for non-text messages (legacy)',
     example: 'https://cdn.example.com/img.jpg',
   })
   mediaUrl!: string | null;
+
+  @ApiProperty({
+    description: 'Attached media assets',
+    type: [MediaAttachmentDto],
+  })
+  media!: MediaAttachmentDto[];
 
   @ApiProperty({ description: 'Whether the message has been read', example: false })
   read!: boolean;

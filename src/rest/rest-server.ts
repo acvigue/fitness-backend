@@ -4,7 +4,6 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { AsyncApiDocumentBuilder, AsyncApiModule } from 'nestjs-asyncapi';
 import { AppModule } from '@/rest/app.module';
 import { HttpExceptionFilter } from '@/rest/common/filters';
 import { LoggerService } from '@/shared/logger';
@@ -70,20 +69,6 @@ export async function startRestServer(options: RestServerOptions = {}): Promise<
   SwaggerModule.setup(REST_DOCUMENTATION_PATH, app, document, {
     swaggerOptions: { persistAuthorization: true },
   });
-
-  const asyncApiOptions = new AsyncApiDocumentBuilder()
-    .setTitle('Chat WebSocket API')
-    .setDescription('Real-time chat events via Socket.IO')
-    .setVersion(REST_API_RELEASE)
-    .setDefaultContentType('application/json')
-    .addServer('chat-ws', {
-      url: `ws://localhost:${port}`,
-      protocol: 'socket.io',
-    })
-    .build();
-
-  const asyncApiDocument = await AsyncApiModule.createDocument(app, asyncApiOptions);
-  await AsyncApiModule.setup('async-docs', app, asyncApiDocument);
 
   await app.listen(port);
   logger.log(`REST server listening on port ${port}`);

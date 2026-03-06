@@ -3,8 +3,11 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 
 const mockUser = {
+  findUnique: vi.fn(),
   upsert: vi.fn(),
   findMany: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 };
 
 const mockUserProfile = {
@@ -49,7 +52,10 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
   return {
     userId: 'user-1',
     bio: 'Hello world',
-    favoriteSports: ['basketball', 'tennis'],
+    favoriteSports: [
+      { id: 'sport-1', name: 'Basketball', icon: '🏀' },
+      { id: 'sport-2', name: 'Tennis', icon: '🎾' },
+    ],
     pictures: [],
     createdAt: NOW,
     updatedAt: NOW,
@@ -79,6 +85,10 @@ const mockKeycloakAdmin = {
   getUserSessions: vi.fn(),
   deleteSession: vi.fn(),
   logoutAllSessions: vi.fn(),
+  blacklistSession: vi.fn(),
+  disableUser: vi.fn(),
+  enableUser: vi.fn(),
+  deleteUser: vi.fn(),
 };
 
 describe('UserService', () => {
@@ -106,6 +116,7 @@ describe('UserService', () => {
 
   describe('getOrCreateMe', () => {
     it('should upsert user and profile, then return user info', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -122,6 +133,7 @@ describe('UserService', () => {
     });
 
     it('should call prisma.user.upsert with correct data', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -129,7 +141,12 @@ describe('UserService', () => {
 
       expect(mockUser.upsert).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        update: { email: 'test@example.com', name: 'Test User', username: 'testuser' },
+        update: {
+          email: 'test@example.com',
+          name: 'Test User',
+          username: 'testuser',
+          active: true,
+        },
         create: {
           id: 'user-1',
           email: 'test@example.com',
@@ -140,6 +157,7 @@ describe('UserService', () => {
     });
 
     it('should call prisma.userProfile.upsert to ensure profile exists', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -148,11 +166,12 @@ describe('UserService', () => {
       expect(mockUserProfile.upsert).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
         update: {},
-        create: { userId: 'user-1', bio: null, favoriteSports: [] },
+        create: { userId: 'user-1', bio: null },
       });
     });
 
     it('should handle optional fields being undefined', async () => {
+      mockUser.findUnique.mockResolvedValue({ active: true });
       mockUser.upsert.mockResolvedValue({});
       mockUserProfile.upsert.mockResolvedValue({});
 
@@ -183,7 +202,10 @@ describe('UserService', () => {
       expect(result).toEqual({
         userId: 'user-1',
         bio: 'Hello world',
-        favoriteSports: ['basketball', 'tennis'],
+        favoriteSports: [
+          { id: 'sport-1', name: 'Basketball', icon: '🏀' },
+          { id: 'sport-2', name: 'Tennis', icon: '🎾' },
+        ],
         pictures: [
           { id: 'pic-1', url: 'https://example.com/pic.jpg', alt: 'Photo', isPrimary: true },
         ],
@@ -214,7 +236,7 @@ describe('UserService', () => {
 
       expect(mockUserProfile.create).toHaveBeenCalledWith({
         data: { userId: 'user-1' },
-        include: { pictures: true },
+        include: { pictures: true, favoriteSports: true },
       });
       expect(result.userId).toBe('user-1');
       expect(result.pictures).toEqual([]);
@@ -227,7 +249,7 @@ describe('UserService', () => {
 
       expect(mockUserProfile.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-42' },
-        include: { pictures: true },
+        include: { pictures: true, favoriteSports: true },
       });
     });
   });
@@ -238,16 +260,19 @@ describe('UserService', () => {
     it('should ensure profile exists and update it', async () => {
       mockUserProfile.upsert.mockResolvedValue({});
       mockUserProfile.update.mockResolvedValue(
-        mockProfile({ bio: 'Updated bio', favoriteSports: ['soccer'] })
+        mockProfile({
+          bio: 'Updated bio',
+          favoriteSports: [{ id: 'sport-3', name: 'Soccer', icon: '⚽' }],
+        })
       );
 
       const result = await service.updateProfile('user-1', {
         bio: 'Updated bio',
-        favoriteSports: ['soccer'],
+        favoriteSportIds: ['sport-3'],
       });
 
       expect(result.bio).toBe('Updated bio');
-      expect(result.favoriteSports).toEqual(['soccer']);
+      expect(result.favoriteSports).toEqual([{ id: 'sport-3', name: 'Soccer', icon: '⚽' }]);
     });
 
     it('should upsert profile before updating to ensure it exists', async () => {
@@ -269,13 +294,16 @@ describe('UserService', () => {
 
       await service.updateProfile('user-1', {
         bio: 'New bio',
-        favoriteSports: ['running'],
+        favoriteSportIds: ['sport-1'],
       });
 
       expect(mockUserProfile.update).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        data: { bio: 'New bio', favoriteSports: ['running'] },
-        include: { pictures: true },
+        data: {
+          bio: 'New bio',
+          favoriteSports: { set: [{ id: 'sport-1' }] },
+        },
+        include: { pictures: true, favoriteSports: true },
       });
     });
 
@@ -369,11 +397,12 @@ describe('UserService', () => {
           username: 'testuser',
           userId: 'user-1',
           ipAddress: '10.0.0.1',
-          start: 1704067200,
-          lastAccess: 1704110400,
+          start: 1704067200000,
+          lastAccess: 1704110400000,
           clients: { 'my-app': 'My Application' },
           transientUser: false,
           rememberMe: true,
+          offline: false,
         },
       ]);
 
@@ -384,10 +413,13 @@ describe('UserService', () => {
         id: 'session-1',
         username: 'testuser',
         ipAddress: '10.0.0.1',
-        startedAt: new Date(1704067200 * 1000).toISOString(),
-        lastAccessedAt: new Date(1704110400 * 1000).toISOString(),
+        startedAt: new Date(1704067200000).toISOString(),
+        lastAccessedAt: new Date(1704110400000).toISOString(),
         clients: [{ clientId: 'my-app', clientName: 'My Application' }],
         rememberMe: true,
+        offline: false,
+        revocable: true,
+        thisSession: false,
       });
     });
 
@@ -511,6 +543,7 @@ describe('UserService', () => {
         where: {
           AND: [
             { id: { not: 'user-1' } },
+            { active: true },
             {
               OR: [
                 { email: { contains: 'John', mode: 'insensitive' } },
