@@ -289,9 +289,9 @@ describe('ReportService', () => {
       });
     });
     it('should throw an error when the status string does not match a possible status', async () => {
-      await expect(
-       service.updateStatus('user-1', 'user-2', 'RESOewfiufweiLVED')
-      ).rejects.toThrow(Error)
+      await expect(service.updateStatus('user-1', 'user-2', 'RESOewfiufweiLVED')).rejects.toThrow(
+        Error
+      );
       expect(mockReportModel.update).not.toHaveBeenCalled();
     });
   });
