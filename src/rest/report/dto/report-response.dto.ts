@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ReportResponseDto {
   @ApiProperty({ description: 'Reporter User ID', example: 'wejfe023r2343' })
@@ -7,8 +7,8 @@ export class ReportResponseDto {
   @ApiProperty({ description: 'Reported User ID', example: 'wejfe023r2343' })
   reportedId!: string;
 
-  @ApiPropertyOptional({ description: 'Reason For Report', example: 'They Harassed Me' })
-  reason!: string | null;
+  @ApiProperty({ description: 'Reason For Report', example: 'They Harassed Me' })
+  reason!: string;
 
   @ApiProperty({ description: 'Status', example: 'Banned' })
   status!: string;

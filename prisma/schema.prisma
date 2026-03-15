@@ -29,7 +29,8 @@ model User {
   createdChats     Chat[]               @relation("ChatCreator")
   chatMemberships  Chat[]               @relation("ChatMembers")
 
-  sessions Session[]
+  sessions    Session[]
+  Achievement Achievement[]
 
   @@map("users")
 }
@@ -53,9 +54,8 @@ model Session {
 }
 
 model UserProfile {
-  userId String @id @map("user_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  userId    String   @id @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio       String?  @db.Text
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -198,4 +198,13 @@ model Message {
   @@index([chatId, createdAt])
   @@index([senderId])
   @@map("messages")
+}
+
+model Achievement {
+  id          String   @id @unique @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  earnedAt    DateTime @default(now())
 }
