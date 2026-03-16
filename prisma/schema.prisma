@@ -31,6 +31,7 @@ model User {
 
   sessions    Session[]
   Achievement Achievement[]
+  tournaments Tournament[]
 
   @@map("users")
 }
@@ -72,6 +73,7 @@ model Sport {
   icon String?
 
   profiles UserProfile[] @relation("UserFavoriteSports")
+  tournaments Tournament[]
 
   @@map("sports")
 }
@@ -207,4 +209,23 @@ model Achievement {
   title       String
   description String
   earnedAt    DateTime @default(now())
+}
+
+model Tournament {
+  id          String  @id @unique @default(cuid())
+  name        String
+  sport       Sport
+  status      TournamentStatus
+
+  startDate   DateTime 
+  createdAt   DateTime @default(now()) 
+  users       User[]
+}
+
+enum TournamentStatus {
+  OPEN
+  CLOSED
+  UPCOMING
+  INPROGRESS
+  COMPLETED
 }
