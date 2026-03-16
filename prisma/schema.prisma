@@ -72,7 +72,7 @@ model Sport {
   name String  @unique
   icon String?
 
-  profiles UserProfile[] @relation("UserFavoriteSports")
+  profiles    UserProfile[] @relation("UserFavoriteSports")
   tournaments Tournament[]
 
   @@map("sports")
@@ -212,14 +212,15 @@ model Achievement {
 }
 
 model Tournament {
-  id          String  @id @unique @default(cuid())
-  name        String
-  sport       Sport
-  status      TournamentStatus
+  id     String           @id @unique @default(cuid())
+  name   String
+  sport  Sport            @relation(fields: [sportId], references: [id])
+  status TournamentStatus @default(OPEN)
 
-  startDate   DateTime 
-  createdAt   DateTime @default(now()) 
-  users       User[]
+  startDate DateTime
+  createdAt DateTime @default(now())
+  users     User[]
+  sportId   String   @db.Uuid
 }
 
 enum TournamentStatus {
