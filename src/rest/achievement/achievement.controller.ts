@@ -7,9 +7,9 @@ import { AchievementService } from './achievement.service';
 import { CreateAchievementDto } from './dto/create-achievement.dto';
 import type { AchievementDto } from '~/rest/achievement/dto/achievement.dto';
 
-@ApiTags('Achievement')
+@ApiTags('achievement')
 @ApiBearerAuth()
-@Controller({ path: 'Achievement', version: '1' })
+@Controller({ path: 'achievement', version: '1' })
 export class AchievementController {
   constructor(private readonly achievementService: AchievementService) {}
   @Post()
