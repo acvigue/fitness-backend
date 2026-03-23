@@ -28,6 +28,8 @@ model User {
   messages         Message[]
   createdChats     Chat[]               @relation("ChatCreator")
   chatMemberships  Chat[]               @relation("ChatMembers")
+  teamCaptainships Team[]               @relation("TeamCaptain")
+  teamMemberships  Team[]               @relation("TeamMembers")
 
   sessions    Session[]
   Achievement Achievement[]
@@ -74,6 +76,7 @@ model Sport {
 
   profiles    UserProfile[] @relation("UserFavoriteSports")
   tournaments Tournament[]
+  teams       Team[]
 
   @@map("sports")
 }
@@ -229,4 +232,16 @@ enum TournamentStatus {
   UPCOMING
   INPROGRESS
   COMPLETED
+}
+
+model Team {
+  id          String @id @unique @default(cuid())
+  name        String
+  sport       Sport  @relation(fields: [sportId], references: [id])
+  description String
+  captainID   String
+  captain     User   @relation("TeamCaptain", fields: [captainID], references: [id])
+  
+  users   User[] @relation("TeamMembers")
+  sportId String @db.Uuid
 }
