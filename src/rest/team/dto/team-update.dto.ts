@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class TeamUpdateCaptainDto {
-  @ApiProperty({ description: 'Team Captain'})
+  @ApiProperty({ description: 'Team Captain' })
   captainId!: string;
 }

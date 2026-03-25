@@ -13,15 +13,15 @@ export class TeamService {
     return teams.map((s) => ({
       id: s.id,
       name: s.name,
-	  description: s.description,
-	  captainId: s.captainId
+      description: s.description,
+      captainId: s.captainId,
     }));
   }
-  
+
   async updateCaptain(
-	id: string,
-	dto: TeamUpdateCaptainDto,
-	userId: string
+    id: string,
+    dto: TeamUpdateCaptainDto,
+    userId: string
   ): Promise<TeamResponseDto> {
 	const team = await prisma.team.findUnique({ where: {id} });
 	if (!team) throw new NotFoundException('Team not found');
@@ -41,13 +41,13 @@ export class TeamService {
 		captainId: updatedTeam.captainId
 	};
   }
+
   async delete(id: string, userId: string): Promise<void> {
 	const team = await prisma.team.findUnique({ where: {id} });
 	if (!team) throw new NotFoundException('Team not found');
 	if (userId != team.captainId) {
 	  throw new ForbiddenException('You are not the current team captain');
 	}
-	
-  await prisma.team.delete({ where: { id } });
+	await prisma.team.delete({ where: { id } });
   }
 }

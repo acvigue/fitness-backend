@@ -33,7 +33,8 @@ model User {
 
   sessions    Session[]
   Achievement Achievement[]
-  tournaments Tournament[]
+  createdTournaments Tournament[] @relation("TournamentCreator")
+  tournaments        Tournament[] @relation("TournamentParticipants")
 
   @@map("users")
 }
@@ -101,7 +102,8 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members OrganizationMember[]
+  members     OrganizationMember[]
+  tournaments Tournament[]
 
   @@map("organizations")
 }
@@ -220,10 +222,22 @@ model Tournament {
   sport  Sport            @relation(fields: [sportId], references: [id])
   status TournamentStatus @default(OPEN)
 
-  startDate DateTime
-  createdAt DateTime @default(now())
-  users     User[]
-  sportId   String   @db.Uuid
+  maxTeams  Int      @map("max_teams")
+  startDate DateTime @map("start_date")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  createdById    String       @map("created_by_id")
+  createdBy      User         @relation("TournamentCreator", fields: [createdById], references: [id])
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  users   User[] @relation("TournamentParticipants")
+  sportId String @db.Uuid @map("sport_id")
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([sportId])
+  @@map("tournaments")
 }
 
 enum TournamentStatus {
