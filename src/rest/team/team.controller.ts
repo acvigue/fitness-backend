@@ -1,4 +1,4 @@
-import { Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
@@ -25,8 +25,8 @@ export class TeamController {
   findAll(): Promise<TeamResponseDto[]> {
     return this.teamService.findAll();
   }
-  
-  @Patch(:id)
+
+  @Patch(':id')
   @ApiOperation({ summary: 'Change team captain (current captain only)' })
   @ApiResponse({ status: 200, type: TeamResponseDto })
   @ApiBadRequestResponse()
@@ -35,10 +35,9 @@ export class TeamController {
   @ApiCommonErrorResponses()
   updateCaptain(
     @Param('id') id: string,
-	@Body() dto: TeamUpdateCaptainDto
-	@CurrentUser() user: AuthenticatedUser
-  ) : Promise<TeamResponseDto> {
-	return this.teamService.updateCaptain(id, dto, user.sub)
+    @Body() dto: TeamUpdateCaptainDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamResponseDto> {
+    return this.teamService.updateCaptain(id, dto, user.sub);
   }
-  
 }

@@ -4,6 +4,7 @@ import { OrganizationModule } from '@/rest/organization/organization.module';
 import { ReportModule } from '@/rest/report/report.module';
 import { SportModule } from '@/rest/sport/sport.module';
 import { UserModule } from '@/rest/user/user.module';
+import { TournamentModule } from '@/rest/tournament/tournament.module';
 import { UtilsModule } from '@/rest/utils/utils.module';
 import { AchievementModule } from '~/rest/achievement/achievement.module';
 
@@ -14,6 +15,7 @@ export const restFeatureModules = [
   OrganizationModule,
   ReportModule,
   SportModule,
+  TournamentModule,
   UserModule,
   UtilsModule,
 ] as const;

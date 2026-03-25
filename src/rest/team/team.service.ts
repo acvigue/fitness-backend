@@ -13,33 +13,32 @@ export class TeamService {
     return teams.map((s) => ({
       id: s.id,
       name: s.name,
-	  description: s.description,
-	  captainId: s.captainId
+      description: s.description,
+      captainId: s.captainId,
     }));
   }
-  
+
   async updateCaptain(
-	id: string,
-	dto: TeamUpdateCaptainDto,
-	userId: string
+    id: string,
+    dto: TeamUpdateCaptainDto,
+    userId: string
   ): Promise<TeamResponseDto> {
-	const team = await prisma.team.findUnique({ where: {id} });
-	if (!team) throw new NotFoundException('Team not found');
-	if (userId != team.captainId) {
-	  throw new ForbiddenException('You are not the current team captain');
-	}
-	
-	const updatedTeam = await prisma.team.update({
-		where: { id },
-		data: { ...({ captainId: dto.captainId })}
-	});
-	
-	return {
-		id: updatedTeam.id,
-		name: updatedTeam.name,
-		description: updatedTeam.description,
-		captainId: updatedTeam.captainId
-	};
-	
+    const team = await prisma.team.findUnique({ where: { id } });
+    if (!team) throw new NotFoundException('Team not found');
+    if (userId != team.captainId) {
+      throw new ForbiddenException('You are not the current team captain');
+    }
+
+    const updatedTeam = await prisma.team.update({
+      where: { id },
+      data: { ...{ captainId: dto.captainId } },
+    });
+
+    return {
+      id: updatedTeam.id,
+      name: updatedTeam.name,
+      description: updatedTeam.description,
+      captainId: updatedTeam.captainId,
+    };
   }
 }

@@ -1,29 +1,46 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
-import { IsEnum } from 'class-validator';
 import { TournamentStatus } from '@/generated/prisma/enums';
+import { PaginationMetaDto } from '@/rest/common/pagination';
 
 export class TournamentResponseDto {
   @ApiProperty({
-    description: 'Tournament ID (UUID)',
-    example: 'a1b2c3d4-0001-4000-8000-000000000001',
+    description: 'Tournament ID',
+    example: 'clr1abc2d0001',
   })
   id!: string;
 
-  @ApiProperty({ description: 'Tournament name', example: 'Spring Marathon 2024' })
+  @ApiProperty({ description: 'Tournament name', example: 'Spring Championship 2024' })
   name!: string;
 
-  @ApiPropertyOptional({ description: 'Tournament status', example: TournamentStatus.UPCOMING })
-  @IsEnum(TournamentStatus)
-  status?: TournamentStatus;
+  @ApiProperty({
+    description: 'Tournament status',
+    enum: TournamentStatus,
+    example: TournamentStatus.OPEN,
+  })
+  status!: TournamentStatus;
 
-  @ApiProperty({ description: 'Tournament start date (ISO 8601)', example: '2024-03-01T00:00:00Z' })
+  @ApiProperty({ description: 'Maximum number of teams', example: 16 })
+  maxTeams!: number;
+
+  @ApiProperty({ description: 'Organization ID', example: 'clr1abc2d0000' })
+  organizationId!: string;
+
+  @ApiProperty({ description: 'Creator user ID', example: 'auth0|507f1f77bcf86cd799439011' })
+  createdById!: string;
+
+  @ApiProperty({
+    description: 'Tournament start date (ISO 8601)',
+    example: '2024-06-01T09:00:00.000Z',
+    format: 'date-time',
+  })
   startDate!: string;
 
   @ApiProperty({
     description: 'Tournament creation date (ISO 8601)',
-    example: '2024-03-31T23:59:59Z',
+    example: '2024-03-01T12:00:00.000Z',
+    format: 'date-time',
   })
   createdAt!: string;
 
@@ -32,4 +49,12 @@ export class TournamentResponseDto {
 
   @ApiProperty({ description: 'List of tournament participants', type: () => [UserResponseDto] })
   participants!: UserResponseDto[];
+}
+
+export class PaginatedTournamentResponseDto {
+  @ApiProperty({ type: [TournamentResponseDto] })
+  data!: TournamentResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta!: PaginationMetaDto;
 }
