@@ -240,7 +240,7 @@ model Team {
   sport       Sport  @relation(fields: [sportId], references: [id])
   description String
   captainID   String
-  captain     User   @relation("TeamCaptain", fields: [captainID], references: [id])
+  captain     User   @relation("TeamCaptain", fields: [captainID], references: [id], onDelete: Cascade)
   
   users   User[] @relation("TeamMembers")
   sportId String @db.Uuid

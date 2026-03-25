@@ -40,6 +40,14 @@ export class TeamService {
 		description: updatedTeam.description,
 		captainId: updatedTeam.captainId
 	};
+  }
+  async delete(id: string, userId: string): Promise<void> {
+	const team = await prisma.team.findUnique({ where: {id} });
+	if (!team) throw new NotFoundException('Team not found');
+	if (userId != team.captainId) {
+	  throw new ForbiddenException('You are not the current team captain');
+	}
 	
+  await prisma.team.delete({ where: { id } });
   }
 }
