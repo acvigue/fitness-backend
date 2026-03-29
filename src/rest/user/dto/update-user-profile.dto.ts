@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class UpdateUserProfileDto {
   @ApiPropertyOptional({ description: 'User bio', example: 'Fitness enthusiast' })
@@ -27,4 +27,15 @@ export class UpdateUserProfileDto {
   @IsString({ each: true })
   @IsOptional()
   pictureIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'List of user achievement IDs to feature on profile (max 5)',
+    type: [String],
+    example: ['cm123abc'],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(5)
+  @IsOptional()
+  featuredAchievementIds?: string[];
 }
