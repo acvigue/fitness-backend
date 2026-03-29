@@ -54,15 +54,39 @@ export class TournamentController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all tournaments (paginated)' })
+  @ApiOperation({ summary: 'List all tournaments (paginated, with optional filters)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'sportId', required: false, type: String, description: 'Filter by sport ID' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by tournament status',
+    enum: ['OPEN', 'CLOSED', 'UPCOMING', 'INPROGRESS', 'COMPLETED'],
+  })
+  @ApiQuery({
+    name: 'startAfter',
+    required: false,
+    type: String,
+    description: 'Filter tournaments starting after this date (ISO 8601)',
+  })
+  @ApiQuery({
+    name: 'startBefore',
+    required: false,
+    type: String,
+    description: 'Filter tournaments starting before this date (ISO 8601)',
+  })
   @ApiResponse({ status: 200, type: PaginatedTournamentResponseDto })
   @ApiCommonErrorResponses()
   findAll(
-    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams,
+    @Query('sportId') sportId?: string,
+    @Query('status') status?: string,
+    @Query('startAfter') startAfter?: string,
+    @Query('startBefore') startBefore?: string
   ): Promise<PaginatedTournamentResponseDto> {
-    return this.tournamentService.findAll(pagination);
+    return this.tournamentService.findAll(pagination, { sportId, status, startAfter, startBefore });
   }
 
   @Get('search')

@@ -187,6 +187,62 @@ describe('TournamentService', () => {
         expect.objectContaining({ skip: 10, take: 5 })
       );
     });
+
+    it('should filter by sportId', async () => {
+      mockTournament.count.mockResolvedValue(0);
+      mockTournament.findMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, per_page: 10 }, { sportId: 'sport-1' });
+
+      expect(mockTournament.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { sportId: 'sport-1' } })
+      );
+    });
+
+    it('should filter by status', async () => {
+      mockTournament.count.mockResolvedValue(0);
+      mockTournament.findMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, per_page: 10 }, { status: 'OPEN' });
+
+      expect(mockTournament.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: 'OPEN' } })
+      );
+    });
+
+    it('should filter by date range', async () => {
+      mockTournament.count.mockResolvedValue(0);
+      mockTournament.findMany.mockResolvedValue([]);
+
+      await service.findAll(
+        { page: 1, per_page: 10 },
+        { startAfter: '2026-01-01T00:00:00Z', startBefore: '2026-12-31T00:00:00Z' }
+      );
+
+      expect(mockTournament.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            startDate: {
+              gte: new Date('2026-01-01T00:00:00Z'),
+              lte: new Date('2026-12-31T00:00:00Z'),
+            },
+          },
+        })
+      );
+    });
+
+    it('should combine multiple filters', async () => {
+      mockTournament.count.mockResolvedValue(0);
+      mockTournament.findMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, per_page: 10 }, { sportId: 'sport-1', status: 'OPEN' });
+
+      expect(mockTournament.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { sportId: 'sport-1', status: 'OPEN' },
+        })
+      );
+    });
   });
 
   // ─── search ──────────────────────────────────────────
