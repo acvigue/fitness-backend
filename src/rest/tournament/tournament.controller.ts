@@ -13,6 +13,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
+import { TournamentInvitationResponseDto } from './dto/tournament-invitation-response.dto';
 import {
   ApiCommonErrorResponses,
   ApiForbiddenResponse,
@@ -204,5 +205,63 @@ export class TournamentController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<void> {
     return this.tournamentService.removeTeam(id, teamId, user.sub);
+  }
+
+  // ─── Tournament Invitations ─────────────────────────────
+
+  @Post(':id/invitations/:teamId')
+  @ApiOperation({ summary: 'Invite a team to a tournament (org manager only)' })
+  @ApiResponse({ status: 201, type: TournamentInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  sendTournamentInvitation(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentInvitationResponseDto> {
+    return this.tournamentService.sendTournamentInvitation(id, teamId, user.sub);
+  }
+
+  @Patch('invitations/:invitationId/accept')
+  @ApiOperation({ summary: 'Accept a tournament invitation (team captain only)' })
+  @ApiResponse({ status: 200, type: TournamentInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can respond')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  acceptTournamentInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentInvitationResponseDto> {
+    return this.tournamentService.respondToTournamentInvitation(invitationId, user.sub, true);
+  }
+
+  @Patch('invitations/:invitationId/decline')
+  @ApiOperation({ summary: 'Decline a tournament invitation (team captain only)' })
+  @ApiResponse({ status: 200, type: TournamentInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can respond')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  declineTournamentInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentInvitationResponseDto> {
+    return this.tournamentService.respondToTournamentInvitation(invitationId, user.sub, false);
+  }
+
+  @Get(':id/invitations')
+  @ApiOperation({ summary: 'List tournament invitations (org manager only)' })
+  @ApiResponse({ status: 200, type: [TournamentInvitationResponseDto] })
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getTournamentInvitations(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentInvitationResponseDto[]> {
+    return this.tournamentService.getTournamentInvitations(id, user.sub);
   }
 }

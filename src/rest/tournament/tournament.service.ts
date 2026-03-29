@@ -5,11 +5,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
+import { NotificationService } from '@/rest/notification/notification.service';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateTournamentDto } from './dto/create-tournament.dto';
 import type { UpdateTournamentDto } from './dto/update-tournament.dto';
 import type { TournamentResponseDto } from './dto/tournament-response.dto';
+import type { TournamentInvitationResponseDto } from './dto/tournament-invitation-response.dto';
 
 const TOURNAMENT_INCLUDE = {
   sport: true,
@@ -65,6 +67,8 @@ function toResponse(tournament: {
 
 @Injectable()
 export class TournamentService {
+  constructor(private readonly notificationService: NotificationService) {}
+
   async create(dto: CreateTournamentDto, userId: string): Promise<TournamentResponseDto> {
     if (!isPowerOfTwo(dto.maxTeams)) {
       throw new BadRequestException('maxTeams must be a power of 2 (e.g. 2, 4, 8, 16, 32)');
@@ -314,6 +318,122 @@ export class TournamentService {
       where: { id: tournamentId },
       data: { teams: { disconnect: { id: teamId } } },
     });
+  }
+
+  // ─── Tournament Invitations ──────────────────────────────
+
+  async sendTournamentInvitation(
+    tournamentId: string,
+    teamId: string,
+    userId: string
+  ): Promise<TournamentInvitationResponseDto> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    const existing = await prisma.tournamentInvitation.findFirst({
+      where: { tournamentId, teamId, status: 'PENDING' },
+    });
+
+    if (existing) {
+      throw new BadRequestException('An invitation is already pending for this team');
+    }
+
+    const invitation = await prisma.tournamentInvitation.create({
+      data: { tournamentId, teamId },
+    });
+
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (team) {
+      await this.notificationService.create(
+        team.captainId,
+        'TOURNAMENT_INVITE',
+        'Tournament Invitation',
+        `Your team "${team.name}" has been invited to tournament "${tournament.name}"`
+      );
+    }
+
+    return this.toInvitationResponse(invitation);
+  }
+
+  async respondToTournamentInvitation(
+    invitationId: string,
+    userId: string,
+    accept: boolean
+  ): Promise<TournamentInvitationResponseDto> {
+    const invitation = await prisma.tournamentInvitation.findUnique({
+      where: { id: invitationId },
+      include: { team: true, tournament: true },
+    });
+
+    if (!invitation) throw new NotFoundException('Invitation not found');
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException('This invitation has already been responded to');
+    }
+
+    if (invitation.team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can respond to tournament invitations');
+    }
+
+    const status = accept ? 'ACCEPTED' : 'DECLINED';
+
+    const updated = await prisma.tournamentInvitation.update({
+      where: { id: invitationId },
+      data: { status },
+    });
+
+    if (accept) {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id: invitation.tournamentId },
+        include: { teams: { select: { id: true } } },
+      });
+
+      if (tournament && tournament.teams.length >= tournament.maxTeams) {
+        throw new BadRequestException('Tournament has reached maximum team capacity');
+      }
+
+      await prisma.tournament.update({
+        where: { id: invitation.tournamentId },
+        data: { teams: { connect: { id: invitation.teamId } } },
+      });
+    }
+
+    return this.toInvitationResponse(updated);
+  }
+
+  async getTournamentInvitations(
+    tournamentId: string,
+    userId: string
+  ): Promise<TournamentInvitationResponseDto[]> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    const invitations = await prisma.tournamentInvitation.findMany({
+      where: { tournamentId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return invitations.map((inv) => this.toInvitationResponse(inv));
+  }
+
+  private toInvitationResponse(invitation: {
+    id: string;
+    tournamentId: string;
+    teamId: string;
+    status: string;
+    createdAt: Date;
+  }): TournamentInvitationResponseDto {
+    return {
+      id: invitation.id,
+      tournamentId: invitation.tournamentId,
+      teamId: invitation.teamId,
+      status: invitation.status,
+      createdAt: invitation.createdAt.toISOString(),
+    };
   }
 
   private async requireOrgManager(organizationId: string, userId: string): Promise<void> {
