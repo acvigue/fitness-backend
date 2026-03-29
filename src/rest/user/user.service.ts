@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { prisma } from '@/shared/utils';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { UserResponseDto } from './dto/user-response.dto';
+import type { UpdateNameDto } from './dto/update-name.dto';
 import type { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import type { UserMembershipResponseDto } from './dto/user-membership-response.dto';
@@ -24,8 +25,22 @@ export class UserService {
 
     await prisma.user.upsert({
       where: { id: user.sub },
-      update: { email: user.email, name: user.name, username: user.username, active: true },
-      create: { id: user.sub, email: user.email, name: user.name, username: user.username },
+      update: {
+        email: user.email,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        active: true,
+      },
+      create: {
+        id: user.sub,
+        email: user.email,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+      },
     });
 
     if (existing && !existing.active) {
@@ -42,6 +57,8 @@ export class UserService {
       sub: user.sub,
       username: user.username,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       scopes: user.scopes,
     };
@@ -51,6 +68,7 @@ export class UserService {
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
       include: {
+        user: { select: { firstName: true, lastName: true } },
         pictures: true,
         favoriteSports: true,
         featuredAchievements: { include: { achievement: true } },
@@ -131,6 +149,7 @@ export class UserService {
       where: { userId },
       data,
       include: {
+        user: { select: { firstName: true, lastName: true } },
         pictures: true,
         favoriteSports: true,
         featuredAchievements: { include: { achievement: true } },
@@ -144,6 +163,7 @@ export class UserService {
     const profile = await prisma.userProfile.create({
       data: { userId },
       include: {
+        user: { select: { firstName: true, lastName: true } },
         pictures: true,
         favoriteSports: true,
         featuredAchievements: { include: { achievement: true } },
@@ -154,6 +174,7 @@ export class UserService {
 
   private toProfileResponse(profile: {
     userId: string;
+    user: { firstName: string | null; lastName: string | null };
     bio: string | null;
     favoriteSports: { id: string; name: string; icon: string | null }[];
     pictures: { id: string; url: string; alt: string | null; isPrimary: boolean }[];
@@ -173,6 +194,8 @@ export class UserService {
   }): UserProfileResponseDto {
     return {
       userId: profile.userId,
+      firstName: profile.user.firstName,
+      lastName: profile.user.lastName,
       bio: profile.bio,
       favoriteSports: profile.favoriteSports.map((s) => ({
         id: s.id,
@@ -277,6 +300,35 @@ export class UserService {
     return { success: true, message: 'All sessions have been revoked' };
   }
 
+  async updateName(userId: string, dto: UpdateNameDto): Promise<UserResponseDto> {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        name: `${dto.firstName} ${dto.lastName}`.trim() || null,
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+
+    return {
+      sub: user.id,
+      username: user.username ?? undefined,
+      name: user.name ?? undefined,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
+      email: user.email ?? undefined,
+      scopes: [],
+    };
+  }
+
   async lookupUsers(query: string, currentUserId: string): Promise<UserLookupResponseDto> {
     const searchTerm = query.trim();
 
@@ -289,12 +341,14 @@ export class UserService {
             OR: [
               { email: { contains: searchTerm, mode: 'insensitive' } },
               { name: { contains: searchTerm, mode: 'insensitive' } },
+              { firstName: { contains: searchTerm, mode: 'insensitive' } },
+              { lastName: { contains: searchTerm, mode: 'insensitive' } },
               { username: { contains: searchTerm, mode: 'insensitive' } },
             ],
           },
         ],
       },
-      select: { id: true, username: true, name: true, email: true },
+      select: { id: true, username: true, name: true, firstName: true, lastName: true, email: true },
       take: 20,
       orderBy: { name: 'asc' },
     });
@@ -304,6 +358,8 @@ export class UserService {
         id: u.id,
         username: u.username,
         name: u.name,
+        firstName: u.firstName,
+        lastName: u.lastName,
         email: u.email,
       })),
     };

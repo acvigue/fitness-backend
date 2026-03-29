@@ -41,6 +41,8 @@ function mockAuthUser(overrides: Partial<AuthenticatedUser> = {}): Authenticated
     sub: 'user-1',
     username: 'testuser',
     name: 'Test User',
+    firstName: 'Test',
+    lastName: 'User',
     email: 'test@example.com',
     scopes: ['openid', 'profile'],
     payload: { sub: 'user-1', iss: 'https://test-issuer.local' },
@@ -51,6 +53,7 @@ function mockAuthUser(overrides: Partial<AuthenticatedUser> = {}): Authenticated
 function mockProfile(overrides: Record<string, unknown> = {}) {
   return {
     userId: 'user-1',
+    user: { firstName: 'Test', lastName: 'User' },
     bio: 'Hello world',
     favoriteSports: [
       { id: 'sport-1', name: 'Basketball', icon: '🏀' },
@@ -128,6 +131,8 @@ describe('UserService', () => {
         sub: 'user-1',
         username: 'testuser',
         name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'test@example.com',
         scopes: ['openid', 'profile'],
       });
@@ -145,6 +150,8 @@ describe('UserService', () => {
         update: {
           email: 'test@example.com',
           name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
           username: 'testuser',
           active: true,
         },
@@ -152,6 +159,8 @@ describe('UserService', () => {
           id: 'user-1',
           email: 'test@example.com',
           name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
           username: 'testuser',
         },
       });
@@ -202,6 +211,8 @@ describe('UserService', () => {
 
       expect(result).toEqual({
         userId: 'user-1',
+        firstName: 'Test',
+        lastName: 'User',
         bio: 'Hello world',
         favoriteSports: [
           { id: 'sport-1', name: 'Basketball', icon: '🏀' },
@@ -239,6 +250,7 @@ describe('UserService', () => {
       expect(mockUserProfile.create).toHaveBeenCalledWith({
         data: { userId: 'user-1' },
         include: {
+          user: { select: { firstName: true, lastName: true } },
           pictures: true,
           favoriteSports: true,
           featuredAchievements: { include: { achievement: true } },
@@ -256,6 +268,7 @@ describe('UserService', () => {
       expect(mockUserProfile.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-42' },
         include: {
+          user: { select: { firstName: true, lastName: true } },
           pictures: true,
           favoriteSports: true,
           featuredAchievements: { include: { achievement: true } },
@@ -314,6 +327,7 @@ describe('UserService', () => {
           favoriteSports: { set: [{ id: 'sport-1' }] },
         },
         include: {
+          user: { select: { firstName: true, lastName: true } },
           pictures: true,
           favoriteSports: true,
           featuredAchievements: { include: { achievement: true } },
@@ -534,7 +548,7 @@ describe('UserService', () => {
   describe('lookupUsers', () => {
     it('should return matching users excluding the current user', async () => {
       mockUser.findMany.mockResolvedValue([
-        { id: 'user-2', username: 'jane', name: 'Jane Doe', email: 'jane@example.com' },
+        { id: 'user-2', username: 'jane', name: 'Jane Doe', firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' },
       ]);
 
       const result = await service.lookupUsers('jane', 'user-1');
@@ -544,6 +558,8 @@ describe('UserService', () => {
         id: 'user-2',
         username: 'jane',
         name: 'Jane Doe',
+        firstName: 'Jane',
+        lastName: 'Doe',
         email: 'jane@example.com',
       });
     });
@@ -562,12 +578,14 @@ describe('UserService', () => {
               OR: [
                 { email: { contains: 'John', mode: 'insensitive' } },
                 { name: { contains: 'John', mode: 'insensitive' } },
+                { firstName: { contains: 'John', mode: 'insensitive' } },
+                { lastName: { contains: 'John', mode: 'insensitive' } },
                 { username: { contains: 'John', mode: 'insensitive' } },
               ],
             },
           ],
         },
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, firstName: true, lastName: true, email: true },
         take: 20,
         orderBy: { name: 'asc' },
       });
@@ -594,6 +612,8 @@ describe('UserService', () => {
                 OR: [
                   { email: { contains: 'john', mode: 'insensitive' } },
                   { name: { contains: 'john', mode: 'insensitive' } },
+                  { firstName: { contains: 'john', mode: 'insensitive' } },
+                  { lastName: { contains: 'john', mode: 'insensitive' } },
                   { username: { contains: 'john', mode: 'insensitive' } },
                 ],
               },
@@ -601,6 +621,83 @@ describe('UserService', () => {
           }),
         })
       );
+    });
+  });
+
+  // ─── updateName ────────────────────────────────────────
+
+  describe('updateName', () => {
+    it('should update firstName and lastName and return user response', async () => {
+      mockUser.update.mockResolvedValue({
+        id: 'user-1',
+        username: 'testuser',
+        name: 'Jane Smith',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'test@example.com',
+      });
+
+      const result = await service.updateName('user-1', {
+        firstName: 'Jane',
+        lastName: 'Smith',
+      });
+
+      expect(result).toEqual({
+        sub: 'user-1',
+        username: 'testuser',
+        name: 'Jane Smith',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'test@example.com',
+        scopes: [],
+      });
+    });
+
+    it('should call prisma.user.update with correct data', async () => {
+      mockUser.update.mockResolvedValue({
+        id: 'user-1',
+        username: 'testuser',
+        name: 'Jane Smith',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'test@example.com',
+      });
+
+      await service.updateName('user-1', { firstName: 'Jane', lastName: 'Smith' });
+
+      expect(mockUser.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: {
+          firstName: 'Jane',
+          lastName: 'Smith',
+          name: 'Jane Smith',
+        },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      });
+    });
+
+    it('should convert null fields to undefined in response', async () => {
+      mockUser.update.mockResolvedValue({
+        id: 'user-1',
+        username: null,
+        name: 'Jane',
+        firstName: 'Jane',
+        lastName: null,
+        email: null,
+      });
+
+      const result = await service.updateName('user-1', { firstName: 'Jane', lastName: '' });
+
+      expect(result.username).toBeUndefined();
+      expect(result.email).toBeUndefined();
+      expect(result.lastName).toBeUndefined();
     });
   });
 });

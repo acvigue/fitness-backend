@@ -15,6 +15,8 @@ export type AuthenticatedUser = {
   sub: string;
   username?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   scopes: string[];
   payload: JWTPayload;
@@ -52,10 +54,15 @@ export class OidcAuthService {
           ? `${payloadRecord.given_name} ${payloadRecord.family_name}`
           : (payloadRecord.given_name ?? payloadRecord.family_name));
 
+      const firstName = payloadRecord.given_name;
+      const lastName = payloadRecord.family_name;
+
       return {
         sub: payload.sub ?? 'unknown',
         username: payloadRecord.preferred_username ?? payloadRecord.username,
         name,
+        firstName,
+        lastName,
         email: payload.email as string | undefined,
         scopes,
         payload,

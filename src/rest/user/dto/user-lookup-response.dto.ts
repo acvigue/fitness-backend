@@ -10,6 +10,12 @@ export class UserLookupItemDto {
   @ApiPropertyOptional({ description: 'Display name', example: 'John Doe' })
   name!: string | null;
 
+  @ApiPropertyOptional({ description: 'First name', example: 'John' })
+  firstName!: string | null;
+
+  @ApiPropertyOptional({ description: 'Last name', example: 'Doe' })
+  lastName!: string | null;
+
   @ApiPropertyOptional({ description: 'Email address', example: 'john@example.com' })
   email!: string | null;
 }

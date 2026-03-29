@@ -22,6 +22,7 @@ import { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto'
 import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import { UserLookupQueryDto } from './dto/user-lookup-query.dto';
 import { UserLookupResponseDto } from './dto/user-lookup-response.dto';
+import { UpdateNameDto } from './dto/update-name.dto';
 import { EnrichSessionDto, EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
 import { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
@@ -51,6 +52,18 @@ export class UserController {
   @ApiCommonErrorResponses()
   getCurrentUser(@CurrentUser() user: AuthenticatedUser): Promise<UserResponseDto> {
     return this.userService.getOrCreateMe(user);
+  }
+
+  @Patch('me/name')
+  @ApiOperation({ summary: 'Update current user first and last name' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  updateName(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateNameDto
+  ): Promise<UserResponseDto> {
+    return this.userService.updateName(user.sub, dto);
   }
 
   @Get('me/memberships')

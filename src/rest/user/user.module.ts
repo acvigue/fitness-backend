@@ -9,6 +9,6 @@ import { AuthModule } from '@/rest/auth/auth.module';
   imports: [AuthModule],
   controllers: [UserController, UsersController],
   providers: [UserService, KeycloakAdminService],
-  exports: [KeycloakAdminService],
+  exports: [UserService, KeycloakAdminService],
 })
 export class UserModule {}

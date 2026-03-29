@@ -23,6 +23,20 @@ export class UserResponseDto {
   name?: string;
 
   @ApiPropertyOptional({
+    description: 'First name of the user',
+    example: 'John',
+    type: String,
+  })
+  firstName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Last name of the user',
+    example: 'Doe',
+    type: String,
+  })
+  lastName?: string;
+
+  @ApiPropertyOptional({
     description: 'Email address of the user',
     example: 'john.doe@example.com',
     type: String,

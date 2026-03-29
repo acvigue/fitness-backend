@@ -62,6 +62,8 @@ describe('OidcAuthService', () => {
     const user = await service.verifyToken(token);
 
     expect(user.name).toBe('John Doe');
+    expect(user.firstName).toBe('John');
+    expect(user.lastName).toBe('Doe');
   });
 
   it('should use given_name alone when family_name is absent', async () => {
@@ -72,6 +74,8 @@ describe('OidcAuthService', () => {
     const user = await service.verifyToken(token);
 
     expect(user.name).toBe('John');
+    expect(user.firstName).toBe('John');
+    expect(user.lastName).toBeUndefined();
   });
 
   it('should use family_name alone when given_name is absent', async () => {
@@ -82,6 +86,8 @@ describe('OidcAuthService', () => {
     const user = await service.verifyToken(token);
 
     expect(user.name).toBe('Doe');
+    expect(user.firstName).toBeUndefined();
+    expect(user.lastName).toBe('Doe');
   });
 
   it('should return undefined name when no name fields are present', async () => {
@@ -89,6 +95,8 @@ describe('OidcAuthService', () => {
     const user = await service.verifyToken(token);
 
     expect(user.name).toBeUndefined();
+    expect(user.firstName).toBeUndefined();
+    expect(user.lastName).toBeUndefined();
   });
 
   it('should prefer preferred_username over username', async () => {

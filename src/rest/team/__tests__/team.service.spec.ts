@@ -19,14 +19,20 @@ const mockTeamInvitation = {
   delete: vi.fn(),
 };
 
+const mockUser = {
+  findUnique: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     team: mockTeam,
     teamInvitation: mockTeamInvitation,
+    user: mockUser,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         team: mockTeam,
         teamInvitation: mockTeamInvitation,
+        user: mockUser,
       })
     ),
   },
@@ -36,9 +42,22 @@ vi.mock('@/shared/utils', () => ({
 
 const { TeamService } = await import('../team.service');
 const { NotificationService } = await import('../../notification/notification.service');
+const { UserService } = await import('../../user/user.service');
 
 const mockNotificationService = {
   create: vi.fn().mockResolvedValue({}),
+};
+
+const mockUserService = {
+  getProfile: vi.fn(),
+};
+
+const mockProfile = {
+  userId: 'user-2',
+  bio: 'Test bio',
+  favoriteSports: [],
+  pictures: [],
+  featuredAchievements: [],
 };
 
 function mockT(overrides: Record<string, unknown> = {}) {
@@ -72,7 +91,11 @@ describe('TeamService', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [TeamService, { provide: NotificationService, useValue: mockNotificationService }],
+      providers: [
+        TeamService,
+        { provide: NotificationService, useValue: mockNotificationService },
+        { provide: UserService, useValue: mockUserService },
+      ],
     }).compile();
 
     service = module.get(TeamService);
@@ -661,6 +684,60 @@ describe('TeamService', () => {
         where: { userId: 'user-2', type: 'INVITE', status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
       });
+    });
+  });
+
+  // ─── getMemberProfile ───────────────────────────────────
+
+  describe('getMemberProfile', () => {
+    it('should return member profile with isCaptain flag', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+      mockUser.findUnique.mockResolvedValue({
+        id: 'user-2',
+        username: 'jane',
+        name: 'Jane',
+        email: 'jane@test.com',
+      });
+      mockUserService.getProfile.mockResolvedValue(mockProfile);
+
+      const result = await service.getMemberProfile('team-1', 'user-2');
+
+      expect(result.userId).toBe('user-2');
+      expect(result.isCaptain).toBe(false);
+      expect(result.profile).toEqual(mockProfile);
+    });
+
+    it('should set isCaptain to true for the captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+      mockUser.findUnique.mockResolvedValue({
+        id: 'captain-1',
+        username: 'cap',
+        name: 'Captain',
+        email: 'cap@test.com',
+      });
+      mockUserService.getProfile.mockResolvedValue({ ...mockProfile, userId: 'captain-1' });
+
+      const result = await service.getMemberProfile('team-1', 'captain-1');
+
+      expect(result.isCaptain).toBe(true);
+    });
+
+    it('should throw NotFoundException when team does not exist', async () => {
+      mockTeam.findUnique.mockResolvedValue(null);
+
+      await expect(service.getMemberProfile('team-1', 'user-2')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when user is not a member', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
+
+      await expect(service.getMemberProfile('team-1', 'user-99')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 });

@@ -25,6 +25,7 @@ import { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
 import { TeamUpdateDto } from './dto/team-update.dto';
 import { TeamInviteDto } from './dto/team-invite.dto';
 import { TeamInvitationResponseDto } from './dto/team-invitation-response.dto';
+import { TeamMemberProfileResponseDto } from './dto/team-member-profile-response.dto';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -111,6 +112,18 @@ export class TeamController {
   }
 
   // ─── Members ───────────────────────────────────────────
+
+  @Get(':id/members/:userId')
+  @ApiOperation({ summary: 'Get full profile of a team member' })
+  @ApiResponse({ status: 200, type: TeamMemberProfileResponseDto })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getMemberProfile(
+    @Param('id') id: string,
+    @Param('userId') userId: string
+  ): Promise<TeamMemberProfileResponseDto> {
+    return this.teamService.getMemberProfile(id, userId);
+  }
 
   @Post(':id/leave')
   @HttpCode(HttpStatus.NO_CONTENT)

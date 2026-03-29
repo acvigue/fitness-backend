@@ -32,6 +32,10 @@ import {
   PaginatedOrganizationResponseDto,
 } from './dto/organization-response.dto';
 import { OrganizationMemberResponseDto } from './dto/organization-member-response.dto';
+import {
+  PaginatedOrganizationMemberListDto,
+  OrganizationMemberProfileResponseDto,
+} from './dto/organization-member-detail-response.dto';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -70,6 +74,32 @@ export class OrganizationController {
   @ApiCommonErrorResponses()
   findOne(@Param('id') id: string): Promise<OrganizationResponseDto> {
     return this.organizationService.findOne(id);
+  }
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'List members of an organization' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiResponse({ status: 200, type: PaginatedOrganizationMemberListDto })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getMembers(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams
+  ): Promise<PaginatedOrganizationMemberListDto> {
+    return this.organizationService.getMembers(id, pagination);
+  }
+
+  @Get(':id/members/:userId')
+  @ApiOperation({ summary: 'Get full profile of an organization member' })
+  @ApiResponse({ status: 200, type: OrganizationMemberProfileResponseDto })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getMemberProfile(
+    @Param('id') id: string,
+    @Param('userId') userId: string
+  ): Promise<OrganizationMemberProfileResponseDto> {
+    return this.organizationService.getMemberProfile(id, userId);
   }
 
   @Patch(':id')
