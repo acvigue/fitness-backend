@@ -50,28 +50,18 @@ export class UserService {
   async getProfile(userId: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
-      include: { pictures: true, favoriteSports: true },
+      include: {
+        pictures: true,
+        favoriteSports: true,
+        featuredAchievements: { include: { achievement: true } },
+      },
     });
 
     if (!profile) {
       return this.createProfile(userId);
     }
 
-    return {
-      userId: profile.userId,
-      bio: profile.bio,
-      favoriteSports: profile.favoriteSports.map((s) => ({
-        id: s.id,
-        name: s.name,
-        icon: s.icon,
-      })),
-      pictures: profile.pictures.map((p) => ({
-        id: p.id,
-        url: p.url,
-        alt: p.alt ?? undefined,
-        isPrimary: p.isPrimary,
-      })),
-    };
+    return this.toProfileResponse(profile);
   }
 
   async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfileResponseDto> {
@@ -120,39 +110,94 @@ export class UserService {
       });
     }
 
+    if (dto.featuredAchievementIds !== undefined) {
+      const uniqueIds = [...new Set(dto.featuredAchievementIds)];
+      const userAchievements = await prisma.userAchievement.findMany({
+        where: { id: { in: uniqueIds }, userId, unlockedAt: { not: null } },
+      });
+
+      if (userAchievements.length !== uniqueIds.length) {
+        throw new BadRequestException(
+          'One or more achievement IDs are invalid, not yours, or not yet unlocked'
+        );
+      }
+
+      data.featuredAchievements = {
+        set: uniqueIds.map((id) => ({ id })),
+      };
+    }
+
     const updated = await prisma.userProfile.update({
       where: { userId },
       data,
-      include: { pictures: true, favoriteSports: true },
+      include: {
+        pictures: true,
+        favoriteSports: true,
+        featuredAchievements: { include: { achievement: true } },
+      },
     });
 
-    return {
-      userId: updated.userId,
-      bio: updated.bio,
-      favoriteSports: updated.favoriteSports.map((s) => ({
-        id: s.id,
-        name: s.name,
-        icon: s.icon,
-      })),
-      pictures: updated.pictures.map((p) => ({
-        id: p.id,
-        url: p.url,
-        alt: p.alt ?? undefined,
-        isPrimary: p.isPrimary,
-      })),
-    };
+    return this.toProfileResponse(updated);
   }
 
   private async createProfile(userId: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.create({
       data: { userId },
-      include: { pictures: true, favoriteSports: true },
+      include: {
+        pictures: true,
+        favoriteSports: true,
+        featuredAchievements: { include: { achievement: true } },
+      },
     });
+    return this.toProfileResponse(profile);
+  }
+
+  private toProfileResponse(profile: {
+    userId: string;
+    bio: string | null;
+    favoriteSports: { id: string; name: string; icon: string | null }[];
+    pictures: { id: string; url: string; alt: string | null; isPrimary: boolean }[];
+    featuredAchievements: {
+      id: string;
+      progress: number;
+      unlockedAt: Date | null;
+      achievement: {
+        id: string;
+        name: string;
+        description: string;
+        icon: string | null;
+        criteriaType: string;
+        threshold: number;
+      };
+    }[];
+  }): UserProfileResponseDto {
     return {
       userId: profile.userId,
       bio: profile.bio,
-      favoriteSports: [],
-      pictures: [],
+      favoriteSports: profile.favoriteSports.map((s) => ({
+        id: s.id,
+        name: s.name,
+        icon: s.icon,
+      })),
+      pictures: profile.pictures.map((p) => ({
+        id: p.id,
+        url: p.url,
+        alt: p.alt ?? undefined,
+        isPrimary: p.isPrimary,
+      })),
+      featuredAchievements: profile.featuredAchievements.map((ua) => ({
+        id: ua.id,
+        progress: ua.progress,
+        unlockedAt: ua.unlockedAt?.toISOString() ?? null,
+        achievement: {
+          id: ua.achievement.id,
+          name: ua.achievement.name,
+          description: ua.achievement.description,
+          icon: ua.achievement.icon,
+          criteriaType: ua.achievement.criteriaType,
+          threshold: ua.achievement.threshold,
+        },
+      })),
     };
   }
 

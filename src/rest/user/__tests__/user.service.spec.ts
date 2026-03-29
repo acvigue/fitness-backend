@@ -57,6 +57,7 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
       { id: 'sport-2', name: 'Tennis', icon: '🎾' },
     ],
     pictures: [],
+    featuredAchievements: [],
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -209,6 +210,7 @@ describe('UserService', () => {
         pictures: [
           { id: 'pic-1', url: 'https://example.com/pic.jpg', alt: 'Photo', isPrimary: true },
         ],
+        featuredAchievements: [],
       });
     });
 
@@ -236,7 +238,11 @@ describe('UserService', () => {
 
       expect(mockUserProfile.create).toHaveBeenCalledWith({
         data: { userId: 'user-1' },
-        include: { pictures: true, favoriteSports: true },
+        include: {
+          pictures: true,
+          favoriteSports: true,
+          featuredAchievements: { include: { achievement: true } },
+        },
       });
       expect(result.userId).toBe('user-1');
       expect(result.pictures).toEqual([]);
@@ -249,7 +255,11 @@ describe('UserService', () => {
 
       expect(mockUserProfile.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-42' },
-        include: { pictures: true, favoriteSports: true },
+        include: {
+          pictures: true,
+          favoriteSports: true,
+          featuredAchievements: { include: { achievement: true } },
+        },
       });
     });
   });
@@ -303,7 +313,11 @@ describe('UserService', () => {
           bio: 'New bio',
           favoriteSports: { set: [{ id: 'sport-1' }] },
         },
-        include: { pictures: true, favoriteSports: true },
+        include: {
+          pictures: true,
+          favoriteSports: true,
+          featuredAchievements: { include: { achievement: true } },
+        },
       });
     });
 
