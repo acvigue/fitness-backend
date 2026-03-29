@@ -259,6 +259,7 @@ model Tournament {
 
   users       User[]                 @relation("TournamentParticipants")
   teams       Team[]                 @relation("TournamentTeams")
+  matches     TournamentMatch[]
   invitations TournamentInvitation[]
   sportId     String                 @db.Uuid @map("sport_id")
 
@@ -297,6 +298,42 @@ enum TournamentStatus {
   COMPLETED
 }
 
+enum MatchStatus {
+  PENDING
+  COMPLETED
+  BYE
+}
+
+model TournamentMatch {
+  id           String      @id @default(cuid())
+  tournamentId String      @map("tournament_id")
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round        Int
+  matchNumber  Int         @map("match_number")
+
+  team1Id    String? @map("team1_id")
+  team1      Team?   @relation("MatchTeam1", fields: [team1Id], references: [id])
+  team2Id    String? @map("team2_id")
+  team2      Team?   @relation("MatchTeam2", fields: [team2Id], references: [id])
+  team1Score Int?    @map("team1_score")
+  team2Score Int?    @map("team2_score")
+  winnerId   String? @map("winner_id")
+  winner     Team?   @relation("MatchWinner", fields: [winnerId], references: [id])
+
+  status MatchStatus @default(PENDING)
+
+  nextMatchId     String?            @map("next_match_id")
+  nextMatch       TournamentMatch?   @relation("BracketProgression", fields: [nextMatchId], references: [id])
+  previousMatches TournamentMatch[]  @relation("BracketProgression")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tournamentId, round, matchNumber])
+  @@index([tournamentId])
+  @@map("tournament_matches")
+}
+
 model Notification {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
@@ -328,6 +365,9 @@ model Team {
   invitations           TeamInvitation[]
   tournaments           Tournament[]           @relation("TournamentTeams")
   tournamentInvitations TournamentInvitation[] @relation("TournamentInvitations")
+  matchesAsTeam1        TournamentMatch[]      @relation("MatchTeam1")
+  matchesAsTeam2        TournamentMatch[]      @relation("MatchTeam2")
+  matchesWon            TournamentMatch[]      @relation("MatchWinner")
 
   @@index([captainId])
   @@index([sportId])

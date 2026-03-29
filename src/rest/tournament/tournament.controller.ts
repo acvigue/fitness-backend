@@ -32,6 +32,9 @@ import {
   TournamentResponseDto,
   PaginatedTournamentResponseDto,
 } from './dto/tournament-response.dto';
+import { TournamentBracketResponseDto } from './dto/tournament-bracket-response.dto';
+import { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
+import { RecordMatchResultDto } from './dto/record-match-result.dto';
 
 @ApiTags('Tournaments')
 @ApiBearerAuth()
@@ -205,6 +208,53 @@ export class TournamentController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<void> {
     return this.tournamentService.removeTeam(id, teamId, user.sub);
+  }
+
+  // ─── Bracket & Matches ─────────────────────────────────
+
+  @Post(':id/bracket')
+  @ApiOperation({
+    summary:
+      'Generate single-elimination bracket with random seeding (requires STAFF or ADMIN role)',
+  })
+  @ApiResponse({ status: 201, type: TournamentBracketResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  generateBracket(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentBracketResponseDto> {
+    return this.tournamentService.generateBracket(id, user.sub);
+  }
+
+  @Get(':id/bracket')
+  @ApiOperation({ summary: 'Get the tournament bracket with all matches' })
+  @ApiResponse({ status: 200, type: TournamentBracketResponseDto })
+  @ApiBadRequestResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getBracket(@Param('id') id: string): Promise<TournamentBracketResponseDto> {
+    return this.tournamentService.getBracket(id);
+  }
+
+  @Patch(':id/matches/:matchId/result')
+  @ApiOperation({
+    summary: 'Record a match result — higher score wins (requires STAFF or ADMIN role)',
+  })
+  @ApiResponse({ status: 200, type: TournamentMatchResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  recordMatchResult(
+    @Param('id') id: string,
+    @Param('matchId') matchId: string,
+    @Body() dto: RecordMatchResultDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentMatchResponseDto> {
+    return this.tournamentService.recordMatchResult(id, matchId, dto, user.sub);
   }
 
   // ─── Tournament Invitations ─────────────────────────────

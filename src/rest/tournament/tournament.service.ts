@@ -6,12 +6,16 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
+import { AchievementService } from '@/rest/achievement/achievement.service';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateTournamentDto } from './dto/create-tournament.dto';
 import type { UpdateTournamentDto } from './dto/update-tournament.dto';
+import type { RecordMatchResultDto } from './dto/record-match-result.dto';
 import type { TournamentResponseDto } from './dto/tournament-response.dto';
 import type { TournamentInvitationResponseDto } from './dto/tournament-invitation-response.dto';
+import type { TournamentBracketResponseDto } from './dto/tournament-bracket-response.dto';
+import type { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
 
 const TOURNAMENT_INCLUDE = {
   sport: true,
@@ -22,6 +26,26 @@ const TOURNAMENT_INCLUDE = {
 function isPowerOfTwo(n: number): boolean {
   return n >= 2 && (n & (n - 1)) === 0;
 }
+
+function nextPowerOfTwo(n: number): number {
+  let p = 1;
+  while (p < n) p <<= 1;
+  return p;
+}
+
+function roundLabel(round: number, totalRounds: number): string {
+  const remaining = totalRounds - round;
+  if (remaining === 0) return 'Final';
+  if (remaining === 1) return 'Semifinals';
+  if (remaining === 2) return 'Quarterfinals';
+  return `Round ${round}`;
+}
+
+const MATCH_INCLUDE = {
+  team1: { select: { id: true, name: true, captainId: true } },
+  team2: { select: { id: true, name: true, captainId: true } },
+  winner: { select: { id: true, name: true, captainId: true } },
+} as const;
 
 function toResponse(tournament: {
   id: string;
@@ -67,7 +91,10 @@ function toResponse(tournament: {
 
 @Injectable()
 export class TournamentService {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly achievementService: AchievementService
+  ) {}
 
   async create(dto: CreateTournamentDto, userId: string): Promise<TournamentResponseDto> {
     if (!isPowerOfTwo(dto.maxTeams)) {
@@ -418,6 +445,282 @@ export class TournamentService {
     });
 
     return invitations.map((inv) => this.toInvitationResponse(inv));
+  }
+
+  // ─── Bracket & Matches ──────────────────────────────────
+
+  async generateBracket(
+    tournamentId: string,
+    userId: string
+  ): Promise<TournamentBracketResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        teams: { select: { id: true, name: true, captainId: true } },
+        matches: { select: { id: true } },
+      },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (tournament.matches.length > 0) {
+      throw new BadRequestException('Bracket has already been generated for this tournament');
+    }
+
+    if (tournament.teams.length < 2) {
+      throw new BadRequestException('At least 2 teams are required to generate a bracket');
+    }
+
+    // Shuffle teams randomly
+    const teams = [...tournament.teams];
+    for (let i = teams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [teams[i], teams[j]] = [teams[j], teams[i]];
+    }
+
+    const bracketSize = nextPowerOfTwo(teams.length);
+    const totalRounds = Math.log2(bracketSize);
+
+    // Build all matches bottom-up: create later rounds first so we can link nextMatchId
+    const matchIdsByRound: string[][] = [];
+
+    // Create matches for all rounds (from final → round 1)
+    for (let round = totalRounds; round >= 1; round--) {
+      const matchesInRound = bracketSize / Math.pow(2, round);
+      const roundMatchIds: string[] = [];
+
+      for (let m = 1; m <= matchesInRound; m++) {
+        const nextMatchId =
+          round < totalRounds
+            ? matchIdsByRound[matchIdsByRound.length - 1][Math.ceil(m / 2) - 1]
+            : null;
+
+        const match = await prisma.tournamentMatch.create({
+          data: {
+            tournamentId,
+            round,
+            matchNumber: m,
+            nextMatchId,
+          },
+        });
+
+        roundMatchIds.push(match.id);
+      }
+
+      matchIdsByRound.push(roundMatchIds);
+    }
+
+    // Round 1 match IDs are the last array pushed
+    const round1MatchIds = matchIdsByRound[matchIdsByRound.length - 1];
+
+    // Assign teams to round 1 slots and handle byes
+    for (let i = 0; i < round1MatchIds.length; i++) {
+      const team1 = teams[i * 2] ?? null;
+      const team2 = teams[i * 2 + 1] ?? null;
+
+      const isBye = !team1 || !team2;
+      const byeWinner = team1 ?? team2;
+
+      await prisma.tournamentMatch.update({
+        where: { id: round1MatchIds[i] },
+        data: {
+          team1Id: team1?.id ?? null,
+          team2Id: team2?.id ?? null,
+          status: isBye ? 'BYE' : 'PENDING',
+          winnerId: isBye ? byeWinner?.id ?? null : null,
+        },
+      });
+
+      // Advance bye winners to next round
+      if (isBye && byeWinner) {
+        const match = await prisma.tournamentMatch.findUnique({
+          where: { id: round1MatchIds[i] },
+        });
+        if (match?.nextMatchId) {
+          await this.placeWinnerInNextMatch(match.nextMatchId, byeWinner.id);
+        }
+      }
+    }
+
+    // Update tournament status to INPROGRESS
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { status: 'INPROGRESS' },
+    });
+
+    return this.getBracket(tournamentId);
+  }
+
+  async getBracket(tournamentId: string): Promise<TournamentBracketResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { id: true },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    const matches = await prisma.tournamentMatch.findMany({
+      where: { tournamentId },
+      include: MATCH_INCLUDE,
+      orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }],
+    });
+
+    if (matches.length === 0) {
+      throw new BadRequestException('Bracket has not been generated yet');
+    }
+
+    const totalRounds = Math.max(...matches.map((m) => m.round));
+
+    const roundsMap = new Map<number, TournamentMatchResponseDto[]>();
+    for (const m of matches) {
+      const dto = this.toMatchResponse(m);
+      if (!roundsMap.has(m.round)) roundsMap.set(m.round, []);
+      roundsMap.get(m.round)!.push(dto);
+    }
+
+    return {
+      tournamentId,
+      totalRounds,
+      rounds: Array.from(roundsMap.entries()).map(([round, roundMatches]) => ({
+        round,
+        label: roundLabel(round, totalRounds),
+        matches: roundMatches,
+      })),
+    };
+  }
+
+  async recordMatchResult(
+    tournamentId: string,
+    matchId: string,
+    dto: RecordMatchResultDto,
+    userId: string
+  ): Promise<TournamentMatchResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (tournament.status !== 'INPROGRESS') {
+      throw new BadRequestException('Tournament is not in progress');
+    }
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      include: {
+        ...MATCH_INCLUDE,
+        nextMatch: true,
+      },
+    });
+
+    if (!match || match.tournamentId !== tournamentId) {
+      throw new NotFoundException('Match not found in this tournament');
+    }
+
+    if (match.status !== 'PENDING') {
+      throw new BadRequestException('Match has already been completed');
+    }
+
+    if (!match.team1Id || !match.team2Id) {
+      throw new BadRequestException('Both teams must be assigned before recording a result');
+    }
+
+    if (dto.team1Score === dto.team2Score) {
+      throw new BadRequestException('Scores cannot be tied in single elimination');
+    }
+
+    const winnerId = dto.team1Score > dto.team2Score ? match.team1Id : match.team2Id;
+
+    const updated = await prisma.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        team1Score: dto.team1Score,
+        team2Score: dto.team2Score,
+        winnerId,
+        status: 'COMPLETED',
+      },
+      include: MATCH_INCLUDE,
+    });
+
+    // Advance winner to next match
+    if (match.nextMatchId) {
+      await this.placeWinnerInNextMatch(match.nextMatchId, winnerId);
+    } else {
+      // This was the final — mark tournament as COMPLETED
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+
+    // Award achievements to winning team members (fire-and-forget)
+    this.awardMatchAchievements(winnerId, !match.nextMatchId).catch(() => {});
+
+    return this.toMatchResponse(updated);
+  }
+
+  private async placeWinnerInNextMatch(nextMatchId: string, winnerId: string): Promise<void> {
+    const nextMatch = await prisma.tournamentMatch.findUnique({
+      where: { id: nextMatchId },
+    });
+    if (!nextMatch) return;
+
+    // Place in team1 slot if empty, otherwise team2
+    const data = !nextMatch.team1Id ? { team1Id: winnerId } : { team2Id: winnerId };
+
+    await prisma.tournamentMatch.update({
+      where: { id: nextMatchId },
+      data,
+    });
+  }
+
+  private async awardMatchAchievements(
+    winningTeamId: string,
+    isFinal: boolean
+  ): Promise<void> {
+    const team = await prisma.team.findUnique({
+      where: { id: winningTeamId },
+      include: { users: { select: { id: true } } },
+    });
+    if (!team) return;
+
+    const memberIds = [team.captainId, ...team.users.map((u) => u.id)];
+    const uniqueIds = [...new Set(memberIds)];
+
+    for (const uid of uniqueIds) {
+      await this.achievementService.incrementProgress(uid, 'TOURNAMENT_MATCH_WIN');
+      if (isFinal) {
+        await this.achievementService.incrementProgress(uid, 'TOURNAMENT_WIN');
+      }
+    }
+  }
+
+  private toMatchResponse(match: {
+    id: string;
+    round: number;
+    matchNumber: number;
+    team1: { id: string; name: string; captainId: string } | null;
+    team2: { id: string; name: string; captainId: string } | null;
+    team1Score: number | null;
+    team2Score: number | null;
+    winner: { id: string; name: string; captainId: string } | null;
+    status: string;
+    nextMatchId: string | null;
+  }): TournamentMatchResponseDto {
+    return {
+      id: match.id,
+      round: match.round,
+      matchNumber: match.matchNumber,
+      team1: match.team1,
+      team2: match.team2,
+      team1Score: match.team1Score,
+      team2Score: match.team2Score,
+      winner: match.winner,
+      status: match.status as TournamentMatchResponseDto['status'],
+      nextMatchId: match.nextMatchId,
+    };
   }
 
   private toInvitationResponse(invitation: {
