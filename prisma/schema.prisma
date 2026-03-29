@@ -31,8 +31,9 @@ model User {
   teamCaptainships Team[]               @relation("TeamCaptain")
   teamMemberships  Team[]               @relation("TeamMembers")
 
-  sessions    Session[]
-  Achievement Achievement[]
+  sessions      Session[]
+  notifications Notification[]
+  Achievement   Achievement[]
   createdTournaments Tournament[] @relation("TournamentCreator")
   tournaments        Tournament[] @relation("TournamentParticipants")
 
@@ -246,6 +247,20 @@ enum TournamentStatus {
   UPCOMING
   INPROGRESS
   COMPLETED
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  content     String
+  dismissed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, dismissed])
+  @@map("notifications")
 }
 
 model Team {
