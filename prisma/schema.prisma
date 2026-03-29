@@ -249,13 +249,21 @@ enum TournamentStatus {
 }
 
 model Team {
-  id          String @id @unique @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  sport       Sport  @relation(fields: [sportId], references: [id])
-  description String
-  captainID   String
-  captain     User   @relation("TeamCaptain", fields: [captainID], references: [id], onDelete: Cascade)
-  
-  users   User[] @relation("TeamMembers")
-  sportId String @db.Uuid
+  description String   @default("")
+  captainId   String   @map("captain_id")
+  captain User  @relation("TeamCaptain", fields: [captainId], references: [id], onDelete: Cascade)
+
+  sportId     String   @db.Uuid @map("sport_id")
+  sport   Sport @relation(fields: [sportId], references: [id])
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[] @relation("TeamMembers")
+
+  @@index([captainId])
+  @@index([sportId])
+  @@map("teams")
 }

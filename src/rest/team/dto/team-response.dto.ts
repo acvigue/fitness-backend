@@ -1,15 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class TeamResponseDto {
-  @ApiProperty({ description: 'Team ID (UUID)', example: 'a1b2c3d4-0001-4000-8000-000000000001' })
+  @ApiProperty({ description: 'Team ID', example: 'cm123abc456def789ghi0001' })
   id!: string;
 
-  @ApiProperty({ description: 'Team name', example: 'Best Team Ever' })
+  @ApiProperty({ description: 'Team name', example: 'Purdue Badminton A' })
   name!: string;
 
-  @ApiProperty({ description: 'Team description', example: 'Best Team Ever' })
+  @ApiProperty({
+    description: 'Team description',
+    example: 'Competitive student badminton team',
+  })
   description!: string;
 
-  @ApiProperty({ description: 'Team captain ID (UUID)' })
+  @ApiProperty({ description: 'Team captain user ID' })
   captainId!: string;
+
+  @ApiProperty({
+    description: 'Sport ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  sportId!: string;
 }
