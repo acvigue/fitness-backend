@@ -233,14 +233,36 @@ model Tournament {
   organizationId String       @map("organization_id")
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  users   User[] @relation("TournamentParticipants")
-  teams   Team[] @relation("TournamentTeams")
-  sportId String @db.Uuid @map("sport_id")
+  users       User[]                 @relation("TournamentParticipants")
+  teams       Team[]                 @relation("TournamentTeams")
+  invitations TournamentInvitation[]
+  sportId     String                 @db.Uuid @map("sport_id")
 
   @@index([organizationId])
   @@index([createdById])
   @@index([sportId])
   @@map("tournaments")
+}
+
+enum TournamentInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model TournamentInvitation {
+  id           String                     @id @default(cuid())
+  tournamentId String                     @map("tournament_id")
+  tournament   Tournament                 @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamId       String                     @map("team_id")
+  team         Team                       @relation("TournamentInvitations", fields: [teamId], references: [id], onDelete: Cascade)
+  status       TournamentInvitationStatus @default(PENDING)
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+
+  @@unique([tournamentId, teamId, status])
+  @@index([teamId])
+  @@map("tournament_invitations")
 }
 
 enum TournamentStatus {
@@ -278,9 +300,10 @@ model Team {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users       User[]           @relation("TeamMembers")
-  invitations TeamInvitation[]
-  tournaments Tournament[]     @relation("TournamentTeams")
+  users                 User[]                 @relation("TeamMembers")
+  invitations           TeamInvitation[]
+  tournaments           Tournament[]           @relation("TournamentTeams")
+  tournamentInvitations TournamentInvitation[] @relation("TournamentInvitations")
 
   @@index([captainId])
   @@index([sportId])

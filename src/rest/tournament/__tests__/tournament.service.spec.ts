@@ -19,16 +19,26 @@ const mockTeamModel = {
   findUnique: vi.fn(),
 };
 
+const mockTournamentInvitation = {
+  findUnique: vi.fn(),
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     tournament: mockTournament,
     organizationMember: mockOrganizationMember,
     team: mockTeamModel,
+    tournamentInvitation: mockTournamentInvitation,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         tournament: mockTournament,
         organizationMember: mockOrganizationMember,
         team: mockTeamModel,
+        tournamentInvitation: mockTournamentInvitation,
       })
     ),
   },
@@ -37,6 +47,11 @@ vi.mock('@/shared/utils', () => ({
 }));
 
 const { TournamentService } = await import('../tournament.service');
+const { NotificationService } = await import('../../notification/notification.service');
+
+const mockNotificationService = {
+  create: vi.fn().mockResolvedValue({}),
+};
 
 const NOW = new Date('2026-01-01T00:00:00Z');
 const FUTURE = new Date('2026-06-01T09:00:00Z');
@@ -76,7 +91,10 @@ describe('TournamentService', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [TournamentService],
+      providers: [
+        TournamentService,
+        { provide: NotificationService, useValue: mockNotificationService },
+      ],
     }).compile();
 
     service = module.get(TournamentService);
@@ -591,6 +609,170 @@ describe('TournamentService', () => {
       await expect(service.removeTeam('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
         BadRequestException
       );
+    });
+  });
+
+  // ─── sendTournamentInvitation ───────────────────────────
+
+  describe('sendTournamentInvitation', () => {
+    it('should send an invitation when user is org manager', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData());
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTournamentInvitation.findFirst.mockResolvedValue(null);
+      mockTournamentInvitation.create.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'PENDING',
+        createdAt: NOW,
+      });
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        name: 'Alpha',
+        captainId: 'cap-1',
+      });
+
+      const result = await service.sendTournamentInvitation('tournament-1', 'team-1', 'user-1');
+
+      expect(result.status).toBe('PENDING');
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'cap-1',
+        'TOURNAMENT_INVITE',
+        'Tournament Invitation',
+        expect.stringContaining('Spring Championship')
+      );
+    });
+
+    it('should throw BadRequestException when invitation already pending', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData());
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTournamentInvitation.findFirst.mockResolvedValue({ id: 'tinv-1' });
+
+      await expect(
+        service.sendTournamentInvitation('tournament-1', 'team-1', 'user-1')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ForbiddenException when user is MEMBER', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData());
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'MEMBER' }));
+
+      await expect(
+        service.sendTournamentInvitation('tournament-1', 'team-1', 'user-1')
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── respondToTournamentInvitation ──────────────────────
+
+  describe('respondToTournamentInvitation', () => {
+    it('should accept invitation and add team to tournament', async () => {
+      mockTournamentInvitation.findUnique.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'PENDING',
+        createdAt: NOW,
+        team: { id: 'team-1', captainId: 'cap-1' },
+        tournament: { id: 'tournament-1', name: 'Spring Championship' },
+      });
+      mockTournamentInvitation.update.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'ACCEPTED',
+        createdAt: NOW,
+      });
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockTournament.update.mockResolvedValue(mockTournamentData());
+
+      const result = await service.respondToTournamentInvitation('tinv-1', 'cap-1', true);
+
+      expect(result.status).toBe('ACCEPTED');
+      expect(mockTournament.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { teams: { connect: { id: 'team-1' } } },
+        })
+      );
+    });
+
+    it('should decline invitation without adding team', async () => {
+      mockTournamentInvitation.findUnique.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'PENDING',
+        createdAt: NOW,
+        team: { id: 'team-1', captainId: 'cap-1' },
+        tournament: { id: 'tournament-1', name: 'Spring Championship' },
+      });
+      mockTournamentInvitation.update.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'DECLINED',
+        createdAt: NOW,
+      });
+
+      const result = await service.respondToTournamentInvitation('tinv-1', 'cap-1', false);
+
+      expect(result.status).toBe('DECLINED');
+      expect(mockTournament.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTournamentInvitation.findUnique.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'PENDING',
+        createdAt: NOW,
+        team: { id: 'team-1', captainId: 'cap-1' },
+        tournament: { id: 'tournament-1', name: 'Spring Championship' },
+      });
+
+      await expect(
+        service.respondToTournamentInvitation('tinv-1', 'wrong-user', true)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when already responded', async () => {
+      mockTournamentInvitation.findUnique.mockResolvedValue({
+        id: 'tinv-1',
+        tournamentId: 'tournament-1',
+        teamId: 'team-1',
+        status: 'ACCEPTED',
+        createdAt: NOW,
+        team: { id: 'team-1', captainId: 'cap-1' },
+        tournament: { id: 'tournament-1', name: 'Spring Championship' },
+      });
+
+      await expect(service.respondToTournamentInvitation('tinv-1', 'cap-1', true)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── getTournamentInvitations ───────────────────────────
+
+  describe('getTournamentInvitations', () => {
+    it('should return invitations when user is org manager', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData());
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTournamentInvitation.findMany.mockResolvedValue([
+        {
+          id: 'tinv-1',
+          tournamentId: 'tournament-1',
+          teamId: 'team-1',
+          status: 'PENDING',
+          createdAt: NOW,
+        },
+      ]);
+
+      const result = await service.getTournamentInvitations('tournament-1', 'user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe('PENDING');
     });
   });
 });
