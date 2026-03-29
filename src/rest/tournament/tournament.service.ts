@@ -80,13 +80,37 @@ export class TournamentService {
     return toResponse(tournament);
   }
 
-  async findAll(pagination: PaginationParams): Promise<PaginatedResult<TournamentResponseDto>> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: {
+      sportId?: string;
+      status?: string;
+      startAfter?: string;
+      startBefore?: string;
+    }
+  ): Promise<PaginatedResult<TournamentResponseDto>> {
+    const where: Record<string, unknown> = {};
+
+    if (filters?.sportId) {
+      where.sportId = filters.sportId;
+    }
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    if (filters?.startAfter || filters?.startBefore) {
+      const startDate: Record<string, Date> = {};
+      if (filters.startAfter) startDate.gte = new Date(filters.startAfter);
+      if (filters.startBefore) startDate.lte = new Date(filters.startBefore);
+      where.startDate = startDate;
+    }
+
     return paginate(
       pagination,
-      () => prisma.tournament.count(),
+      () => prisma.tournament.count({ where }),
       ({ skip, take }) =>
         prisma.tournament
           .findMany({
+            where,
             skip,
             take,
             orderBy: { createdAt: 'desc' },
