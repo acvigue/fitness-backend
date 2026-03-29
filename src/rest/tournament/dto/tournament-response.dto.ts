@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
+import { TournamentTeamResponseDto } from './tournament-team-response.dto';
 import { TournamentStatus } from '@/generated/prisma/enums';
 import { PaginationMetaDto } from '@/rest/common/pagination';
 
@@ -49,6 +50,9 @@ export class TournamentResponseDto {
 
   @ApiProperty({ description: 'List of tournament participants', type: () => [UserResponseDto] })
   participants!: UserResponseDto[];
+
+  @ApiProperty({ description: 'List of registered teams', type: () => [TournamentTeamResponseDto] })
+  teams!: TournamentTeamResponseDto[];
 }
 
 export class PaginatedTournamentResponseDto {

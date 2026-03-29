@@ -14,6 +14,7 @@ import type { TournamentResponseDto } from './dto/tournament-response.dto';
 const TOURNAMENT_INCLUDE = {
   sport: true,
   users: { select: { id: true, username: true, name: true, email: true } },
+  teams: { select: { id: true, name: true, captainId: true } },
 } as const;
 
 function isPowerOfTwo(n: number): boolean {
@@ -31,6 +32,7 @@ function toResponse(tournament: {
   createdAt: Date;
   sport: { id: string; name: string; icon: string | null };
   users: { id: string; username: string | null; name: string | null; email: string | null }[];
+  teams: { id: string; name: string; captainId: string }[];
 }): TournamentResponseDto {
   return {
     id: tournament.id,
@@ -52,6 +54,11 @@ function toResponse(tournament: {
       name: u.name ?? undefined,
       email: u.email ?? undefined,
       scopes: [],
+    })),
+    teams: tournament.teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      captainId: t.captainId,
     })),
   };
 }
@@ -191,6 +198,122 @@ export class TournamentService {
     await this.requireOrgManager(tournament.organizationId, userId);
 
     await prisma.tournament.delete({ where: { id } });
+  }
+
+  // ─── Team Registration ─────────────────────────────────
+
+  async joinTournament(
+    tournamentId: string,
+    teamId: string,
+    userId: string
+  ): Promise<TournamentResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { teams: { select: { id: true } } },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    if (tournament.status !== 'OPEN') {
+      throw new BadRequestException('Tournament is not open for registration');
+    }
+
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can register for tournaments');
+    }
+
+    if (tournament.teams.some((t) => t.id === teamId)) {
+      throw new BadRequestException('Team is already registered for this tournament');
+    }
+
+    if (tournament.teams.length >= tournament.maxTeams) {
+      throw new BadRequestException('Tournament has reached maximum team capacity');
+    }
+
+    const updated = await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { teams: { connect: { id: teamId } } },
+      include: TOURNAMENT_INCLUDE,
+    });
+
+    return toResponse(updated);
+  }
+
+  async leaveTournament(tournamentId: string, teamId: string, userId: string): Promise<void> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { teams: { select: { id: true } } },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can withdraw from tournaments');
+    }
+
+    if (!tournament.teams.some((t) => t.id === teamId)) {
+      throw new BadRequestException('Team is not registered for this tournament');
+    }
+
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { teams: { disconnect: { id: teamId } } },
+    });
+  }
+
+  async addTeam(
+    tournamentId: string,
+    teamId: string,
+    userId: string
+  ): Promise<TournamentResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { teams: { select: { id: true } } },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (tournament.teams.some((t) => t.id === teamId)) {
+      throw new BadRequestException('Team is already registered for this tournament');
+    }
+
+    if (tournament.teams.length >= tournament.maxTeams) {
+      throw new BadRequestException('Tournament has reached maximum team capacity');
+    }
+
+    const updated = await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { teams: { connect: { id: teamId } } },
+      include: TOURNAMENT_INCLUDE,
+    });
+
+    return toResponse(updated);
+  }
+
+  async removeTeam(tournamentId: string, teamId: string, userId: string): Promise<void> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { teams: { select: { id: true } } },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (!tournament.teams.some((t) => t.id === teamId)) {
+      throw new BadRequestException('Team is not registered for this tournament');
+    }
+
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { teams: { disconnect: { id: teamId } } },
+    });
   }
 
   private async requireOrgManager(organizationId: string, userId: string): Promise<void> {

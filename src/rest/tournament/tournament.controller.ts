@@ -141,4 +141,68 @@ export class TournamentController {
   delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.tournamentService.delete(id, user.sub);
   }
+
+  // ─── Team Registration ─────────────────────────────────
+
+  @Post(':id/teams/:teamId/join')
+  @ApiOperation({ summary: 'Register a team for a tournament (team captain only)' })
+  @ApiResponse({ status: 201, type: TournamentResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can register')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  joinTournament(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentResponseDto> {
+    return this.tournamentService.joinTournament(id, teamId, user.sub);
+  }
+
+  @Delete(':id/teams/:teamId/leave')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Withdraw a team from a tournament (team captain only)' })
+  @ApiResponse({ status: 204, description: 'Team withdrawn' })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can withdraw')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  leaveTournament(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.tournamentService.leaveTournament(id, teamId, user.sub);
+  }
+
+  @Post(':id/teams/:teamId')
+  @ApiOperation({ summary: 'Add a team to a tournament (org manager only)' })
+  @ApiResponse({ status: 201, type: TournamentResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  addTeam(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentResponseDto> {
+    return this.tournamentService.addTeam(id, teamId, user.sub);
+  }
+
+  @Delete(':id/teams/:teamId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a team from a tournament (org manager only)' })
+  @ApiResponse({ status: 204, description: 'Team removed' })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  removeTeam(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.tournamentService.removeTeam(id, teamId, user.sub);
+  }
 }

@@ -234,6 +234,7 @@ model Tournament {
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   users   User[] @relation("TournamentParticipants")
+  teams   Team[] @relation("TournamentTeams")
   sportId String @db.Uuid @map("sport_id")
 
   @@index([organizationId])
@@ -279,6 +280,7 @@ model Team {
 
   users       User[]           @relation("TeamMembers")
   invitations TeamInvitation[]
+  tournaments Tournament[]     @relation("TournamentTeams")
 
   @@index([captainId])
   @@index([sportId])

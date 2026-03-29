@@ -15,14 +15,20 @@ const mockOrganizationMember = {
   findUnique: vi.fn(),
 };
 
+const mockTeamModel = {
+  findUnique: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     tournament: mockTournament,
     organizationMember: mockOrganizationMember,
+    team: mockTeamModel,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         tournament: mockTournament,
         organizationMember: mockOrganizationMember,
+        team: mockTeamModel,
       })
     ),
   },
@@ -48,6 +54,7 @@ function mockTournamentData(overrides: Record<string, unknown> = {}) {
     createdAt: NOW,
     sport: { id: 'sport-1', name: 'Basketball', icon: null },
     users: [{ id: 'user-2', username: 'jane', name: 'Jane Doe', email: 'jane@test.com' }],
+    teams: [] as { id: string; name: string; captainId: string }[],
     ...overrides,
   };
 }
@@ -417,6 +424,173 @@ describe('TournamentService', () => {
       mockTournament.findUnique.mockResolvedValue(null);
 
       await expect(service.delete('nonexistent', 'user-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── joinTournament ─────────────────────────────────────
+
+  describe('joinTournament', () => {
+    it('should register a team when captain and tournament is open', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+      mockTournament.update.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1', name: 'Alpha', captainId: 'user-1' }] })
+      );
+
+      const result = await service.joinTournament('tournament-1', 'team-1', 'user-1');
+
+      expect(result.teams).toHaveLength(1);
+      expect(mockTournament.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { teams: { connect: { id: 'team-1' } } },
+        })
+      );
+    });
+
+    it('should throw BadRequestException when tournament is not OPEN', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ status: 'CLOSED', teams: [] })
+      );
+
+      await expect(service.joinTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'other-user' });
+
+      await expect(service.joinTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw BadRequestException when team is already registered', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1' }] })
+      );
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+
+      await expect(service.joinTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException when tournament is at capacity', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ maxTeams: 2, teams: [{ id: 'team-a' }, { id: 'team-b' }] })
+      );
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+
+      await expect(service.joinTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── leaveTournament ────────────────────────────────────
+
+  describe('leaveTournament', () => {
+    it('should withdraw a team when captain', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1' }] })
+      );
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+      mockTournament.update.mockResolvedValue(mockTournamentData());
+
+      await service.leaveTournament('tournament-1', 'team-1', 'user-1');
+
+      expect(mockTournament.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { teams: { disconnect: { id: 'team-1' } } },
+        })
+      );
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1' }] })
+      );
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'other-user' });
+
+      await expect(service.leaveTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw BadRequestException when team is not registered', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+
+      await expect(service.leaveTournament('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  // ─── addTeam (org manager) ──────────────────────────────
+
+  describe('addTeam', () => {
+    it('should add a team when user is org manager', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTournament.update.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1', name: 'Alpha', captainId: 'cap-1' }] })
+      );
+
+      const result = await service.addTeam('tournament-1', 'team-1', 'user-1');
+
+      expect(result.teams).toHaveLength(1);
+    });
+
+    it('should throw BadRequestException when at capacity', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ maxTeams: 2, teams: [{ id: 'a' }, { id: 'b' }] })
+      );
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+
+      await expect(service.addTeam('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw ForbiddenException when user is MEMBER role', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'MEMBER' }));
+
+      await expect(service.addTeam('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  // ─── removeTeam (org manager) ───────────────────────────
+
+  describe('removeTeam', () => {
+    it('should remove a team when user is org manager', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ teams: [{ id: 'team-1' }] })
+      );
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTournament.update.mockResolvedValue(mockTournamentData());
+
+      await service.removeTeam('tournament-1', 'team-1', 'user-1');
+
+      expect(mockTournament.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { teams: { disconnect: { id: 'team-1' } } },
+        })
+      );
+    });
+
+    it('should throw BadRequestException when team is not registered', async () => {
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
+      mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+
+      await expect(service.removeTeam('tournament-1', 'team-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 });
