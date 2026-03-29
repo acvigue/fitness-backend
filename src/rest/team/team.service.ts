@@ -6,15 +6,20 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
+import { UserService } from '@/rest/user/user.service';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
 import type { TeamUpdateDto } from './dto/team-update.dto';
 import type { TeamInvitationResponseDto } from './dto/team-invitation-response.dto';
+import type { TeamMemberProfileResponseDto } from './dto/team-member-profile-response.dto';
 
 @Injectable()
 export class TeamService {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly userService: UserService
+  ) {}
 
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
     const team = await prisma.team.create({
@@ -399,6 +404,38 @@ export class TeamService {
     }
 
     await prisma.teamInvitation.delete({ where: { id: invitationId } });
+  }
+
+  // ─── Member Profile ────────────────────────────────────
+
+  async getMemberProfile(teamId: string, userId: string): Promise<TeamMemberProfileResponseDto> {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: { users: { select: { id: true } } },
+    });
+
+    if (!team) throw new NotFoundException('Team not found');
+
+    const isMember = team.users.some((u) => u.id === userId);
+    if (!isMember) throw new NotFoundException('User is not a member of this team');
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, name: true, email: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const profile = await this.userService.getProfile(userId);
+
+    return {
+      userId: user.id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      isCaptain: team.captainId === userId,
+      profile,
+    };
   }
 
   // ─── Helpers ───────────────────────────────────────────

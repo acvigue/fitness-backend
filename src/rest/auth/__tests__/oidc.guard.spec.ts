@@ -161,6 +161,8 @@ describe('OidcAuthGuard', () => {
       sub: 'sync-user-id',
       email: 'sync@test.com',
       name: 'Sync User',
+      given_name: 'Sync',
+      family_name: 'User',
       preferred_username: 'syncuser',
     });
     const request: Record<string, unknown> & { headers: Record<string, string> } = {
@@ -180,11 +182,15 @@ describe('OidcAuthGuard', () => {
         id: 'sync-user-id',
         email: 'sync@test.com',
         name: 'Sync User',
+        firstName: 'Sync',
+        lastName: 'User',
         username: 'syncuser',
       },
       update: {
         email: 'sync@test.com',
         name: 'Sync User',
+        firstName: 'Sync',
+        lastName: 'User',
         username: 'syncuser',
       },
     });

@@ -15,6 +15,8 @@ model User {
   id        String   @id // OIDC subject (sub) claim
   email     String?
   name      String?
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
   username  String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")

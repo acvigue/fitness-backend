@@ -5,16 +5,20 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
+import { UserService } from '@/rest/user/user.service';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateOrganizationDto } from './dto/create-organization.dto';
 import type { UpdateOrganizationDto } from './dto/update-organization.dto';
 import type { OrganizationResponseDto } from './dto/organization-response.dto';
 import type { OrganizationMemberResponseDto } from './dto/organization-member-response.dto';
+import type { OrganizationMemberListItemDto } from './dto/organization-member-detail-response.dto';
+import type { OrganizationMemberProfileResponseDto } from './dto/organization-member-detail-response.dto';
 import type { OrganizationRole } from '@/generated/prisma/client';
 
 @Injectable()
 export class OrganizationService {
+  constructor(private readonly userService: UserService) {}
   async create(dto: CreateOrganizationDto, userId: string): Promise<OrganizationResponseDto> {
     return prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
@@ -132,6 +136,66 @@ export class OrganizationService {
     if (!membership) throw new NotFoundException('Not a member of this organization');
 
     await prisma.organizationMember.delete({ where: { id: membership.id } });
+  }
+
+  async getMembers(
+    organizationId: string,
+    pagination: PaginationParams
+  ): Promise<PaginatedResult<OrganizationMemberListItemDto>> {
+    const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const where = { organizationId };
+
+    return paginate(
+      pagination,
+      () => prisma.organizationMember.count({ where }),
+      ({ skip, take }) =>
+        prisma.organizationMember
+          .findMany({
+            where,
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
+            include: { user: { select: { id: true, username: true, name: true, email: true } } },
+          })
+          .then((members) =>
+            members.map((m) => ({
+              userId: m.user.id,
+              username: m.user.username,
+              name: m.user.name,
+              email: m.user.email,
+              role: m.role,
+              joinedAt: m.createdAt.toISOString(),
+            }))
+          )
+    );
+  }
+
+  async getMemberProfile(
+    organizationId: string,
+    userId: string
+  ): Promise<OrganizationMemberProfileResponseDto> {
+    const membership = await prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId } },
+      include: { user: { select: { id: true, username: true, name: true, email: true } } },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('User is not a member of this organization');
+    }
+
+    const profile = await this.userService.getProfile(userId);
+
+    return {
+      userId: membership.user.id,
+      username: membership.user.username,
+      name: membership.user.name,
+      email: membership.user.email,
+      role: membership.role,
+      joinedAt: membership.createdAt.toISOString(),
+      profile,
+    };
   }
 
   private async requireRole(

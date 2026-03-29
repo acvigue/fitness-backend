@@ -13,8 +13,10 @@ const mockOrganization = {
 
 const mockOrganizationMember = {
   findUnique: vi.fn(),
+  findMany: vi.fn(),
   create: vi.fn(),
   delete: vi.fn(),
+  count: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -34,8 +36,21 @@ vi.mock('@/shared/utils', () => ({
 
 // Must be imported after vi.mock so the mock is in place
 const { OrganizationService } = await import('../organization.service');
+const { UserService } = await import('../../user/user.service');
+
+const mockUserService = {
+  getProfile: vi.fn(),
+};
 
 const NOW = new Date('2026-01-01T00:00:00Z');
+
+const mockProfile = {
+  userId: 'user-1',
+  bio: 'Test bio',
+  favoriteSports: [],
+  pictures: [],
+  featuredAchievements: [],
+};
 
 function mockOrg(overrides: Record<string, unknown> = {}) {
   return {
@@ -65,7 +80,7 @@ describe('OrganizationService', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [OrganizationService],
+      providers: [OrganizationService, { provide: UserService, useValue: mockUserService }],
     }).compile();
 
     service = module.get(OrganizationService);
@@ -291,6 +306,62 @@ describe('OrganizationService', () => {
       mockOrganizationMember.findUnique.mockResolvedValue(null);
 
       await expect(service.leave('org-1', 'user-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── getMembers ─────────────────────────────────────
+
+  describe('getMembers', () => {
+    it('should return paginated members with user info', async () => {
+      mockOrganization.findUnique.mockResolvedValue(mockOrg());
+      mockOrganizationMember.count.mockResolvedValue(1);
+      mockOrganizationMember.findMany.mockResolvedValue([
+        {
+          ...mockMembership({ role: 'ADMIN' }),
+          user: { id: 'user-1', username: 'john', name: 'John', email: 'john@test.com' },
+        },
+      ]);
+
+      const result = await service.getMembers('org-1', { page: 1, per_page: 10 });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].userId).toBe('user-1');
+      expect(result.data[0].username).toBe('john');
+      expect(result.data[0].role).toBe('ADMIN');
+      expect(result.meta.total).toBe(1);
+    });
+
+    it('should throw NotFoundException when organization does not exist', async () => {
+      mockOrganization.findUnique.mockResolvedValue(null);
+
+      await expect(service.getMembers('nonexistent', { page: 1, per_page: 10 })).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  // ─── getMemberProfile ───────────────────────────────
+
+  describe('getMemberProfile', () => {
+    it('should return member profile with role and full user profile', async () => {
+      mockOrganizationMember.findUnique.mockResolvedValue({
+        ...mockMembership({ role: 'STAFF' }),
+        user: { id: 'user-1', username: 'john', name: 'John', email: 'john@test.com' },
+      });
+      mockUserService.getProfile.mockResolvedValue(mockProfile);
+
+      const result = await service.getMemberProfile('org-1', 'user-1');
+
+      expect(result.userId).toBe('user-1');
+      expect(result.role).toBe('STAFF');
+      expect(result.profile).toEqual(mockProfile);
+      expect(mockUserService.getProfile).toHaveBeenCalledWith('user-1');
+    });
+
+    it('should throw NotFoundException when user is not a member', async () => {
+      mockOrganizationMember.findUnique.mockResolvedValue(null);
+
+      await expect(service.getMemberProfile('org-1', 'user-99')).rejects.toThrow(NotFoundException);
     });
   });
 });

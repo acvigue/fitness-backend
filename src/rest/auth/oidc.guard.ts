@@ -60,11 +60,15 @@ export class OidcAuthGuard implements CanActivate {
         id: user.sub,
         email: user.email,
         name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         username: user.username,
       },
       update: {
         email: user.email,
         name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         username: user.username,
       },
     });

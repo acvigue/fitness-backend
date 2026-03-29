@@ -20,6 +20,12 @@ export class UserProfileResponseDto {
   @ApiProperty({ description: 'User ID', example: 'auth0|507f1f77bcf86cd799439011' })
   userId!: string;
 
+  @ApiPropertyOptional({ description: 'First name', example: 'John', type: String })
+  firstName!: string | null;
+
+  @ApiPropertyOptional({ description: 'Last name', example: 'Doe', type: String })
+  lastName!: string | null;
+
   @ApiPropertyOptional({ description: 'User bio', example: 'Fitness enthusiast' })
   bio!: string | null;
 
