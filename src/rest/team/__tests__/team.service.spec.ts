@@ -355,6 +355,108 @@ describe('TeamService', () => {
     });
   });
 
+  // ─── Members ─────────────────────────────────────────────
+
+  describe('leaveTeam', () => {
+    it('should allow a member to leave the team', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+      mockTeam.update.mockResolvedValue(mockT());
+
+      await service.leaveTeam('team-1', 'user-2');
+
+      expect(mockTeam.update).toHaveBeenCalledWith({
+        where: { id: 'team-1' },
+        data: { users: { disconnect: { id: 'user-2' } } },
+      });
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'captain-1',
+        'MEMBER_LEFT',
+        'Member Left Team',
+        expect.stringContaining('Test Team')
+      );
+    });
+
+    it('should throw BadRequestException when captain tries to leave', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+
+      await expect(service.leaveTeam('team-1', 'captain-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when user is not a member', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
+
+      await expect(service.leaveTeam('team-1', 'user-3')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when team does not exist', async () => {
+      mockTeam.findUnique.mockResolvedValue(null);
+
+      await expect(service.leaveTeam('team-1', 'user-2')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('removeMember', () => {
+    it('should allow captain to remove a member', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+      mockTeam.update.mockResolvedValue(mockT());
+
+      await service.removeMember('team-1', 'user-2', 'captain-1');
+
+      expect(mockTeam.update).toHaveBeenCalledWith({
+        where: { id: 'team-1' },
+        data: { users: { disconnect: { id: 'user-2' } } },
+      });
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'user-2',
+        'REMOVED_FROM_TEAM',
+        'Removed from Team',
+        expect.stringContaining('Test Team')
+      );
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+
+      await expect(service.removeMember('team-1', 'user-2', 'user-3')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw BadRequestException when captain tries to remove themselves', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }] })
+      );
+
+      await expect(service.removeMember('team-1', 'captain-1', 'captain-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw BadRequestException when target is not a member', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
+
+      await expect(service.removeMember('team-1', 'user-3', 'captain-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw NotFoundException when team does not exist', async () => {
+      mockTeam.findUnique.mockResolvedValue(null);
+
+      await expect(service.removeMember('team-1', 'user-2', 'captain-1')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
   // ─── Invitations ───────────────────────────────────────
 
   describe('sendInvitation', () => {

@@ -148,6 +148,76 @@ export class TeamService {
     }
   }
 
+  // ─── Members ────────────────────────────────────────────
+
+  async leaveTeam(teamId: string, userId: string): Promise<void> {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: { users: { select: { id: true } } },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    const isMember = team.users.some((u) => u.id === userId);
+    if (!isMember) {
+      throw new BadRequestException('You are not a member of this team');
+    }
+
+    if (team.captainId === userId) {
+      throw new BadRequestException('Captain cannot leave the team. Transfer captaincy first.');
+    }
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { users: { disconnect: { id: userId } } },
+    });
+
+    await this.notificationService.create(
+      team.captainId,
+      'MEMBER_LEFT',
+      'Member Left Team',
+      `A member has left team "${team.name}"`
+    );
+  }
+
+  async removeMember(teamId: string, targetUserId: string, userId: string): Promise<void> {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: { users: { select: { id: true } } },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can remove members');
+    }
+
+    if (targetUserId === userId) {
+      throw new BadRequestException('Captain cannot remove themselves');
+    }
+
+    const isMember = team.users.some((u) => u.id === targetUserId);
+    if (!isMember) {
+      throw new BadRequestException('User is not a member of this team');
+    }
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: { users: { disconnect: { id: targetUserId } } },
+    });
+
+    await this.notificationService.create(
+      targetUserId,
+      'REMOVED_FROM_TEAM',
+      'Removed from Team',
+      `You have been removed from team "${team.name}"`
+    );
+  }
+
   // ─── Invitations ───────────────────────────────────────
 
   async sendInvitation(

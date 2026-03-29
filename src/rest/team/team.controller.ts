@@ -110,6 +110,35 @@ export class TeamController {
     return this.teamService.delete(id, user.sub);
   }
 
+  // ─── Members ───────────────────────────────────────────
+
+  @Post(':id/leave')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Leave a team (captain must transfer captaincy first)' })
+  @ApiResponse({ status: 204, description: 'Left the team' })
+  @ApiBadRequestResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  leaveTeam(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+    return this.teamService.leaveTeam(id, user.sub);
+  }
+
+  @Delete(':id/members/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a member from the team (captain only)' })
+  @ApiResponse({ status: 204, description: 'Member removed' })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can remove members')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  removeMember(
+    @Param('id') id: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.teamService.removeMember(id, targetUserId, user.sub);
+  }
+
   // ─── Invitations ───────────────────────────────────────
 
   @Post(':id/invitations')
