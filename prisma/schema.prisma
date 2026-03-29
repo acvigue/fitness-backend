@@ -34,7 +34,7 @@ model User {
 
   sessions      Session[]
   notifications Notification[]
-  Achievement   Achievement[]
+  achievements  UserAchievement[]
   createdTournaments Tournament[] @relation("TournamentCreator")
   tournaments        Tournament[] @relation("TournamentParticipants")
 
@@ -209,13 +209,32 @@ model Message {
   @@map("messages")
 }
 
-model Achievement {
-  id          String   @id @unique @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
+model AchievementDefinition {
+  id          String @id @default(cuid())
+  name        String @unique
   description String
-  earnedAt    DateTime @default(now())
+  icon        String?
+  criteriaType String @map("criteria_type") // e.g. TOURNAMENT_PARTICIPATION, TOURNAMENT_WIN
+  threshold   Int    @default(1) // e.g. 1, 5, 10 for tiered achievements
+
+  userAchievements UserAchievement[]
+
+  @@map("achievement_definitions")
+}
+
+model UserAchievement {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId  String   @map("achievement_id")
+  achievement    AchievementDefinition @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  progress       Int      @default(0)
+  unlockedAt     DateTime? @map("unlocked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
 }
 
 model Tournament {
