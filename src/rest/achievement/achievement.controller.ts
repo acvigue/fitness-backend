@@ -1,32 +1,53 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ApiCommonErrorResponses, ApiBadRequestResponse, ApiNotFoundResponse } from '@/rest/common';
+import { ApiCommonErrorResponses, ApiBadRequestResponse } from '@/rest/common';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { AchievementService } from './achievement.service';
-import { CreateAchievementDto } from './dto/create-achievement.dto';
-import type { AchievementDto } from '~/rest/achievement/dto/achievement.dto';
+import { CreateAchievementDefinitionDto } from './dto/create-achievement-definition.dto';
+import { AchievementDefinitionResponseDto } from './dto/achievement-definition-response.dto';
+import { UserAchievementResponseDto } from './dto/user-achievement-response.dto';
 
-@ApiTags('achievement')
+@ApiTags('Achievements')
 @ApiBearerAuth()
-@Controller({ path: 'achievement', version: '1' })
+@Controller({ path: 'achievements', version: '1' })
 export class AchievementController {
   constructor(private readonly achievementService: AchievementService) {}
-  @Post()
-  @ApiOperation({ summary: 'Creates Achievement' })
-  @ApiResponse({ status: 201, type: CreateAchievementDto })
+
+  @Post('definitions')
+  @ApiOperation({ summary: 'Create an achievement definition' })
+  @ApiResponse({ status: 201, type: AchievementDefinitionResponseDto })
   @ApiBadRequestResponse()
-  @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
-  create(
-    @Body() dto: CreateAchievementDto,
-    @CurrentUser() user: AuthenticatedUser
-  ): Promise<CreateAchievementDto> {
-    return this.achievementService.create(dto, user.sub);
+  createDefinition(
+    @Body() dto: CreateAchievementDefinitionDto
+  ): Promise<AchievementDefinitionResponseDto> {
+    return this.achievementService.createDefinition(dto);
   }
-  @Get()
-  @ApiOperation({ summary: 'Gets all Achievements a User Has' })
-  get(@CurrentUser() user: AuthenticatedUser): Promise<AchievementDto[]> {
-    return this.achievementService.get(user.sub);
+
+  @Get('definitions')
+  @ApiOperation({ summary: 'List all achievement definitions' })
+  @ApiResponse({ status: 200, type: [AchievementDefinitionResponseDto] })
+  @ApiCommonErrorResponses()
+  listDefinitions(): Promise<AchievementDefinitionResponseDto[]> {
+    return this.achievementService.listDefinitions();
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get all achievements with progress for current user' })
+  @ApiResponse({ status: 200, type: [UserAchievementResponseDto] })
+  @ApiCommonErrorResponses()
+  getMyAchievements(@CurrentUser() user: AuthenticatedUser): Promise<UserAchievementResponseDto[]> {
+    return this.achievementService.getAllAchievementsForUser(user.sub);
+  }
+
+  @Get('me/earned')
+  @ApiOperation({ summary: 'Get only earned (unlocked) achievements for current user' })
+  @ApiResponse({ status: 200, type: [UserAchievementResponseDto] })
+  @ApiCommonErrorResponses()
+  getMyEarnedAchievements(
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<UserAchievementResponseDto[]> {
+    return this.achievementService.getUserAchievements(user.sub);
   }
 }
