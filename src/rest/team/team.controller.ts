@@ -23,6 +23,8 @@ import { TeamCreateDto } from './dto/team-create.dto';
 import { TeamResponseDto } from './dto/team-response.dto';
 import { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
 import { TeamUpdateDto } from './dto/team-update.dto';
+import { TeamInviteDto } from './dto/team-invite.dto';
+import { TeamInvitationResponseDto } from './dto/team-invitation-response.dto';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -48,6 +50,14 @@ export class TeamController {
   @ApiCommonErrorResponses()
   findAll(): Promise<TeamResponseDto[]> {
     return this.teamService.findAll();
+  }
+
+  @Get('invitations/mine')
+  @ApiOperation({ summary: 'List pending invitations for the current user' })
+  @ApiResponse({ status: 200, type: [TeamInvitationResponseDto] })
+  @ApiCommonErrorResponses()
+  getUserInvitations(@CurrentUser() user: AuthenticatedUser): Promise<TeamInvitationResponseDto[]> {
+    return this.teamService.getUserInvitations(user.sub);
   }
 
   @Get(':id')
@@ -98,5 +108,91 @@ export class TeamController {
   @ApiCommonErrorResponses()
   delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.teamService.delete(id, user.sub);
+  }
+
+  // ─── Invitations ───────────────────────────────────────
+
+  @Post(':id/invitations')
+  @ApiOperation({ summary: 'Send a team invitation to a user (captain only)' })
+  @ApiResponse({ status: 201, type: TeamInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can send invitations')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  sendInvitation(
+    @Param('id') id: string,
+    @Body() dto: TeamInviteDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamInvitationResponseDto> {
+    return this.teamService.sendInvitation(id, dto.userId, user.sub);
+  }
+
+  @Post(':id/requests')
+  @ApiOperation({ summary: 'Request to join a team' })
+  @ApiResponse({ status: 201, type: TeamInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  requestToJoin(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamInvitationResponseDto> {
+    return this.teamService.requestToJoin(id, user.sub);
+  }
+
+  @Get(':id/invitations')
+  @ApiOperation({ summary: 'List pending invitations/requests for a team (captain only)' })
+  @ApiResponse({ status: 200, type: [TeamInvitationResponseDto] })
+  @ApiForbiddenResponse('Only the team captain can view team invitations')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getTeamInvitations(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamInvitationResponseDto[]> {
+    return this.teamService.getTeamInvitations(id, user.sub);
+  }
+
+  @Patch('invitations/:invitationId/accept')
+  @ApiOperation({ summary: 'Accept an invitation or join request' })
+  @ApiResponse({ status: 200, type: TeamInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  acceptInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamInvitationResponseDto> {
+    return this.teamService.respondToInvitation(invitationId, user.sub, true);
+  }
+
+  @Patch('invitations/:invitationId/decline')
+  @ApiOperation({ summary: 'Decline an invitation or join request' })
+  @ApiResponse({ status: 200, type: TeamInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  declineInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TeamInvitationResponseDto> {
+    return this.teamService.respondToInvitation(invitationId, user.sub, false);
+  }
+
+  @Delete('invitations/:invitationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Cancel a pending invitation (captain only)' })
+  @ApiResponse({ status: 204, description: 'Invitation cancelled' })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Only the team captain can cancel invitations')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  cancelInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.teamService.cancelInvitation(invitationId, user.sub);
   }
 }

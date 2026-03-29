@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockTeam = {
@@ -10,12 +10,23 @@ const mockTeam = {
   delete: vi.fn(),
 };
 
+const mockTeamInvitation = {
+  findUnique: vi.fn(),
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     team: mockTeam,
+    teamInvitation: mockTeamInvitation,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         team: mockTeam,
+        teamInvitation: mockTeamInvitation,
       })
     ),
   },
@@ -24,6 +35,11 @@ vi.mock('@/shared/utils', () => ({
 }));
 
 const { TeamService } = await import('../team.service');
+const { NotificationService } = await import('../../notification/notification.service');
+
+const mockNotificationService = {
+  create: vi.fn().mockResolvedValue({}),
+};
 
 function mockT(overrides: Record<string, unknown> = {}) {
   return {
@@ -36,12 +52,27 @@ function mockT(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const NOW = new Date('2026-01-01T00:00:00Z');
+
+function mockInv(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'inv-1',
+    teamId: 'team-1',
+    userId: 'user-2',
+    type: 'INVITE',
+    status: 'PENDING',
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  };
+}
+
 describe('TeamService', () => {
   let service: InstanceType<typeof TeamService>;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [TeamService],
+      providers: [TeamService, { provide: NotificationService, useValue: mockNotificationService }],
     }).compile();
 
     service = module.get(TeamService);
@@ -243,6 +274,26 @@ describe('TeamService', () => {
       expect(result.captainId).toBe('captain-2');
     });
 
+    it('should send notifications to both old and new captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeam.update.mockResolvedValue(mockT({ captainId: 'captain-2' }));
+
+      await service.updateCaptain('team-1', { captainId: 'captain-2' }, 'captain-1');
+
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'captain-2',
+        'CAPTAIN_ASSIGNED',
+        'Captain Role Assigned',
+        expect.stringContaining('Test Team')
+      );
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'captain-1',
+        'CAPTAIN_TRANSFERRED',
+        'Captain Role Transferred',
+        expect.stringContaining('Test Team')
+      );
+    });
+
     it('should throw ForbiddenException when user is not captain', async () => {
       mockTeam.findUnique.mockResolvedValue(mockT({ captainId: 'captain-1' }));
 
@@ -262,7 +313,7 @@ describe('TeamService', () => {
 
   describe('delete', () => {
     it('should delete team when user is captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
       mockTeam.delete.mockResolvedValue(mockT());
 
       await service.delete('team-1', 'captain-1');
@@ -272,8 +323,27 @@ describe('TeamService', () => {
       });
     });
 
+    it('should notify members when team is deleted', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }, { id: 'user-3' }] })
+      );
+      mockTeam.delete.mockResolvedValue(mockT());
+
+      await service.delete('team-1', 'captain-1');
+
+      expect(mockNotificationService.create).toHaveBeenCalledTimes(2);
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'user-2',
+        'TEAM_DELETED',
+        'Team Disbanded',
+        expect.stringContaining('Test Team')
+      );
+    });
+
     it('should throw ForbiddenException when user is not captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT({ captainId: 'captain-1' }));
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ captainId: 'captain-1', users: [{ id: 'captain-1' }] })
+      );
 
       await expect(service.delete('team-1', 'user-1')).rejects.toThrow(ForbiddenException);
     });
@@ -282,6 +352,213 @@ describe('TeamService', () => {
       mockTeam.findUnique.mockResolvedValue(null);
 
       await expect(service.delete('team-1', 'captain-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── Invitations ───────────────────────────────────────
+
+  describe('sendInvitation', () => {
+    it('should send an invitation when user is captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeamInvitation.findFirst.mockResolvedValue(null);
+      mockTeamInvitation.create.mockResolvedValue(mockInv());
+
+      const result = await service.sendInvitation('team-1', 'user-2', 'captain-1');
+
+      expect(result.type).toBe('INVITE');
+      expect(result.status).toBe('PENDING');
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'user-2',
+        'TEAM_INVITE',
+        'Team Invitation',
+        expect.stringContaining('Test Team')
+      );
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+
+      await expect(service.sendInvitation('team-1', 'user-2', 'user-3')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw BadRequestException when invitation already pending', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeamInvitation.findFirst.mockResolvedValue(mockInv());
+
+      await expect(service.sendInvitation('team-1', 'user-2', 'captain-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw NotFoundException when team does not exist', async () => {
+      mockTeam.findUnique.mockResolvedValue(null);
+
+      await expect(service.sendInvitation('team-1', 'user-2', 'captain-1')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  describe('requestToJoin', () => {
+    it('should create a join request', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeamInvitation.findFirst.mockResolvedValue(null);
+      mockTeamInvitation.create.mockResolvedValue(mockInv({ type: 'REQUEST', userId: 'user-2' }));
+
+      const result = await service.requestToJoin('team-1', 'user-2');
+
+      expect(result.type).toBe('REQUEST');
+      expect(mockNotificationService.create).toHaveBeenCalledWith(
+        'captain-1',
+        'TEAM_JOIN_REQUEST',
+        'Join Request',
+        expect.stringContaining('Test Team')
+      );
+    });
+
+    it('should throw BadRequestException when request already pending', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeamInvitation.findFirst.mockResolvedValue(mockInv({ type: 'REQUEST' }));
+
+      await expect(service.requestToJoin('team-1', 'user-2')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when team does not exist', async () => {
+      mockTeam.findUnique.mockResolvedValue(null);
+
+      await expect(service.requestToJoin('team-1', 'user-2')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('respondToInvitation', () => {
+    it('should accept an invite and add user to team', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ team: mockT() }));
+      mockTeamInvitation.update.mockResolvedValue(mockInv({ status: 'ACCEPTED' }));
+      mockTeam.update.mockResolvedValue(mockT());
+
+      const result = await service.respondToInvitation('inv-1', 'user-2', true);
+
+      expect(result.status).toBe('ACCEPTED');
+      expect(mockTeam.update).toHaveBeenCalledWith({
+        where: { id: 'team-1' },
+        data: { users: { connect: { id: 'user-2' } } },
+      });
+    });
+
+    it('should decline an invite without adding user', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ team: mockT() }));
+      mockTeamInvitation.update.mockResolvedValue(mockInv({ status: 'DECLINED' }));
+
+      const result = await service.respondToInvitation('inv-1', 'user-2', false);
+
+      expect(result.status).toBe('DECLINED');
+      expect(mockTeam.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when wrong user responds to invite', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ team: mockT() }));
+
+      await expect(service.respondToInvitation('inv-1', 'user-3', true)).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should allow captain to respond to join requests', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ type: 'REQUEST', team: mockT() }));
+      mockTeamInvitation.update.mockResolvedValue(mockInv({ type: 'REQUEST', status: 'ACCEPTED' }));
+      mockTeam.update.mockResolvedValue(mockT());
+
+      const result = await service.respondToInvitation('inv-1', 'captain-1', true);
+
+      expect(result.status).toBe('ACCEPTED');
+    });
+
+    it('should throw BadRequestException when invitation already responded to', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(
+        mockInv({ status: 'ACCEPTED', team: mockT() })
+      );
+
+      await expect(service.respondToInvitation('inv-1', 'user-2', true)).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw NotFoundException when invitation does not exist', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(null);
+
+      await expect(service.respondToInvitation('inv-1', 'user-2', true)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  describe('cancelInvitation', () => {
+    it('should cancel a pending invitation when user is captain', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ team: mockT() }));
+      mockTeamInvitation.delete.mockResolvedValue(mockInv());
+
+      await service.cancelInvitation('inv-1', 'captain-1');
+
+      expect(mockTeamInvitation.delete).toHaveBeenCalledWith({ where: { id: 'inv-1' } });
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(mockInv({ team: mockT() }));
+
+      await expect(service.cancelInvitation('inv-1', 'user-2')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when invitation is not pending', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(
+        mockInv({ status: 'ACCEPTED', team: mockT() })
+      );
+
+      await expect(service.cancelInvitation('inv-1', 'captain-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('should throw NotFoundException when invitation does not exist', async () => {
+      mockTeamInvitation.findUnique.mockResolvedValue(null);
+
+      await expect(service.cancelInvitation('inv-1', 'captain-1')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  describe('getTeamInvitations', () => {
+    it('should return pending invitations for team captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeamInvitation.findMany.mockResolvedValue([mockInv(), mockInv({ id: 'inv-2' })]);
+
+      const result = await service.getTeamInvitations('team-1', 'captain-1');
+
+      expect(result).toHaveLength(2);
+    });
+
+    it('should throw ForbiddenException when user is not captain', async () => {
+      mockTeam.findUnique.mockResolvedValue(mockT());
+
+      await expect(service.getTeamInvitations('team-1', 'user-2')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+  });
+
+  describe('getUserInvitations', () => {
+    it('should return pending invitations for a user', async () => {
+      mockTeamInvitation.findMany.mockResolvedValue([mockInv()]);
+
+      const result = await service.getUserInvitations('user-2');
+
+      expect(result).toHaveLength(1);
+      expect(mockTeamInvitation.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-2', type: 'INVITE', status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      });
     });
   });
 });

@@ -1,12 +1,21 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { prisma } from '@/shared/utils';
+import { NotificationService } from '@/rest/notification/notification.service';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
 import type { TeamUpdateDto } from './dto/team-update.dto';
+import type { TeamInvitationResponseDto } from './dto/team-invitation-response.dto';
 
 @Injectable()
 export class TeamService {
+  constructor(private readonly notificationService: NotificationService) {}
+
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
     const team = await prisma.team.create({
       data: {
@@ -92,12 +101,27 @@ export class TeamService {
       },
     });
 
+    await this.notificationService.create(
+      dto.captainId,
+      'CAPTAIN_ASSIGNED',
+      'Captain Role Assigned',
+      `You have been assigned as captain of team "${team.name}"`
+    );
+
+    await this.notificationService.create(
+      userId,
+      'CAPTAIN_TRANSFERRED',
+      'Captain Role Transferred',
+      `You have transferred captaincy of team "${team.name}"`
+    );
+
     return this.toResponse(updatedTeam);
   }
 
   async delete(id: string, userId: string): Promise<void> {
     const team = await prisma.team.findUnique({
       where: { id },
+      include: { users: { select: { id: true } } },
     });
 
     if (!team) {
@@ -111,7 +135,203 @@ export class TeamService {
     await prisma.team.delete({
       where: { id },
     });
+
+    for (const member of team.users) {
+      if (member.id !== userId) {
+        await this.notificationService.create(
+          member.id,
+          'TEAM_DELETED',
+          'Team Disbanded',
+          `Team "${team.name}" has been disbanded`
+        );
+      }
+    }
   }
+
+  // ─── Invitations ───────────────────────────────────────
+
+  async sendInvitation(
+    teamId: string,
+    targetUserId: string,
+    userId: string
+  ): Promise<TeamInvitationResponseDto> {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can send invitations');
+    }
+
+    const existing = await prisma.teamInvitation.findFirst({
+      where: { teamId, userId: targetUserId, type: 'INVITE', status: 'PENDING' },
+    });
+
+    if (existing) {
+      throw new BadRequestException('An invitation is already pending for this user');
+    }
+
+    const invitation = await prisma.teamInvitation.create({
+      data: { teamId, userId: targetUserId, type: 'INVITE' },
+    });
+
+    await this.notificationService.create(
+      targetUserId,
+      'TEAM_INVITE',
+      'Team Invitation',
+      `You have been invited to join team "${team.name}"`
+    );
+
+    return this.toInvitationResponse(invitation);
+  }
+
+  async requestToJoin(teamId: string, userId: string): Promise<TeamInvitationResponseDto> {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    const existing = await prisma.teamInvitation.findFirst({
+      where: { teamId, userId, type: 'REQUEST', status: 'PENDING' },
+    });
+
+    if (existing) {
+      throw new BadRequestException('You already have a pending request for this team');
+    }
+
+    const invitation = await prisma.teamInvitation.create({
+      data: { teamId, userId, type: 'REQUEST' },
+    });
+
+    await this.notificationService.create(
+      team.captainId,
+      'TEAM_JOIN_REQUEST',
+      'Join Request',
+      `A user has requested to join team "${team.name}"`
+    );
+
+    return this.toInvitationResponse(invitation);
+  }
+
+  async respondToInvitation(
+    invitationId: string,
+    userId: string,
+    accept: boolean
+  ): Promise<TeamInvitationResponseDto> {
+    const invitation = await prisma.teamInvitation.findUnique({
+      where: { id: invitationId },
+      include: { team: true },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException('This invitation has already been responded to');
+    }
+
+    // For INVITE type, the invited user responds
+    // For REQUEST type, the team captain responds
+    if (invitation.type === 'INVITE' && invitation.userId !== userId) {
+      throw new ForbiddenException('Only the invited user can respond to this invitation');
+    }
+
+    if (invitation.type === 'REQUEST' && invitation.team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can respond to join requests');
+    }
+
+    const status = accept ? 'ACCEPTED' : 'DECLINED';
+
+    const updated = await prisma.teamInvitation.update({
+      where: { id: invitationId },
+      data: { status },
+    });
+
+    if (accept) {
+      await prisma.team.update({
+        where: { id: invitation.teamId },
+        data: { users: { connect: { id: invitation.userId } } },
+      });
+    }
+
+    // Notify the other party
+    if (invitation.type === 'INVITE') {
+      await this.notificationService.create(
+        invitation.team.captainId,
+        'TEAM_INVITE_RESPONSE',
+        accept ? 'Invitation Accepted' : 'Invitation Declined',
+        accept
+          ? `Your invitation to join team "${invitation.team.name}" was accepted`
+          : `Your invitation to join team "${invitation.team.name}" was declined`
+      );
+    } else {
+      await this.notificationService.create(
+        invitation.userId,
+        'TEAM_REQUEST_RESPONSE',
+        accept ? 'Join Request Approved' : 'Join Request Declined',
+        accept
+          ? `Your request to join team "${invitation.team.name}" was approved`
+          : `Your request to join team "${invitation.team.name}" was declined`
+      );
+    }
+
+    return this.toInvitationResponse(updated);
+  }
+
+  async getTeamInvitations(teamId: string, userId: string): Promise<TeamInvitationResponseDto[]> {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can view team invitations');
+    }
+
+    const invitations = await prisma.teamInvitation.findMany({
+      where: { teamId, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return invitations.map((inv) => this.toInvitationResponse(inv));
+  }
+
+  async getUserInvitations(userId: string): Promise<TeamInvitationResponseDto[]> {
+    const invitations = await prisma.teamInvitation.findMany({
+      where: { userId, type: 'INVITE', status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return invitations.map((inv) => this.toInvitationResponse(inv));
+  }
+
+  async cancelInvitation(invitationId: string, userId: string): Promise<void> {
+    const invitation = await prisma.teamInvitation.findUnique({
+      where: { id: invitationId },
+      include: { team: true },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can cancel invitations');
+    }
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException('Only pending invitations can be cancelled');
+    }
+
+    await prisma.teamInvitation.delete({ where: { id: invitationId } });
+  }
+
+  // ─── Helpers ───────────────────────────────────────────
 
   private toResponse(team: {
     id: string;
@@ -126,6 +346,24 @@ export class TeamService {
       description: team.description,
       captainId: team.captainId,
       sportId: team.sportId,
+    };
+  }
+
+  private toInvitationResponse(invitation: {
+    id: string;
+    teamId: string;
+    userId: string;
+    type: string;
+    status: string;
+    createdAt: Date;
+  }): TeamInvitationResponseDto {
+    return {
+      id: invitation.id,
+      teamId: invitation.teamId,
+      userId: invitation.userId,
+      type: invitation.type,
+      status: invitation.status,
+      createdAt: invitation.createdAt.toISOString(),
     };
   }
 }

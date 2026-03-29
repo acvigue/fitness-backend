@@ -30,6 +30,7 @@ model User {
   chatMemberships  Chat[]               @relation("ChatMembers")
   teamCaptainships Team[]               @relation("TeamCaptain")
   teamMemberships  Team[]               @relation("TeamMembers")
+  teamInvitations  TeamInvitation[]
 
   sessions      Session[]
   notifications Notification[]
@@ -276,9 +277,37 @@ model Team {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users User[] @relation("TeamMembers")
+  users       User[]           @relation("TeamMembers")
+  invitations TeamInvitation[]
 
   @@index([captainId])
   @@index([sportId])
   @@map("teams")
+}
+
+enum TeamInvitationType {
+  INVITE
+  REQUEST
+}
+
+enum TeamInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model TeamInvitation {
+  id        String               @id @default(cuid())
+  teamId    String               @map("team_id")
+  team      Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String               @map("user_id")
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TeamInvitationType
+  status    TeamInvitationStatus @default(PENDING)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  @@unique([teamId, userId, type, status])
+  @@index([userId])
+  @@map("team_invitations")
 }
