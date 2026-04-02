@@ -446,6 +446,7 @@ export class TeamService {
     description: string;
     captainId: string;
     sportId: string;
+	users: { id: string; username: string | null; name: string | null; email: string | null }[];
   }): TeamResponseDto {
     return {
       id: team.id,
