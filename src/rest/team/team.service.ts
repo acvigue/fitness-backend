@@ -453,6 +453,13 @@ export class TeamService {
       description: team.description,
       captainId: team.captainId,
       sportId: team.sportId,
+	  members: team.users.map((u) => ({
+        sub: u.id,
+        username: u.username ?? undefined,
+        name: u.name ?? undefined,
+        email: u.email ?? undefined,
+        scopes: [],
+	  })),
     };
   }
 
