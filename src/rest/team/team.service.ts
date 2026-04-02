@@ -14,10 +14,6 @@ import type { TeamUpdateDto } from './dto/team-update.dto';
 import type { TeamInvitationResponseDto } from './dto/team-invitation-response.dto';
 import type { TeamMemberProfileResponseDto } from './dto/team-member-profile-response.dto';
 
-const TEAM_INCLUDE = {
-  users: { select: { id: true, username: true, name: true, email: true } },
-} as const;
-
 @Injectable()
 export class TeamService {
   constructor(
@@ -44,7 +40,7 @@ export class TeamService {
   async findAll(): Promise<TeamResponseDto[]> {
     const teams = await prisma.team.findMany({
       orderBy: { name: 'asc' },
-	  include: { users: { select: { id: true } } },
+	  include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     return teams.map((team) => this.toResponse(team));
@@ -53,6 +49,7 @@ export class TeamService {
   async findOne(id: string): Promise<TeamResponseDto> {
     const team = await prisma.team.findUnique({
       where: { id },
+	  include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     if (!team) {
@@ -82,7 +79,7 @@ export class TeamService {
         description: dto.description ?? '',
         sportId: dto.sportId,
       },
-	  include: TOURNAMENT_INCLUDE,
+	  include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     return this.toResponse(updatedTeam);
@@ -95,7 +92,7 @@ export class TeamService {
   ): Promise<TeamResponseDto> {
     const team = await prisma.team.findUnique({
       where: { id },
-	  include: TOURNAMENT_INCLUDE,
+	  include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     if (!team) {
@@ -111,7 +108,7 @@ export class TeamService {
       data: {
         captainId: dto.captainId,
       },
-	  include: TOURNAMENT_INCLUDE,
+	  include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     await this.notificationService.create(
