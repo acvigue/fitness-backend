@@ -44,7 +44,7 @@ export class TeamService {
   async findAll(): Promise<TeamResponseDto[]> {
     const teams = await prisma.team.findMany({
       orderBy: { name: 'asc' },
-	  include: TOURNAMENT_INCLUDE,
+	  include: { users: { select: { id: true } } },
     });
 
     return teams.map((team) => this.toResponse(team));
