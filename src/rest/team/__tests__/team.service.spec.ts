@@ -43,6 +43,7 @@ vi.mock('@/shared/utils', () => ({
 const { TeamService } = await import('../team.service');
 const { NotificationService } = await import('../../notification/notification.service');
 const { UserService } = await import('../../user/user.service');
+const { AchievementService } = await import('../../achievement/achievement.service');
 
 const mockNotificationService = {
   create: vi.fn().mockResolvedValue({}),
@@ -50,6 +51,10 @@ const mockNotificationService = {
 
 const mockUserService = {
   getProfile: vi.fn(),
+};
+
+const mockAchievementService = {
+  incrementProgress: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockProfile = {
@@ -95,6 +100,7 @@ describe('TeamService', () => {
         TeamService,
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: UserService, useValue: mockUserService },
+        { provide: AchievementService, useValue: mockAchievementService },
       ],
     }).compile();
 

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { UserService } from '@/rest/user/user.service';
+import { AchievementService } from '@/rest/achievement/achievement.service';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -18,7 +19,10 @@ import type { OrganizationRole } from '@/generated/prisma/client';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly achievementService: AchievementService
+  ) {}
   async create(dto: CreateOrganizationDto, userId: string): Promise<OrganizationResponseDto> {
     return prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
@@ -32,6 +36,8 @@ export class OrganizationService {
           role: 'ADMIN',
         },
       });
+
+      this.achievementService.incrementProgress(userId, 'ORGANIZATION_CREATE').catch(() => {});
 
       return {
         id: org.id,
@@ -124,9 +130,13 @@ export class OrganizationService {
     });
     if (existing) throw new ConflictException('Already a member of this organization');
 
-    return prisma.organizationMember.create({
+    const member = await prisma.organizationMember.create({
       data: { userId, organizationId, role: 'MEMBER' },
     });
+
+    this.achievementService.incrementProgress(userId, 'ORGANIZATION_JOIN').catch(() => {});
+
+    return member;
   }
 
   async leave(organizationId: string, userId: string): Promise<void> {

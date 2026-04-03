@@ -37,9 +37,14 @@ vi.mock('@/shared/utils', () => ({
 // Must be imported after vi.mock so the mock is in place
 const { OrganizationService } = await import('../organization.service');
 const { UserService } = await import('../../user/user.service');
+const { AchievementService } = await import('../../achievement/achievement.service');
 
 const mockUserService = {
   getProfile: vi.fn(),
+};
+
+const mockAchievementService = {
+  incrementProgress: vi.fn().mockResolvedValue(undefined),
 };
 
 const NOW = new Date('2026-01-01T00:00:00Z');
@@ -80,7 +85,11 @@ describe('OrganizationService', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [OrganizationService, { provide: UserService, useValue: mockUserService }],
+      providers: [
+        OrganizationService,
+        { provide: UserService, useValue: mockUserService },
+        { provide: AchievementService, useValue: mockAchievementService },
+      ],
     }).compile();
 
     service = module.get(OrganizationService);

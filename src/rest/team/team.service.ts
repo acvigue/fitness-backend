@@ -7,6 +7,7 @@ import {
 import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { UserService } from '@/rest/user/user.service';
+import { AchievementService } from '@/rest/achievement/achievement.service';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
@@ -18,7 +19,8 @@ import type { TeamMemberProfileResponseDto } from './dto/team-member-profile-res
 export class TeamService {
   constructor(
     private readonly notificationService: NotificationService,
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    private readonly achievementService: AchievementService
   ) {}
 
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
@@ -33,6 +35,8 @@ export class TeamService {
         },
       },
     });
+
+    this.achievementService.incrementProgress(userId, 'TEAM_CREATE').catch(() => {});
 
     return this.toResponse(team);
   }
@@ -351,6 +355,8 @@ export class TeamService {
         where: { id: invitation.teamId },
         data: { users: { connect: { id: invitation.userId } } },
       });
+
+      this.achievementService.incrementProgress(invitation.userId, 'TEAM_JOIN').catch(() => {});
     }
 
     // Notify the other party
