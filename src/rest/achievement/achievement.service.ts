@@ -61,10 +61,18 @@ export class AchievementService {
 
     return definitions.map((def) => {
       const ua = userMap.get(def.id);
+      if (ua) {
+        return {
+          id: ua.id,
+          progress: ua.progress,
+          unlockedAt: ua.unlockedAt?.toISOString() ?? null,
+          achievement: this.toDefinitionResponse(def),
+        };
+      }
       return {
-        id: ua?.id ?? '',
-        progress: ua?.progress ?? 0,
-        unlockedAt: ua?.unlockedAt?.toISOString() ?? null,
+        id: null,
+        progress: 0,
+        unlockedAt: null,
         achievement: this.toDefinitionResponse(def),
       };
     });
@@ -89,9 +97,17 @@ export class AchievementService {
       })
       .map((def) => {
         const ua = userMap.get(def.id);
+        if (ua) {
+          return {
+            id: ua.id,
+            progress: ua.progress,
+            unlockedAt: null,
+            achievement: this.toDefinitionResponse(def),
+          };
+        }
         return {
-          id: ua?.id ?? '',
-          progress: ua?.progress ?? 0,
+          id: null,
+          progress: 0,
           unlockedAt: null,
           achievement: this.toDefinitionResponse(def),
         };

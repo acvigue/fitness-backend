@@ -141,6 +141,7 @@ describe('AchievementService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].progress).toBe(1);
       expect(result[0].unlockedAt).toBe(NOW.toISOString());
+      expect(result[1].id).toBeNull();
       expect(result[1].progress).toBe(0);
       expect(result[1].unlockedAt).toBeNull();
     });

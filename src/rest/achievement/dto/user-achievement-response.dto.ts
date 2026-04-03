@@ -2,8 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AchievementDefinitionResponseDto } from './achievement-definition-response.dto';
 
 export class UserAchievementResponseDto {
-  @ApiProperty({ description: 'User achievement ID', example: 'cm123abc' })
-  id!: string;
+  @ApiPropertyOptional({
+    description: 'User achievement ID (null if not yet started)',
+    example: 'cm123abc',
+    nullable: true,
+    type: String,
+  })
+  id!: string | null;
 
   @ApiProperty({ description: 'Current progress', example: 3 })
   progress!: number;
