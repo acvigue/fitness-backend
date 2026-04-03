@@ -16,6 +16,7 @@ import type { TournamentResponseDto } from './dto/tournament-response.dto';
 import type { TournamentInvitationResponseDto } from './dto/tournament-invitation-response.dto';
 import type { TournamentBracketResponseDto } from './dto/tournament-bracket-response.dto';
 import type { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
+import type { TournamentStandingsResponseDto } from './dto/tournament-standings-response.dto';
 
 const TOURNAMENT_INCLUDE = {
   sport: true,
@@ -50,6 +51,7 @@ const MATCH_INCLUDE = {
 function toResponse(tournament: {
   id: string;
   name: string;
+  format: string;
   status: string;
   maxTeams: number;
   organizationId: string;
@@ -63,6 +65,7 @@ function toResponse(tournament: {
   return {
     id: tournament.id,
     name: tournament.name,
+    format: tournament.format as TournamentResponseDto['format'],
     status: tournament.status as TournamentResponseDto['status'],
     maxTeams: tournament.maxTeams,
     organizationId: tournament.organizationId,
@@ -97,7 +100,9 @@ export class TournamentService {
   ) {}
 
   async create(dto: CreateTournamentDto, userId: string): Promise<TournamentResponseDto> {
-    if (!isPowerOfTwo(dto.maxTeams)) {
+    const format = dto.format ?? 'SINGLE_ELIMINATION';
+
+    if (format === 'SINGLE_ELIMINATION' && !isPowerOfTwo(dto.maxTeams)) {
       throw new BadRequestException('maxTeams must be a power of 2 (e.g. 2, 4, 8, 16, 32)');
     }
 
@@ -111,6 +116,7 @@ export class TournamentService {
         createdById: userId,
         maxTeams: dto.maxTeams,
         startDate: new Date(dto.startDate),
+        format,
       },
       include: TOURNAMENT_INCLUDE,
     });
@@ -203,8 +209,10 @@ export class TournamentService {
 
     await this.requireOrgManager(tournament.organizationId, userId);
 
-    if (dto.maxTeams !== undefined && !isPowerOfTwo(dto.maxTeams)) {
-      throw new BadRequestException('maxTeams must be a power of 2 (e.g. 2, 4, 8, 16, 32)');
+    if (dto.maxTeams !== undefined) {
+      if (tournament.format === 'SINGLE_ELIMINATION' && !isPowerOfTwo(dto.maxTeams)) {
+        throw new BadRequestException('maxTeams must be a power of 2 (e.g. 2, 4, 8, 16, 32)');
+      }
     }
 
     const data: Record<string, unknown> = {};
@@ -223,12 +231,25 @@ export class TournamentService {
   }
 
   async delete(id: string, userId: string): Promise<void> {
-    const tournament = await prisma.tournament.findUnique({ where: { id } });
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+      include: { teams: { select: { id: true, name: true, captainId: true } } },
+    });
     if (!tournament) throw new NotFoundException('Tournament not found');
 
     await this.requireOrgManager(tournament.organizationId, userId);
 
     await prisma.tournament.delete({ where: { id } });
+
+    // Notify all team captains that the tournament was deleted
+    for (const team of tournament.teams) {
+      await this.notificationService.create(
+        team.captainId,
+        'TOURNAMENT_DELETED',
+        'Tournament Deleted',
+        `Tournament "${tournament.name}" has been deleted`
+      );
+    }
   }
 
   // ─── Team Registration ─────────────────────────────────
@@ -465,15 +486,26 @@ export class TournamentService {
     await this.requireOrgManager(tournament.organizationId, userId);
 
     if (tournament.matches.length > 0) {
-      throw new BadRequestException('Bracket has already been generated for this tournament');
+      throw new BadRequestException('Matches have already been generated for this tournament');
     }
 
     if (tournament.teams.length < 2) {
-      throw new BadRequestException('At least 2 teams are required to generate a bracket');
+      throw new BadRequestException('At least 2 teams are required to generate matches');
     }
 
+    if (tournament.format === 'ROUND_ROBIN') {
+      return this.generateRoundRobin(tournamentId, tournament.teams);
+    }
+
+    return this.generateSingleElimination(tournamentId, tournament.teams);
+  }
+
+  private async generateSingleElimination(
+    tournamentId: string,
+    tournamentTeams: { id: string; name: string; captainId: string }[]
+  ): Promise<TournamentBracketResponseDto> {
     // Shuffle teams randomly
-    const teams = [...tournament.teams];
+    const teams = [...tournamentTeams];
     for (let i = teams.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [teams[i], teams[j]] = [teams[j], teams[i]];
@@ -552,6 +584,67 @@ export class TournamentService {
     return this.getBracket(tournamentId);
   }
 
+  private async generateRoundRobin(
+    tournamentId: string,
+    tournamentTeams: { id: string; name: string; captainId: string }[]
+  ): Promise<TournamentBracketResponseDto> {
+    const teams = [...tournamentTeams];
+
+    // Generate all pairings: every team plays every other team once
+    // Use the circle method for round scheduling
+    const n = teams.length;
+    const isOdd = n % 2 !== 0;
+
+    // If odd number of teams, add a dummy slot for byes
+    if (isOdd) {
+      teams.push(null as unknown as (typeof teams)[0]);
+    }
+
+    const totalTeams = teams.length;
+    const totalRounds = totalTeams - 1;
+
+    let matchNumber = 0;
+
+    for (let round = 1; round <= totalRounds; round++) {
+      const matchesInRound = totalTeams / 2;
+
+      for (let m = 0; m < matchesInRound; m++) {
+        // Circle method: fix team[0], rotate the rest
+        const home = m === 0 ? 0 : ((round - 1 + m) % (totalTeams - 1)) + 1;
+        const away =
+          m === 0
+            ? ((round - 1) % (totalTeams - 1)) + 1
+            : ((totalTeams - 1 - m + round - 1) % (totalTeams - 1)) + 1;
+
+        const team1 = teams[home] ?? null;
+        const team2 = teams[away] ?? null;
+
+        // Skip bye matches (one team is the null dummy)
+        if (!team1 || !team2) continue;
+
+        matchNumber++;
+        await prisma.tournamentMatch.create({
+          data: {
+            tournamentId,
+            round,
+            matchNumber,
+            team1Id: team1.id,
+            team2Id: team2.id,
+            status: 'PENDING',
+          },
+        });
+      }
+    }
+
+    // Update tournament status to INPROGRESS
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { status: 'INPROGRESS' },
+    });
+
+    return this.getBracket(tournamentId);
+  }
+
   async getBracket(tournamentId: string): Promise<TournamentBracketResponseDto> {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -567,7 +660,7 @@ export class TournamentService {
     });
 
     if (matches.length === 0) {
-      throw new BadRequestException('Bracket has not been generated yet');
+      throw new BadRequestException('Matches have not been generated yet');
     }
 
     const totalRounds = Math.max(...matches.map((m) => m.round));
@@ -588,6 +681,79 @@ export class TournamentService {
         matches: roundMatches,
       })),
     };
+  }
+
+  async getStandings(tournamentId: string): Promise<TournamentStandingsResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        teams: { select: { id: true, name: true, captainId: true } },
+      },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    if (tournament.format !== 'ROUND_ROBIN') {
+      throw new BadRequestException('Standings are only available for round robin tournaments');
+    }
+
+    const matches = await prisma.tournamentMatch.findMany({
+      where: { tournamentId, status: 'COMPLETED' },
+    });
+
+    // Build standings map
+    const standingsMap = new Map<
+      string,
+      { wins: number; losses: number; draws: number; played: number; pointsFor: number; pointsAgainst: number }
+    >();
+
+    for (const team of tournament.teams) {
+      standingsMap.set(team.id, { wins: 0, losses: 0, draws: 0, played: 0, pointsFor: 0, pointsAgainst: 0 });
+    }
+
+    for (const match of matches) {
+      if (!match.team1Id || !match.team2Id) continue;
+      const s1 = standingsMap.get(match.team1Id);
+      const s2 = standingsMap.get(match.team2Id);
+      if (!s1 || !s2) continue;
+
+      s1.played++;
+      s2.played++;
+      s1.pointsFor += match.team1Score ?? 0;
+      s1.pointsAgainst += match.team2Score ?? 0;
+      s2.pointsFor += match.team2Score ?? 0;
+      s2.pointsAgainst += match.team1Score ?? 0;
+
+      if (match.winnerId === match.team1Id) {
+        s1.wins++;
+        s2.losses++;
+      } else if (match.winnerId === match.team2Id) {
+        s2.wins++;
+        s1.losses++;
+      } else {
+        // Draw (no winner)
+        s1.draws++;
+        s2.draws++;
+      }
+    }
+
+    const standings = tournament.teams
+      .map((team) => {
+        const s = standingsMap.get(team.id)!;
+        return {
+          team: { id: team.id, name: team.name, captainId: team.captainId },
+          played: s.played,
+          wins: s.wins,
+          losses: s.losses,
+          draws: s.draws,
+          pointsFor: s.pointsFor,
+          pointsAgainst: s.pointsAgainst,
+          pointDiff: s.pointsFor - s.pointsAgainst,
+        };
+      })
+      .sort((a, b) => b.wins - a.wins || b.pointDiff - a.pointDiff);
+
+    return { tournamentId, standings };
   }
 
   async recordMatchResult(
@@ -627,11 +793,18 @@ export class TournamentService {
       throw new BadRequestException('Both teams must be assigned before recording a result');
     }
 
-    if (dto.team1Score === dto.team2Score) {
+    const isRoundRobin = tournament.format === 'ROUND_ROBIN';
+
+    if (!isRoundRobin && dto.team1Score === dto.team2Score) {
       throw new BadRequestException('Scores cannot be tied in single elimination');
     }
 
-    const winnerId = dto.team1Score > dto.team2Score ? match.team1Id : match.team2Id;
+    const isDraw = dto.team1Score === dto.team2Score;
+    const winnerId = isDraw
+      ? null
+      : dto.team1Score > dto.team2Score
+        ? match.team1Id
+        : match.team2Id;
 
     const updated = await prisma.tournamentMatch.update({
       where: { id: matchId },
@@ -644,19 +817,45 @@ export class TournamentService {
       include: MATCH_INCLUDE,
     });
 
-    // Advance winner to next match
-    if (match.nextMatchId) {
-      await this.placeWinnerInNextMatch(match.nextMatchId, winnerId);
-    } else {
-      // This was the final — mark tournament as COMPLETED
-      await prisma.tournament.update({
-        where: { id: tournamentId },
-        data: { status: 'COMPLETED' },
+    if (isRoundRobin) {
+      // Check if all round robin matches are completed
+      const pendingCount = await prisma.tournamentMatch.count({
+        where: { tournamentId, status: 'PENDING' },
       });
-    }
 
-    // Award achievements to winning team members (fire-and-forget)
-    this.awardMatchAchievements(winnerId, !match.nextMatchId).catch(() => {});
+      if (pendingCount === 0) {
+        await prisma.tournament.update({
+          where: { id: tournamentId },
+          data: { status: 'COMPLETED' },
+        });
+      }
+
+      // Award match win achievement (fire-and-forget)
+      if (winnerId) {
+        this.awardMatchAchievements(winnerId, false).catch(() => {});
+      }
+
+      // If tournament just completed, award tournament win to top-standing team
+      if (pendingCount === 0) {
+        this.awardRoundRobinWinner(tournamentId).catch(() => {});
+      }
+    } else {
+      // Single elimination bracket progression
+      if (match.nextMatchId && winnerId) {
+        await this.placeWinnerInNextMatch(match.nextMatchId, winnerId);
+      } else if (!match.nextMatchId) {
+        // This was the final — mark tournament as COMPLETED
+        await prisma.tournament.update({
+          where: { id: tournamentId },
+          data: { status: 'COMPLETED' },
+        });
+      }
+
+      // Award achievements to winning team members (fire-and-forget)
+      if (winnerId) {
+        this.awardMatchAchievements(winnerId, !match.nextMatchId).catch(() => {});
+      }
+    }
 
     return this.toMatchResponse(updated);
   }
@@ -695,6 +894,14 @@ export class TournamentService {
         await this.achievementService.incrementProgress(uid, 'TOURNAMENT_WIN');
       }
     }
+  }
+
+  private async awardRoundRobinWinner(tournamentId: string): Promise<void> {
+    const standings = await this.getStandings(tournamentId);
+    if (standings.standings.length === 0) return;
+
+    const winnerTeamId = standings.standings[0].team.id;
+    await this.awardMatchAchievements(winnerTeamId, true);
   }
 
   private toMatchResponse(match: {

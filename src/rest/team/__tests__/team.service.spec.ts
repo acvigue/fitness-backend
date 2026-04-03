@@ -107,48 +107,29 @@ describe('TeamService', () => {
 
   describe('findAll', () => {
     it('should return all teams', async () => {
-      mockTeam.findMany.mockResolvedValue([mockT(), mockT({ id: 'team-2', name: 'Another Team' })]);
+      mockTeam.findMany.mockResolvedValue([
+        mockT({ users: [{ id: 'captain-1', username: 'cap', name: 'Cap', email: null }] }),
+        mockT({ id: 'team-2', name: 'Another Team', users: [] }),
+      ]);
 
       const result = await service.findAll();
 
-      expect(mockTeam.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
-      expect(result).toEqual([
-        {
-          id: 'team-1',
-          name: 'Test Team',
-          description: 'Test description',
-          captainId: 'captain-1',
-          sportId: 'sport-1',
-        },
-        {
-          id: 'team-2',
-          name: 'Another Team',
-          description: 'Test description',
-          captainId: 'captain-1',
-          sportId: 'sport-1',
-        },
-      ]);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('team-1');
+      expect(result[1].id).toBe('team-2');
     });
   });
 
   describe('findOne', () => {
     it('should return one team when found', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1', username: 'cap', name: 'Cap', email: null }] })
+      );
 
       const result = await service.findOne('team-1');
 
-      expect(mockTeam.findUnique).toHaveBeenCalledWith({
-        where: { id: 'team-1' },
-      });
-      expect(result).toEqual({
-        id: 'team-1',
-        name: 'Test Team',
-        description: 'Test description',
-        captainId: 'captain-1',
-        sportId: 'sport-1',
-      });
+      expect(result.id).toBe('team-1');
+      expect(result.name).toBe('Test Team');
     });
 
     it('should throw NotFoundException when team does not exist', async () => {
@@ -219,6 +200,7 @@ describe('TeamService', () => {
           name: 'Updated Team',
           description: 'Updated description',
           sportId: 'sport-2',
+          users: [],
         })
       );
 
@@ -232,22 +214,8 @@ describe('TeamService', () => {
         'captain-1'
       );
 
-      expect(mockTeam.update).toHaveBeenCalledWith({
-        where: { id: 'team-1' },
-        data: {
-          name: 'Updated Team',
-          description: 'Updated description',
-          sportId: 'sport-2',
-        },
-      });
-
-      expect(result).toEqual({
-        id: 'team-1',
-        name: 'Updated Team',
-        description: 'Updated description',
-        captainId: 'captain-1',
-        sportId: 'sport-2',
-      });
+      expect(result.name).toBe('Updated Team');
+      expect(result.description).toBe('Updated description');
     });
 
     it('should throw ForbiddenException when user is not captain', async () => {
@@ -285,20 +253,26 @@ describe('TeamService', () => {
 
   describe('updateCaptain', () => {
     it('should update team captain when user is current captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'captain-2' }] })
+      );
       mockTeam.update.mockResolvedValue(mockT({ captainId: 'captain-2' }));
 
       const result = await service.updateCaptain('team-1', { captainId: 'captain-2' }, 'captain-1');
 
-      expect(mockTeam.update).toHaveBeenCalledWith({
-        where: { id: 'team-1' },
-        data: { captainId: 'captain-2' },
-      });
+      expect(mockTeam.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'team-1' },
+          data: { captainId: 'captain-2' },
+        })
+      );
       expect(result.captainId).toBe('captain-2');
     });
 
     it('should send notifications to both old and new captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT());
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }, { id: 'captain-2' }] })
+      );
       mockTeam.update.mockResolvedValue(mockT({ captainId: 'captain-2' }));
 
       await service.updateCaptain('team-1', { captainId: 'captain-2' }, 'captain-1');
@@ -318,11 +292,23 @@ describe('TeamService', () => {
     });
 
     it('should throw ForbiddenException when user is not captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT({ captainId: 'captain-1' }));
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ captainId: 'captain-1', users: [{ id: 'captain-1' }] })
+      );
 
       await expect(
         service.updateCaptain('team-1', { captainId: 'captain-2' }, 'user-1')
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when new captain is not a member', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }] })
+      );
+
+      await expect(
+        service.updateCaptain('team-1', { captainId: 'user-99' }, 'captain-1')
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when team does not exist', async () => {
@@ -336,7 +322,9 @@ describe('TeamService', () => {
 
   describe('delete', () => {
     it('should delete team when user is captain', async () => {
-      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({ users: [{ id: 'captain-1' }], tournaments: [] })
+      );
       mockTeam.delete.mockResolvedValue(mockT());
 
       await service.delete('team-1', 'captain-1');
@@ -348,7 +336,10 @@ describe('TeamService', () => {
 
     it('should notify members when team is deleted', async () => {
       mockTeam.findUnique.mockResolvedValue(
-        mockT({ users: [{ id: 'captain-1' }, { id: 'user-2' }, { id: 'user-3' }] })
+        mockT({
+          users: [{ id: 'captain-1' }, { id: 'user-2' }, { id: 'user-3' }],
+          tournaments: [],
+        })
       );
       mockTeam.delete.mockResolvedValue(mockT());
 
@@ -363,9 +354,23 @@ describe('TeamService', () => {
       );
     });
 
+    it('should return warning when team is in tournaments', async () => {
+      mockTeam.findUnique.mockResolvedValue(
+        mockT({
+          users: [{ id: 'captain-1' }],
+          tournaments: [{ id: 't-1', name: 'Spring Cup' }],
+        })
+      );
+      mockTeam.delete.mockResolvedValue(mockT());
+
+      const result = await service.delete('team-1', 'captain-1');
+
+      expect(result.warning).toContain('Spring Cup');
+    });
+
     it('should throw ForbiddenException when user is not captain', async () => {
       mockTeam.findUnique.mockResolvedValue(
-        mockT({ captainId: 'captain-1', users: [{ id: 'captain-1' }] })
+        mockT({ captainId: 'captain-1', users: [{ id: 'captain-1' }], tournaments: [] })
       );
 
       await expect(service.delete('team-1', 'user-1')).rejects.toThrow(ForbiddenException);

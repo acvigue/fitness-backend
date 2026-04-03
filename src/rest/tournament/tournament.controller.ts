@@ -34,6 +34,7 @@ import {
 } from './dto/tournament-response.dto';
 import { TournamentBracketResponseDto } from './dto/tournament-bracket-response.dto';
 import { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
+import { TournamentStandingsResponseDto } from './dto/tournament-standings-response.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
 
 @ApiTags('Tournaments')
@@ -230,13 +231,23 @@ export class TournamentController {
   }
 
   @Get(':id/bracket')
-  @ApiOperation({ summary: 'Get the tournament bracket with all matches' })
+  @ApiOperation({ summary: 'Get the tournament bracket/matches grouped by round' })
   @ApiResponse({ status: 200, type: TournamentBracketResponseDto })
   @ApiBadRequestResponse()
   @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
   getBracket(@Param('id') id: string): Promise<TournamentBracketResponseDto> {
     return this.tournamentService.getBracket(id);
+  }
+
+  @Get(':id/standings')
+  @ApiOperation({ summary: 'Get round robin standings (round robin tournaments only)' })
+  @ApiResponse({ status: 200, type: TournamentStandingsResponseDto })
+  @ApiBadRequestResponse()
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  getStandings(@Param('id') id: string): Promise<TournamentStandingsResponseDto> {
+    return this.tournamentService.getStandings(id);
   }
 
   @Patch(':id/matches/:matchId/result')

@@ -101,13 +101,28 @@ export class TeamController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a team (current captain only)' })
-  @ApiResponse({ status: 204, description: 'Team deleted' })
+  @ApiResponse({
+    status: 200,
+    description: 'Team deleted',
+    schema: {
+      type: 'object',
+      properties: {
+        warning: {
+          type: 'string',
+          nullable: true,
+          description: 'Warning if the team was in tournaments',
+        },
+      },
+    },
+  })
   @ApiForbiddenResponse('You are not the current team captain')
   @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
-  delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+  delete(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<{ warning?: string }> {
     return this.teamService.delete(id, user.sub);
   }
 

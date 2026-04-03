@@ -246,6 +246,7 @@ model Tournament {
   id     String           @id @unique @default(cuid())
   name   String
   sport  Sport            @relation(fields: [sportId], references: [id])
+  format TournamentFormat @default(SINGLE_ELIMINATION)
   status TournamentStatus @default(OPEN)
 
   maxTeams  Int      @map("max_teams")
@@ -288,6 +289,11 @@ model TournamentInvitation {
   @@unique([tournamentId, teamId, status])
   @@index([teamId])
   @@map("tournament_invitations")
+}
+
+enum TournamentFormat {
+  SINGLE_ELIMINATION
+  ROUND_ROBIN
 }
 
 enum TournamentStatus {

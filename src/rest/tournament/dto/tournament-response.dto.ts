@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
 import { TournamentTeamResponseDto } from './tournament-team-response.dto';
-import { TournamentStatus } from '@/generated/prisma/enums';
+import { TournamentFormat, TournamentStatus } from '@/generated/prisma/enums';
 import { PaginationMetaDto } from '@/rest/common/pagination';
 
 export class TournamentResponseDto {
@@ -14,6 +14,13 @@ export class TournamentResponseDto {
 
   @ApiProperty({ description: 'Tournament name', example: 'Spring Championship 2024' })
   name!: string;
+
+  @ApiProperty({
+    description: 'Tournament format',
+    enum: TournamentFormat,
+    example: TournamentFormat.SINGLE_ELIMINATION,
+  })
+  format!: TournamentFormat;
 
   @ApiProperty({
     description: 'Tournament status',

@@ -70,46 +70,82 @@ export class AchievementService {
     });
   }
 
+  async getLockedAchievements(userId: string): Promise<UserAchievementResponseDto[]> {
+    const definitions = await prisma.achievementDefinition.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    const userAchievements = await prisma.userAchievement.findMany({
+      where: { userId },
+      include: USER_ACHIEVEMENT_INCLUDE,
+    });
+
+    const userMap = new Map(userAchievements.map((ua) => [ua.achievementId, ua]));
+
+    return definitions
+      .filter((def) => {
+        const ua = userMap.get(def.id);
+        return !ua?.unlockedAt;
+      })
+      .map((def) => {
+        const ua = userMap.get(def.id);
+        return {
+          id: ua?.id ?? '',
+          progress: ua?.progress ?? 0,
+          unlockedAt: null,
+          achievement: this.toDefinitionResponse(def),
+        };
+      });
+  }
+
   async incrementProgress(userId: string, criteriaType: string): Promise<void> {
     const definitions = await prisma.achievementDefinition.findMany({
       where: { criteriaType },
       orderBy: { threshold: 'asc' },
     });
 
-    for (const definition of definitions) {
-      const existing = await prisma.userAchievement.findUnique({
-        where: { userId_achievementId: { userId, achievementId: definition.id } },
-      });
+    const unlocked: { name: string }[] = [];
 
-      if (existing?.unlockedAt) {
-        continue;
+    await prisma.$transaction(async (tx) => {
+      for (const definition of definitions) {
+        const existing = await tx.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: definition.id } },
+        });
+
+        if (existing?.unlockedAt) {
+          continue;
+        }
+
+        const newProgress = (existing?.progress ?? 0) + 1;
+        const isUnlocked = newProgress >= definition.threshold;
+
+        await tx.userAchievement.upsert({
+          where: { userId_achievementId: { userId, achievementId: definition.id } },
+          create: {
+            userId,
+            achievementId: definition.id,
+            progress: newProgress,
+            unlockedAt: isUnlocked ? new Date() : null,
+          },
+          update: {
+            progress: newProgress,
+            unlockedAt: isUnlocked ? new Date() : null,
+          },
+        });
+
+        if (isUnlocked) {
+          unlocked.push({ name: definition.name });
+        }
       }
+    });
 
-      const newProgress = (existing?.progress ?? 0) + 1;
-      const unlocked = newProgress >= definition.threshold;
-
-      await prisma.userAchievement.upsert({
-        where: { userId_achievementId: { userId, achievementId: definition.id } },
-        create: {
-          userId,
-          achievementId: definition.id,
-          progress: newProgress,
-          unlockedAt: unlocked ? new Date() : null,
-        },
-        update: {
-          progress: newProgress,
-          unlockedAt: unlocked ? new Date() : null,
-        },
-      });
-
-      if (unlocked) {
-        await this.notificationService.create(
-          userId,
-          'ACHIEVEMENT_UNLOCKED',
-          'Achievement Unlocked!',
-          `You earned the achievement "${definition.name}"`
-        );
-      }
+    for (const { name } of unlocked) {
+      await this.notificationService.create(
+        userId,
+        'ACHIEVEMENT_UNLOCKED',
+        'Achievement Unlocked!',
+        `You earned the achievement "${name}"`
+      );
     }
   }
 

@@ -103,6 +103,11 @@ export class TeamService {
       throw new ForbiddenException('You are not the current team captain');
     }
 
+    const isMember = team.users.some((u) => u.id === dto.captainId);
+    if (!isMember) {
+      throw new BadRequestException('New captain must be a member of the team');
+    }
+
     const updatedTeam = await prisma.team.update({
       where: { id },
       data: {
@@ -128,10 +133,13 @@ export class TeamService {
     return this.toResponse(updatedTeam);
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, userId: string): Promise<{ warning?: string }> {
     const team = await prisma.team.findUnique({
       where: { id },
-      include: { users: { select: { id: true } } },
+      include: {
+        users: { select: { id: true } },
+        tournaments: { select: { id: true, name: true } },
+      },
     });
 
     if (!team) {
@@ -141,6 +149,11 @@ export class TeamService {
     if (team.captainId !== userId) {
       throw new ForbiddenException('You are not the current team captain');
     }
+
+    const warning =
+      team.tournaments.length > 0
+        ? `This team is registered in ${team.tournaments.length} tournament(s): ${team.tournaments.map((t) => t.name).join(', ')}. Deleting will remove the team from all tournaments.`
+        : undefined;
 
     await prisma.team.delete({
       where: { id },
@@ -156,6 +169,8 @@ export class TeamService {
         );
       }
     }
+
+    return { warning };
   }
 
   // ─── Members ────────────────────────────────────────────

@@ -74,6 +74,7 @@ function mockTournamentData(overrides: Record<string, unknown> = {}) {
   return {
     id: 'tournament-1',
     name: 'Spring Championship',
+    format: 'SINGLE_ELIMINATION',
     status: 'OPEN',
     maxTeams: 16,
     organizationId: 'org-1',

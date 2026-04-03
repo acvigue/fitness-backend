@@ -1,5 +1,16 @@
-import { IsString, IsNotEmpty, MaxLength, IsUUID, IsDateString, IsInt, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsUUID,
+  IsDateString,
+  IsInt,
+  Min,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TournamentFormat } from '@/generated/prisma/enums';
 
 export class CreateTournamentDto {
   @ApiProperty({ description: 'Tournament name', example: 'Spring Championship 2024' })
@@ -19,7 +30,7 @@ export class CreateTournamentDto {
   organizationId!: string;
 
   @ApiProperty({
-    description: 'Maximum number of teams (must be a power of 2)',
+    description: 'Maximum number of teams (must be a power of 2 for SINGLE_ELIMINATION)',
     example: 16,
     minimum: 2,
   })
@@ -31,4 +42,13 @@ export class CreateTournamentDto {
   @IsDateString()
   @IsNotEmpty()
   startDate!: string;
+
+  @ApiPropertyOptional({
+    description: 'Tournament format (defaults to SINGLE_ELIMINATION)',
+    enum: TournamentFormat,
+    example: TournamentFormat.SINGLE_ELIMINATION,
+  })
+  @IsEnum(TournamentFormat)
+  @IsOptional()
+  format?: TournamentFormat;
 }

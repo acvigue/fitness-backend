@@ -146,6 +146,52 @@ describe('AchievementService', () => {
     });
   });
 
+  describe('getLockedAchievements', () => {
+    it('should return only locked achievements', async () => {
+      mockAchievementDefinition.findMany.mockResolvedValue([
+        mockDefinition(),
+        mockDefinition({ id: 'def-2', name: 'Veteran', threshold: 5 }),
+      ]);
+      mockUserAchievement.findMany.mockResolvedValue([
+        {
+          id: 'ua-1',
+          achievementId: 'def-1',
+          progress: 1,
+          unlockedAt: NOW,
+          achievement: mockDefinition(),
+        },
+      ]);
+
+      const result = await service.getLockedAchievements('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].achievement.name).toBe('Veteran');
+      expect(result[0].progress).toBe(0);
+      expect(result[0].unlockedAt).toBeNull();
+    });
+
+    it('should include partially progressed but not unlocked achievements', async () => {
+      mockAchievementDefinition.findMany.mockResolvedValue([
+        mockDefinition({ id: 'def-1', threshold: 5 }),
+      ]);
+      mockUserAchievement.findMany.mockResolvedValue([
+        {
+          id: 'ua-1',
+          achievementId: 'def-1',
+          progress: 3,
+          unlockedAt: null,
+          achievement: mockDefinition({ threshold: 5 }),
+        },
+      ]);
+
+      const result = await service.getLockedAchievements('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].progress).toBe(3);
+      expect(result[0].unlockedAt).toBeNull();
+    });
+  });
+
   describe('incrementProgress', () => {
     it('should create new progress entry and unlock when threshold reached', async () => {
       mockAchievementDefinition.findMany.mockResolvedValue([mockDefinition({ threshold: 1 })]);
@@ -222,6 +268,17 @@ describe('AchievementService', () => {
           update: expect.objectContaining({ progress: 5 }),
         })
       );
+    });
+
+    it('should use a transaction for all progress updates', async () => {
+      const { prisma } = await import('@/shared/utils');
+      mockAchievementDefinition.findMany.mockResolvedValue([mockDefinition({ threshold: 1 })]);
+      mockUserAchievement.findUnique.mockResolvedValue(null);
+      mockUserAchievement.upsert.mockResolvedValue({});
+
+      await service.incrementProgress('user-1', 'TOURNAMENT_PARTICIPATION');
+
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
   });
 });

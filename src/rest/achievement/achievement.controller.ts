@@ -50,4 +50,14 @@ export class AchievementController {
   ): Promise<UserAchievementResponseDto[]> {
     return this.achievementService.getUserAchievements(user.sub);
   }
+
+  @Get('me/locked')
+  @ApiOperation({ summary: 'Get only locked (not yet earned) achievements for current user' })
+  @ApiResponse({ status: 200, type: [UserAchievementResponseDto] })
+  @ApiCommonErrorResponses()
+  getMyLockedAchievements(
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<UserAchievementResponseDto[]> {
+    return this.achievementService.getLockedAchievements(user.sub);
+  }
 }
