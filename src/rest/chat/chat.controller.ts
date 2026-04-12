@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Query, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
@@ -10,6 +10,8 @@ import {
 import { ZodValidationPipe } from '@/rest/common/pagination';
 import { ChatService } from './chat.service';
 import { CreateChatDto } from './dto/create-chat.dto';
+import { CreateAnnouncementChatDto } from './dto/create-announcement-chat.dto';
+import { UpdateAnnouncementChatDto } from './dto/update-announcement-chat.dto';
 import { ChatResponseDto } from './dto/chat-response.dto';
 import { ChatHistoryResponseDto } from './dto/chat-history-response.dto';
 import { UserChatResponseDto } from './dto/user-chat-response.dto';
@@ -99,5 +101,45 @@ export class ChatController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<MessageResponseDto> {
     return this.chatService.sendMessage(dto, user.sub);
+  }
+
+  // ─── Announcement Channels ───────────────────────────────
+
+  @Post('announcements')
+  @ApiOperation({ summary: 'Create an announcement channel (org STAFF/ADMIN only)' })
+  @ApiResponse({ status: 201, type: ChatResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse()
+  @ApiCommonErrorResponses()
+  createAnnouncementChat(
+    @Body() dto: CreateAnnouncementChatDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<ChatResponseDto> {
+    return this.chatService.createAnnouncementChat(dto, user.sub);
+  }
+
+  @Patch('announcements/:chatId')
+  @ApiOperation({ summary: 'Update an announcement channel (org STAFF/ADMIN only)' })
+  @ApiResponse({ status: 200, type: ChatResponseDto })
+  @ApiForbiddenResponse()
+  @ApiCommonErrorResponses()
+  updateAnnouncementChat(
+    @Param('chatId') chatId: string,
+    @Body() dto: UpdateAnnouncementChatDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<ChatResponseDto> {
+    return this.chatService.updateAnnouncementChat(chatId, dto, user.sub);
+  }
+
+  @Delete('announcements/:chatId')
+  @ApiOperation({ summary: 'Delete an announcement channel (org STAFF/ADMIN only)' })
+  @ApiResponse({ status: 200 })
+  @ApiForbiddenResponse()
+  @ApiCommonErrorResponses()
+  deleteAnnouncementChat(
+    @Param('chatId') chatId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.chatService.deleteAnnouncementChat(chatId, user.sub);
   }
 }

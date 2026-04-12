@@ -5,6 +5,9 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 const mockChatModel = {
   create: vi.fn(),
   findFirst: vi.fn(),
+  findUnique: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 };
 
 const mockMessageModel = {
@@ -17,11 +20,17 @@ const mockUserModel = {
   findMany: vi.fn(),
 };
 
+const mockOrgMemberModel = {
+  findUnique: vi.fn(),
+  findMany: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     chat: mockChatModel,
     message: mockMessageModel,
     user: mockUserModel,
+    organizationMember: mockOrgMemberModel,
   },
   redis: { publish: vi.fn() },
   redisSub: {},
@@ -258,6 +267,142 @@ describe('ChatService', () => {
       ).rejects.toThrow(ForbiddenException);
 
       expect(mockMessageModel.create).not.toHaveBeenCalled();
+    });
+
+    it('should block non-authorized users from posting in announcement channels', async () => {
+      mockChatModel.findFirst.mockResolvedValue({
+        id: 'ann-1',
+        type: 'ANNOUNCEMENT',
+        organizationId: 'org-1',
+        writeRoles: ['STAFF', 'ADMIN'],
+      });
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'MEMBER' });
+
+      await expect(
+        service.sendMessage({ chatId: 'ann-1', content: 'Hello!' }, 'user-2')
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow authorized roles to post in announcement channels', async () => {
+      mockChatModel.findFirst.mockResolvedValue({
+        id: 'ann-1',
+        type: 'ANNOUNCEMENT',
+        organizationId: 'org-1',
+        writeRoles: ['STAFF', 'ADMIN'],
+      });
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      mockMessageModel.create.mockResolvedValue(mockMessage({ chatId: 'ann-1' }));
+
+      const result = await service.sendMessage({ chatId: 'ann-1', content: 'Announcement!' }, 'creator-1');
+
+      expect(result.content).toBe('Hello!');
+      expect(mockMessageModel.create).toHaveBeenCalled();
+    });
+  });
+
+  // ─── createAnnouncementChat ────────────────────────────
+
+  describe('createAnnouncementChat', () => {
+    it('should create an announcement chat for org STAFF/ADMIN', async () => {
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      mockOrgMemberModel.findMany.mockResolvedValue([
+        { userId: 'creator-1' },
+        { userId: 'user-2' },
+      ]);
+      mockChatModel.create.mockResolvedValue(
+        mockChat({
+          type: 'ANNOUNCEMENT',
+          name: 'Announcements',
+          organizationId: 'org-1',
+          writeRoles: ['ADMIN'],
+        })
+      );
+
+      const result = await service.createAnnouncementChat(
+        { organizationId: 'org-1', name: 'Announcements', writeRoles: ['ADMIN'] },
+        'creator-1'
+      );
+
+      expect(result.type).toBe('ANNOUNCEMENT');
+      expect(result.name).toBe('Announcements');
+    });
+
+    it('should throw ForbiddenException when user is not STAFF/ADMIN', async () => {
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'MEMBER' });
+
+      await expect(
+        service.createAnnouncementChat(
+          { organizationId: 'org-1', name: 'Announcements', writeRoles: ['ADMIN'] },
+          'creator-1'
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException when user is not a member of the org', async () => {
+      mockOrgMemberModel.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createAnnouncementChat(
+          { organizationId: 'org-1', name: 'Announcements', writeRoles: ['ADMIN'] },
+          'outsider'
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ─── updateAnnouncementChat ────────────────────────────
+
+  describe('updateAnnouncementChat', () => {
+    it('should update announcement chat name and writeRoles', async () => {
+      mockChatModel.findUnique.mockResolvedValue({
+        id: 'ann-1',
+        type: 'ANNOUNCEMENT',
+        organizationId: 'org-1',
+      });
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      mockChatModel.update.mockResolvedValue(
+        mockChat({
+          id: 'ann-1',
+          type: 'ANNOUNCEMENT',
+          name: 'Updated',
+          organizationId: 'org-1',
+          writeRoles: ['STAFF', 'ADMIN'],
+        })
+      );
+
+      const result = await service.updateAnnouncementChat(
+        'ann-1',
+        { name: 'Updated', writeRoles: ['STAFF', 'ADMIN'] },
+        'creator-1'
+      );
+
+      expect(result.name).toBe('Updated');
+    });
+
+    it('should throw NotFoundException for non-announcement chat', async () => {
+      mockChatModel.findUnique.mockResolvedValue({ id: 'chat-1', type: 'GROUP', organizationId: null });
+
+      await expect(
+        service.updateAnnouncementChat('chat-1', { name: 'Test' }, 'creator-1')
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── deleteAnnouncementChat ────────────────────────────
+
+  describe('deleteAnnouncementChat', () => {
+    it('should delete an announcement chat', async () => {
+      mockChatModel.findUnique.mockResolvedValue({
+        id: 'ann-1',
+        type: 'ANNOUNCEMENT',
+        organizationId: 'org-1',
+      });
+      mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      mockChatModel.delete.mockResolvedValue({});
+
+      await service.deleteAnnouncementChat('ann-1', 'creator-1');
+
+      expect(mockChatModel.delete).toHaveBeenCalledWith({ where: { id: 'ann-1' } });
     });
   });
 });

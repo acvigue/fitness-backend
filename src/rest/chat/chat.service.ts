@@ -6,11 +6,14 @@ import {
 } from '@nestjs/common';
 import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
+import type { OrganizationRole } from '@/generated/prisma/client';
 import type { ChatResponseDto } from './dto/chat-response.dto';
 import type { MessageResponseDto } from './dto/message-response.dto';
 import type { ChatHistoryResponseDto } from './dto/chat-history-response.dto';
 import type { UserChatResponseDto } from './dto/user-chat-response.dto';
 import type { CreateChatDto } from './dto/create-chat.dto';
+import type { CreateAnnouncementChatDto } from './dto/create-announcement-chat.dto';
+import type { UpdateAnnouncementChatDto } from './dto/update-announcement-chat.dto';
 import type { SendMessageDto } from './dto/send-message.dto';
 import type { ChatPaginationParams } from './dto/chat-history-query.dto';
 import type { SearchMessagesParams } from './dto/search-messages-query.dto';
@@ -189,11 +192,25 @@ export class ChatService {
   async sendMessage(dto: SendMessageDto, senderId: string): Promise<MessageResponseDto> {
     const chat = await prisma.chat.findFirst({
       where: { id: dto.chatId, members: { some: { id: senderId } } },
-      select: { id: true },
+      select: { id: true, type: true, organizationId: true, writeRoles: true },
     });
 
     if (!chat) {
       throw new ForbiddenException('You are not a member of this chat');
+    }
+
+    // Enforce write permissions for announcement channels
+    if (chat.type === 'ANNOUNCEMENT') {
+      const membership = await prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId: senderId, organizationId: chat.organizationId! },
+        },
+      });
+      if (!membership || !chat.writeRoles.includes(membership.role)) {
+        throw new ForbiddenException(
+          'You do not have write permission in this announcement channel'
+        );
+      }
     }
 
     // Resolve media attachments
@@ -314,5 +331,124 @@ export class ChatService {
       })),
       total: Number(count),
     };
+  }
+
+  // ─── Announcement Channels ─────────────────────────────
+
+  async createAnnouncementChat(
+    dto: CreateAnnouncementChatDto,
+    userId: string
+  ): Promise<ChatResponseDto> {
+    await this.requireOrgRole(dto.organizationId, userId, ['STAFF', 'ADMIN']);
+
+    // Resolve members: specific IDs or all org members
+    let memberIds: string[];
+    if (dto.memberIds?.length) {
+      memberIds = [...new Set([userId, ...dto.memberIds])];
+    } else {
+      const orgMembers = await prisma.organizationMember.findMany({
+        where: { organizationId: dto.organizationId },
+        select: { userId: true },
+      });
+      memberIds = orgMembers.map((m) => m.userId);
+      if (!memberIds.includes(userId)) {
+        memberIds.push(userId);
+      }
+    }
+
+    const chat = await prisma.chat.create({
+      data: {
+        type: 'ANNOUNCEMENT',
+        name: dto.name,
+        creatorId: userId,
+        organizationId: dto.organizationId,
+        writeRoles: dto.writeRoles,
+        members: { connect: memberIds.map((id) => ({ id })) },
+      },
+      include: { members: { select: MEMBER_SELECT } },
+    });
+
+    return {
+      id: chat.id,
+      type: chat.type,
+      name: chat.name,
+      creatorId: chat.creatorId,
+      members: chat.members,
+      organizationId: chat.organizationId,
+      writeRoles: chat.writeRoles,
+      createdAt: chat.createdAt,
+    };
+  }
+
+  async updateAnnouncementChat(
+    chatId: string,
+    dto: UpdateAnnouncementChatDto,
+    userId: string
+  ): Promise<ChatResponseDto> {
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { id: true, type: true, organizationId: true },
+    });
+
+    if (!chat || chat.type !== 'ANNOUNCEMENT') {
+      throw new NotFoundException('Announcement channel not found');
+    }
+
+    await this.requireOrgRole(chat.organizationId!, userId, ['STAFF', 'ADMIN']);
+
+    const updated = await prisma.chat.update({
+      where: { id: chatId },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.writeRoles !== undefined && { writeRoles: dto.writeRoles }),
+      },
+      include: { members: { select: MEMBER_SELECT } },
+    });
+
+    return {
+      id: updated.id,
+      type: updated.type,
+      name: updated.name,
+      creatorId: updated.creatorId,
+      members: updated.members,
+      organizationId: updated.organizationId,
+      writeRoles: updated.writeRoles,
+      createdAt: updated.createdAt,
+    };
+  }
+
+  async deleteAnnouncementChat(chatId: string, userId: string): Promise<void> {
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { id: true, type: true, organizationId: true },
+    });
+
+    if (!chat || chat.type !== 'ANNOUNCEMENT') {
+      throw new NotFoundException('Announcement channel not found');
+    }
+
+    await this.requireOrgRole(chat.organizationId!, userId, ['STAFF', 'ADMIN']);
+
+    await prisma.chat.delete({ where: { id: chatId } });
+  }
+
+  private async requireOrgRole(
+    organizationId: string,
+    userId: string,
+    allowedRoles: OrganizationRole[]
+  ): Promise<void> {
+    const membership = await prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId } },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this organization');
+    }
+
+    if (!allowedRoles.includes(membership.role)) {
+      throw new ForbiddenException(
+        `Requires one of: ${allowedRoles.join(', ')}. You have: ${membership.role}`
+      );
+    }
   }
 }
