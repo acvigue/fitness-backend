@@ -437,7 +437,6 @@ model TeamInvitation {
   @@map("team_invitations")
 }
 
-<<<<<<< HEAD
 model Gym {
   id          String  @id @default(cuid())
   name        String
@@ -490,7 +489,6 @@ model GymAvailabilityException {
 
   @@index([gymId, date])
 }
-=======
 model TeamBlock {
   id             String   @id @default(cuid())
   blockingTeamId String   @map("blocking_team_id")
@@ -530,4 +528,3 @@ model Meetup {
   @@index([receivingTeamId])
   @@map("meetups")
 }
->>>>>>> 6470c8f4df72d67513220cac8c8de820fd9594c0
