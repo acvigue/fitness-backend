@@ -34,11 +34,11 @@ model User {
   teamMemberships  Team[]               @relation("TeamMembers")
   teamInvitations  TeamInvitation[]
 
-  sessions      Session[]
-  notifications Notification[]
-  achievements  UserAchievement[]
-  createdTournaments Tournament[] @relation("TournamentCreator")
-  tournaments        Tournament[] @relation("TournamentParticipants")
+  sessions           Session[]
+  notifications      Notification[]
+  achievements       UserAchievement[]
+  createdTournaments Tournament[]      @relation("TournamentCreator")
+  tournaments        Tournament[]      @relation("TournamentParticipants")
 
   @@map("users")
 }
@@ -109,6 +109,8 @@ model Organization {
 
   members     OrganizationMember[]
   tournaments Tournament[]
+
+  gyms Gym[]
 
   @@map("organizations")
 }
@@ -213,12 +215,12 @@ model Message {
 }
 
 model AchievementDefinition {
-  id          String @id @default(cuid())
-  name        String @unique
-  description String
-  icon        String?
-  criteriaType String @map("criteria_type") // e.g. TOURNAMENT_PARTICIPATION, TOURNAMENT_WIN
-  threshold   Int    @default(1) // e.g. 1, 5, 10 for tiered achievements
+  id           String  @id @default(cuid())
+  name         String  @unique
+  description  String
+  icon         String?
+  criteriaType String  @map("criteria_type") // e.g. TOURNAMENT_PARTICIPATION, TOURNAMENT_WIN
+  threshold    Int     @default(1) // e.g. 1, 5, 10 for tiered achievements
 
   userAchievements UserAchievement[]
 
@@ -226,16 +228,16 @@ model AchievementDefinition {
 }
 
 model UserAchievement {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  achievementId  String   @map("achievement_id")
-  achievement    AchievementDefinition @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  progress       Int      @default(0)
-  unlockedAt     DateTime? @map("unlocked_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id            String                @id @default(cuid())
+  userId        String                @map("user_id")
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String                @map("achievement_id")
+  achievement   AchievementDefinition @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  progress      Int                   @default(0)
+  unlockedAt    DateTime?             @map("unlocked_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
 
-  featuredOn     UserProfile[] @relation("FeaturedAchievements")
+  featuredOn UserProfile[] @relation("FeaturedAchievements")
 
   @@unique([userId, achievementId])
   @@index([userId])
@@ -262,7 +264,7 @@ model Tournament {
   teams       Team[]                 @relation("TournamentTeams")
   matches     TournamentMatch[]
   invitations TournamentInvitation[]
-  sportId     String                 @db.Uuid @map("sport_id")
+  sportId     String                 @map("sport_id") @db.Uuid
 
   @@index([organizationId])
   @@index([createdById])
@@ -311,11 +313,11 @@ enum MatchStatus {
 }
 
 model TournamentMatch {
-  id           String      @id @default(cuid())
-  tournamentId String      @map("tournament_id")
-  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  tournamentId String     @map("tournament_id")
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   round        Int
-  matchNumber  Int         @map("match_number")
+  matchNumber  Int        @map("match_number")
 
   team1Id    String? @map("team1_id")
   team1      Team?   @relation("MatchTeam1", fields: [team1Id], references: [id])
@@ -328,9 +330,9 @@ model TournamentMatch {
 
   status MatchStatus @default(PENDING)
 
-  nextMatchId     String?            @map("next_match_id")
-  nextMatch       TournamentMatch?   @relation("BracketProgression", fields: [nextMatchId], references: [id])
-  previousMatches TournamentMatch[]  @relation("BracketProgression")
+  nextMatchId     String?           @map("next_match_id")
+  nextMatch       TournamentMatch?  @relation("BracketProgression", fields: [nextMatchId], references: [id])
+  previousMatches TournamentMatch[] @relation("BracketProgression")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -341,31 +343,31 @@ model TournamentMatch {
 }
 
 model Notification {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String
-  title       String
-  content     String
-  dismissed   Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  content   String
+  dismissed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, dismissed])
   @@map("notifications")
 }
 
 model Team {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   name        String
-  description String   @default("")
-  captainId   String   @map("captain_id")
-  captain User  @relation("TeamCaptain", fields: [captainId], references: [id], onDelete: Cascade)
+  description String @default("")
+  captainId   String @map("captain_id")
+  captain     User   @relation("TeamCaptain", fields: [captainId], references: [id], onDelete: Cascade)
 
-  sportId     String   @db.Uuid @map("sport_id")
-  sport   Sport @relation(fields: [sportId], references: [id])
+  sportId String @map("sport_id") @db.Uuid
+  sport   Sport  @relation(fields: [sportId], references: [id])
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   users                 User[]                 @relation("TeamMembers")
   invitations           TeamInvitation[]
@@ -405,4 +407,57 @@ model TeamInvitation {
   @@unique([teamId, userId, type, status])
   @@index([userId])
   @@map("team_invitations")
+}
+
+model Gym {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  location    String?
+  capacity    Int?
+  isActive    Boolean @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  availabilityRules      GymAvailabilityRule[]
+  availabilityExceptions GymAvailabilityException[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model GymAvailabilityRule {
+  id    String @id @default(cuid())
+  gymId String
+  gym   Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  isOpen    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gymId, dayOfWeek])
+}
+
+model GymAvailabilityException {
+  id    String @id @default(cuid())
+  gymId String
+  gym   Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  date      DateTime
+  isClosed  Boolean  @default(false)
+  startTime String?
+  endTime   String?
+  note      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gymId, date])
 }
