@@ -10,7 +10,6 @@ import {
   IsIn,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TournamentFormat } from '@/generated/prisma/enums';
 
 export class CreateTournamentDto {
   @ApiProperty({ description: 'Tournament name', example: 'Spring Championship 2024' })
@@ -38,17 +37,20 @@ export class CreateTournamentDto {
   @Min(2)
   maxTeams!: number;
 
-  @ApiProperty({ description: 'Tournament start date (ISO 8601)', example: '2024-06-01T09:00:00Z' })
+  @ApiProperty({
+    description: 'Tournament start date (ISO 8601)',
+    example: '2024-06-01T09:00:00Z',
+  })
   @IsDateString()
   @IsNotEmpty()
   startDate!: string;
 
   @ApiPropertyOptional({
-    description: 'Tournament format (defaults to SINGLE_ELIMINATION)',
-    enum: ['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+    description: 'Tournament format',
+    enum: ['SINGLE_ELIMINATION', 'ROUND_ROBIN'],
     example: 'SINGLE_ELIMINATION',
   })
-  @IsIn(['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'])
   @IsOptional()
-  format?: string;
+  @IsIn(['SINGLE_ELIMINATION', 'ROUND_ROBIN'])
+  format?: 'SINGLE_ELIMINATION' | 'ROUND_ROBIN';
 }

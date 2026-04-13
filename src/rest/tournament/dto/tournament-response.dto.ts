@@ -16,7 +16,7 @@ export class TournamentResponseDto {
 
   @ApiProperty({
     description: 'Tournament format',
-    enum: ['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+    enum: ['SINGLE_ELIMINATION', 'ROUND_ROBIN'],
     example: 'SINGLE_ELIMINATION',
   })
   format!: string;
