@@ -7,7 +7,7 @@ import {
   IsInt,
   Min,
   IsOptional,
-  IsEnum,
+  IsIn,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TournamentFormat } from '@/generated/prisma/enums';
@@ -45,10 +45,10 @@ export class CreateTournamentDto {
 
   @ApiPropertyOptional({
     description: 'Tournament format (defaults to SINGLE_ELIMINATION)',
-    enum: TournamentFormat,
-    example: TournamentFormat.SINGLE_ELIMINATION,
+    enum: ['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+    example: 'SINGLE_ELIMINATION',
   })
-  @IsEnum(TournamentFormat)
+  @IsIn(['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'])
   @IsOptional()
-  format?: TournamentFormat;
+  format?: string;
 }

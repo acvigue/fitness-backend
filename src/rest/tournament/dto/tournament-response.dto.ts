@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
 import { TournamentTeamResponseDto } from './tournament-team-response.dto';
-import { TournamentFormat, TournamentStatus } from '@/generated/prisma/enums';
 import { PaginationMetaDto } from '@/rest/common/pagination';
 
 export class TournamentResponseDto {
@@ -17,17 +16,17 @@ export class TournamentResponseDto {
 
   @ApiProperty({
     description: 'Tournament format',
-    enum: TournamentFormat,
-    example: TournamentFormat.SINGLE_ELIMINATION,
+    enum: ['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+    example: 'SINGLE_ELIMINATION',
   })
-  format!: TournamentFormat;
+  format!: string;
 
   @ApiProperty({
     description: 'Tournament status',
-    enum: TournamentStatus,
-    example: TournamentStatus.OPEN,
+    enum: ['UPCOMING', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    example: 'OPEN',
   })
-  status!: TournamentStatus;
+  status!: string;
 
   @ApiProperty({ description: 'Maximum number of teams', example: 16 })
   maxTeams!: number;
