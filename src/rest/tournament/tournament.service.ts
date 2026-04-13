@@ -315,7 +315,7 @@ export class TournamentService {
 
     if (!tournament) throw new NotFoundException('Tournament not found');
 
-    const team = await prisma.team.findUnique({ where: { id: teamId }, include : {users: true } });
+    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
     if (!team) throw new NotFoundException('Team not found');
 
     if (team.captainId !== userId) {
@@ -347,10 +347,10 @@ export class TournamentService {
     teamId: string,
     userId: string
   ): Promise<TournamentResponseDto> {
-    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
-    if (!team) throw new NotFoundException('Team not found');
+    const team1 = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
+    if (!team1) throw new NotFoundException('Team not found');
 
-    if (team.captainId !== userId) {
+    if (team1.captainId !== userId) {
       throw new ForbiddenException('Only the team captain can register for tournaments');
     }
     const tournament = await prisma.tournament.findUnique({
@@ -380,7 +380,7 @@ export class TournamentService {
       data: { teams: { connect: { id: teamId } } },
       include: TOURNAMENT_INCLUDE,
     });
-    for (const user of team.users) {
+    for (const user of team1.users) {
       await prisma.tournament.update({
         where: { id: tournamentId },
         data: {
@@ -394,10 +394,10 @@ export class TournamentService {
   }
 
   async removeTeam(tournamentId: string, teamId: string, userId: string): Promise<void> {
-    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
-    if (!team) throw new NotFoundException('Team not found');
+    const team1 = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
+    if (!team1) throw new NotFoundException('Team not found');
 
-    if (team.captainId !== userId) {
+    if (team1.captainId !== userId) {
       throw new ForbiddenException('Only the team captain can register for tournaments');
     }
     const tournament = await prisma.tournament.findUnique({
@@ -416,7 +416,7 @@ export class TournamentService {
       where: { id: tournamentId },
       data: { teams: { disconnect: { id: teamId } } },
     });
-    for (const user of team.users) {
+    for (const user of team1.users) {
       await prisma.tournament.update({
         where: { id: tournamentId },
         data: {
