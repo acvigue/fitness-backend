@@ -109,6 +109,7 @@ model Organization {
 
   members     OrganizationMember[]
   tournaments Tournament[]
+  chats       Chat[]
 
   gyms Gym[]
 
@@ -157,6 +158,8 @@ model Report {
 enum ChatType {
   DIRECT
   GROUP
+  ANNOUNCEMENT
+  TEAM
 }
 
 enum MessageType {
@@ -177,7 +180,20 @@ model Chat {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  // Announcement channels (US #42)
+  organizationId String?            @map("organization_id")
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  writeRoles     OrganizationRole[] @default([])
+
+  // Team-to-team chats (US #44)
+  team1Id String? @map("team1_id")
+  team1   Team?   @relation("ChatTeam1", fields: [team1Id], references: [id], onDelete: Cascade)
+  team2Id String? @map("team2_id")
+  team2   Team?   @relation("ChatTeam2", fields: [team2Id], references: [id], onDelete: Cascade)
+
+  @@unique([team1Id, team2Id])
   @@index([creatorId])
+  @@index([organizationId])
   @@map("chats")
 }
 
@@ -377,6 +393,18 @@ model Team {
   matchesAsTeam2        TournamentMatch[]      @relation("MatchTeam2")
   matchesWon            TournamentMatch[]      @relation("MatchWinner")
 
+  // Team chats (US #44)
+  chatsAsTeam1 Chat[] @relation("ChatTeam1")
+  chatsAsTeam2 Chat[] @relation("ChatTeam2")
+
+  // Team blocking (US #45)
+  blocksInitiated TeamBlock[] @relation("BlockingTeam")
+  blocksReceived  TeamBlock[] @relation("BlockedTeam")
+
+  // Meetups (US #46)
+  meetupsProposed Meetup[] @relation("MeetupProposer")
+  meetupsReceived Meetup[] @relation("MeetupReceiver")
+
   @@index([captainId])
   @@index([sportId])
   @@map("teams")
@@ -409,6 +437,7 @@ model TeamInvitation {
   @@map("team_invitations")
 }
 
+<<<<<<< HEAD
 model Gym {
   id          String  @id @default(cuid())
   name        String
@@ -461,3 +490,44 @@ model GymAvailabilityException {
 
   @@index([gymId, date])
 }
+=======
+model TeamBlock {
+  id             String   @id @default(cuid())
+  blockingTeamId String   @map("blocking_team_id")
+  blockingTeam   Team     @relation("BlockingTeam", fields: [blockingTeamId], references: [id], onDelete: Cascade)
+  blockedTeamId  String   @map("blocked_team_id")
+  blockedTeam    Team     @relation("BlockedTeam", fields: [blockedTeamId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([blockingTeamId, blockedTeamId])
+  @@index([blockingTeamId])
+  @@index([blockedTeamId])
+  @@map("team_blocks")
+}
+
+enum MeetupStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+model Meetup {
+  id              String       @id @default(cuid())
+  proposingTeamId String       @map("proposing_team_id")
+  proposingTeam   Team         @relation("MeetupProposer", fields: [proposingTeamId], references: [id], onDelete: Cascade)
+  receivingTeamId String       @map("receiving_team_id")
+  receivingTeam   Team         @relation("MeetupReceiver", fields: [receivingTeamId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?      @db.Text
+  location        String
+  dateTime        DateTime     @map("date_time")
+  status          MeetupStatus @default(PENDING)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([proposingTeamId])
+  @@index([receivingTeamId])
+  @@map("meetups")
+}
+>>>>>>> 6470c8f4df72d67513220cac8c8de820fd9594c0

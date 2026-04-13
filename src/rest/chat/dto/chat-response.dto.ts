@@ -15,7 +15,11 @@ export class ChatResponseDto {
   @ApiProperty({ description: 'Chat ID', example: 'clr1abc2d0000' })
   id!: string;
 
-  @ApiProperty({ description: 'Chat type', example: 'DIRECT', enum: ['DIRECT', 'GROUP'] })
+  @ApiProperty({
+    description: 'Chat type',
+    example: 'DIRECT',
+    enum: ['DIRECT', 'GROUP', 'ANNOUNCEMENT', 'TEAM'],
+  })
   type!: string;
 
   @ApiPropertyOptional({ description: 'Chat name (null for direct chats)', example: 'Gym Buddies' })
@@ -26,6 +30,16 @@ export class ChatResponseDto {
 
   @ApiProperty({ type: [ChatMemberDto], description: 'Chat members' })
   members!: ChatMemberDto[];
+
+  @ApiPropertyOptional({ description: 'Organization ID (announcement chats only)' })
+  organizationId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Roles allowed to post (announcement chats only)',
+    enum: ['MEMBER', 'STAFF', 'ADMIN'],
+    isArray: true,
+  })
+  writeRoles?: string[];
 
   @ApiProperty({ description: 'Created timestamp', format: 'date-time' })
   createdAt!: Date;
