@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserAchievementResponseDto } from '@/rest/achievement/dto/user-achievement-response.dto';
+import { TournamentService } from '~/rest/tournament/tournament.service';
+import { TournamentResponseDto } from '~/rest/tournament/dto/tournament-response.dto';
 
 export class UserProfilePictureDto {
   @ApiProperty({ description: 'Picture ID', example: 'clr1abc2d0000' })
@@ -40,4 +42,9 @@ export class UserProfileResponseDto {
     description: 'Featured achievements (up to 5)',
   })
   featuredAchievements!: UserAchievementResponseDto[];
+  @ApiProperty({
+    type: [TournamentResponseDto],
+    description: 'Tournament History',
+  })
+  tournaments!: TournamentResponseDto[];
 }

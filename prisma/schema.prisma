@@ -62,12 +62,12 @@ model Session {
 }
 
 model UserProfile {
-  userId    String   @id @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio       String?  @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
+  userId               String               @id @map("user_id")
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio                  String?              @db.Text
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  tournaments          Tournament[]         @relation("TournamentHistory")
   pictures             UserProfilePicture[]
   favoriteSports       Sport[]              @relation("UserFavoriteSports")
   featuredAchievements UserAchievement[]    @relation("FeaturedAchievements")
@@ -276,11 +276,12 @@ model Tournament {
   organizationId String       @map("organization_id")
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  users       User[]                 @relation("TournamentParticipants")
-  teams       Team[]                 @relation("TournamentTeams")
-  matches     TournamentMatch[]
-  invitations TournamentInvitation[]
-  sportId     String                 @map("sport_id") @db.Uuid
+  users        User[]                 @relation("TournamentParticipants")
+  teams        Team[]                 @relation("TournamentTeams")
+  matches      TournamentMatch[]
+  invitations  TournamentInvitation[]
+  sportId      String                 @map("sport_id") @db.Uuid
+  userProfiles UserProfile[]          @relation("TournamentHistory")
 
   @@index([organizationId])
   @@index([createdById])

@@ -13,6 +13,7 @@ import type { EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import type { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
 import type { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
+import type { TournamentResponseDto } from '~/rest/tournament/dto/tournament-response.dto';
 
 @Injectable()
 export class UserService {
@@ -70,11 +71,11 @@ export class UserService {
       include: {
         user: { select: { firstName: true, lastName: true } },
         pictures: true,
+        tournaments: { include: { users: true, teams: true, sport: true } },
         favoriteSports: true,
         featuredAchievements: { include: { achievement: true } },
       },
     });
-
     if (!profile) {
       return this.createProfile(userId);
     }
@@ -152,6 +153,7 @@ export class UserService {
         user: { select: { firstName: true, lastName: true } },
         pictures: true,
         favoriteSports: true,
+        tournaments: { include: { users: true, teams: true, sport: true } },
         featuredAchievements: { include: { achievement: true } },
       },
     });
@@ -166,6 +168,7 @@ export class UserService {
         user: { select: { firstName: true, lastName: true } },
         pictures: true,
         favoriteSports: true,
+        tournaments: { include: { users: true, teams: true, sport: true } },
         featuredAchievements: { include: { achievement: true } },
       },
     });
@@ -177,6 +180,20 @@ export class UserService {
     user: { firstName: string | null; lastName: string | null };
     bio: string | null;
     favoriteSports: { id: string; name: string; icon: string | null }[];
+    tournaments: {
+      id: string;
+      name: string;
+      format: string;
+      status: string;
+      maxTeams: number;
+      organizationId: string;
+      createdById: string;
+      startDate: Date;
+      createdAt: Date;
+      sport: { id: string; name: string; icon: string | null };
+      users: { id: string; username: string | null; name: string | null; email: string | null }[];
+      teams: { id: string; name: string; captainId: string }[];
+    }[];
     pictures: { id: string; url: string; alt: string | null; isPrimary: boolean }[];
     featuredAchievements: {
       id: string;
@@ -201,6 +218,34 @@ export class UserService {
         id: s.id,
         name: s.name,
         icon: s.icon,
+      })),
+      tournaments: profile.tournaments.map((tournament) => ({
+        id: tournament.id,
+        name: tournament.name,
+        format: tournament.format as TournamentResponseDto['format'],
+        status: tournament.status as TournamentResponseDto['status'],
+        maxTeams: tournament.maxTeams,
+        organizationId: tournament.organizationId,
+        createdById: tournament.createdById,
+        startDate: tournament.startDate.toISOString(),
+        createdAt: tournament.createdAt.toISOString(),
+        sport: {
+          id: tournament.sport.id,
+          name: tournament.sport.name,
+          icon: tournament.sport.icon,
+        },
+        participants: tournament.users.map((u) => ({
+          sub: u.id,
+          username: u.username ?? undefined,
+          name: u.name ?? undefined,
+          email: u.email ?? undefined,
+          scopes: [],
+        })),
+        teams: tournament.teams.map((t) => ({
+          id: t.id,
+          name: t.name,
+          captainId: t.captainId,
+        })),
       })),
       pictures: profile.pictures.map((p) => ({
         id: p.id,
@@ -348,7 +393,14 @@ export class UserService {
           },
         ],
       },
-      select: { id: true, username: true, name: true, firstName: true, lastName: true, email: true },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
       take: 20,
       orderBy: { name: 'asc' },
     });

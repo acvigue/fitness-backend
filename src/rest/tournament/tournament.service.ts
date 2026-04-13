@@ -270,7 +270,7 @@ export class TournamentService {
       throw new BadRequestException('Tournament is not open for registration');
     }
 
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
     if (!team) throw new NotFoundException('Team not found');
 
     if (team.captainId !== userId) {
@@ -294,7 +294,16 @@ export class TournamentService {
       data: { teams: { connect: { id: teamId } } },
       include: TOURNAMENT_INCLUDE,
     });
-
+    for (const user of team.users) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: {
+          users: { connect: { id: user.id } },
+          userProfiles: { connect: { userId: user.id } },
+        },
+        include: TOURNAMENT_INCLUDE,
+      });
+    }
     return toResponse(updated);
   }
 
@@ -306,7 +315,7 @@ export class TournamentService {
 
     if (!tournament) throw new NotFoundException('Tournament not found');
 
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    const team = await prisma.team.findUnique({ where: { id: teamId }, include : {users: true } });
     if (!team) throw new NotFoundException('Team not found');
 
     if (team.captainId !== userId) {
@@ -321,6 +330,16 @@ export class TournamentService {
       where: { id: tournamentId },
       data: { teams: { disconnect: { id: teamId } } },
     });
+    for (const user of team.users) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: {
+          users: { connect: { id: user.id } },
+          userProfiles: { disconnect: { userId: user.id } },
+        },
+        include: TOURNAMENT_INCLUDE,
+      });
+    }
   }
 
   async addTeam(
@@ -328,11 +347,16 @@ export class TournamentService {
     teamId: string,
     userId: string
   ): Promise<TournamentResponseDto> {
+    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can register for tournaments');
+    }
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: { teams: { select: { id: true } } },
     });
-
     if (!tournament) throw new NotFoundException('Tournament not found');
     await this.requireOrgManager(tournament.organizationId, userId);
 
@@ -356,11 +380,26 @@ export class TournamentService {
       data: { teams: { connect: { id: teamId } } },
       include: TOURNAMENT_INCLUDE,
     });
-
+    for (const user of team.users) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: {
+          users: { connect: { id: user.id } },
+          userProfiles: { connect: { userId: user.id } },
+        },
+        include: TOURNAMENT_INCLUDE,
+      });
+    }
     return toResponse(updated);
   }
 
   async removeTeam(tournamentId: string, teamId: string, userId: string): Promise<void> {
+    const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.captainId !== userId) {
+      throw new ForbiddenException('Only the team captain can register for tournaments');
+    }
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: { teams: { select: { id: true } } },
@@ -377,6 +416,16 @@ export class TournamentService {
       where: { id: tournamentId },
       data: { teams: { disconnect: { id: teamId } } },
     });
+    for (const user of team.users) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: {
+          users: { connect: { id: user.id } },
+          userProfiles: { connect: { userId: user.id } },
+        },
+        include: TOURNAMENT_INCLUDE,
+      });
+    }
   }
 
   // ─── Tournament Invitations ──────────────────────────────
@@ -579,7 +628,7 @@ export class TournamentService {
           team1Id: team1?.id ?? null,
           team2Id: team2?.id ?? null,
           status: isBye ? 'BYE' : 'PENDING',
-          winnerId: isBye ? byeWinner?.id ?? null : null,
+          winnerId: isBye ? (byeWinner?.id ?? null) : null,
         },
       });
 
@@ -723,11 +772,25 @@ export class TournamentService {
     // Build standings map
     const standingsMap = new Map<
       string,
-      { wins: number; losses: number; draws: number; played: number; pointsFor: number; pointsAgainst: number }
+      {
+        wins: number;
+        losses: number;
+        draws: number;
+        played: number;
+        pointsFor: number;
+        pointsAgainst: number;
+      }
     >();
 
     for (const team of tournament.teams) {
-      standingsMap.set(team.id, { wins: 0, losses: 0, draws: 0, played: 0, pointsFor: 0, pointsAgainst: 0 });
+      standingsMap.set(team.id, {
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        played: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
+      });
     }
 
     for (const match of matches) {
@@ -894,10 +957,7 @@ export class TournamentService {
     });
   }
 
-  private async awardMatchAchievements(
-    winningTeamId: string,
-    isFinal: boolean
-  ): Promise<void> {
+  private async awardMatchAchievements(winningTeamId: string, isFinal: boolean): Promise<void> {
     const team = await prisma.team.findUnique({
       where: { id: winningTeamId },
       include: { users: { select: { id: true } } },
