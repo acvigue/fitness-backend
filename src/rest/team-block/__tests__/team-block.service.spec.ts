@@ -67,11 +67,7 @@ describe('TeamBlockService', () => {
         createdAt: NOW,
       });
 
-      const result = await service.blockTeam(
-        'team-1',
-        { blockedTeamId: 'team-2' },
-        'captain-1'
-      );
+      const result = await service.blockTeam('team-1', { blockedTeamId: 'team-2' }, 'captain-1');
 
       expect(result.blockedTeamId).toBe('team-2');
       expect(result.blockedTeamName).toBe('Team Beta');
@@ -94,9 +90,7 @@ describe('TeamBlockService', () => {
     });
 
     it('should throw NotFoundException when target team does not exist', async () => {
-      mockTeamModel.findUnique
-        .mockResolvedValueOnce(mockTeam())
-        .mockResolvedValueOnce(null);
+      mockTeamModel.findUnique.mockResolvedValueOnce(mockTeam()).mockResolvedValueOnce(null);
 
       await expect(
         service.blockTeam('team-1', { blockedTeamId: 'missing' }, 'captain-1')

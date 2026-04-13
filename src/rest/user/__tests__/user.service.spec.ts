@@ -548,7 +548,14 @@ describe('UserService', () => {
   describe('lookupUsers', () => {
     it('should return matching users excluding the current user', async () => {
       mockUser.findMany.mockResolvedValue([
-        { id: 'user-2', username: 'jane', name: 'Jane Doe', firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' },
+        {
+          id: 'user-2',
+          username: 'jane',
+          name: 'Jane Doe',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@example.com',
+        },
       ]);
 
       const result = await service.lookupUsers('jane', 'user-1');
@@ -585,7 +592,14 @@ describe('UserService', () => {
             },
           ],
         },
-        select: { id: true, username: true, name: true, firstName: true, lastName: true, email: true },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
         take: 20,
         orderBy: { name: 'asc' },
       });

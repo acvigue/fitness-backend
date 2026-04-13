@@ -308,9 +308,7 @@ describe('TeamService', () => {
     });
 
     it('should throw BadRequestException when new captain is not a member', async () => {
-      mockTeam.findUnique.mockResolvedValue(
-        mockT({ users: [{ id: 'captain-1' }] })
-      );
+      mockTeam.findUnique.mockResolvedValue(mockT({ users: [{ id: 'captain-1' }] }));
 
       await expect(
         service.updateCaptain('team-1', { captainId: 'user-99' }, 'captain-1')

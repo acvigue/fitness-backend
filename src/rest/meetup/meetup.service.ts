@@ -37,10 +37,7 @@ export class MeetupService {
     });
     if (!receivingTeam) throw new NotFoundException('Receiving team not found');
 
-    const blocked = await this.teamBlockService.isBlocked(
-      dto.proposingTeamId,
-      dto.receivingTeamId
-    );
+    const blocked = await this.teamBlockService.isBlocked(dto.proposingTeamId, dto.receivingTeamId);
     if (blocked) {
       throw new ForbiddenException('Cannot propose a meetup with a blocked team');
     }

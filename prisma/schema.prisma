@@ -40,6 +40,9 @@ model User {
   createdTournaments Tournament[]      @relation("TournamentCreator")
   tournaments        Tournament[]      @relation("TournamentParticipants")
 
+  engagementEvents        EngagementEvent[]
+  targetedEngagementEvents EngagementEvent[] @relation("TargetUserEngagement")
+
   @@map("users")
 }
 
@@ -190,6 +193,8 @@ model Chat {
   team1   Team?   @relation("ChatTeam1", fields: [team1Id], references: [id], onDelete: Cascade)
   team2Id String? @map("team2_id")
   team2   Team?   @relation("ChatTeam2", fields: [team2Id], references: [id], onDelete: Cascade)
+
+  engagementEvents EngagementEvent[]
 
   @@unique([team1Id, team2Id])
   @@index([creatorId])
@@ -406,6 +411,8 @@ model Team {
   meetupsProposed Meetup[] @relation("MeetupProposer")
   meetupsReceived Meetup[] @relation("MeetupReceiver")
 
+  engagementEvents EngagementEvent[]
+
   @@index([captainId])
   @@index([sportId])
   @@map("teams")
@@ -528,4 +535,40 @@ model Meetup {
   @@index([proposingTeamId])
   @@index([receivingTeamId])
   @@map("meetups")
+}
+
+enum EngagementType {
+  MESSAGE_SENT
+  PROFILE_VIEW
+  TEAM_JOIN
+  TEAM_LEAVE
+  CHAT_CREATED
+  TOURNAMENT_JOIN
+}
+
+model EngagementEvent {
+  id String @id @default(cuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type EngagementType
+
+  targetUserId String? @map("target_user_id")
+  targetUser   User?   @relation("TargetUserEngagement", fields: [targetUserId], references: [id])
+
+  teamId String? @map("team_id")
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  chatId String? @map("chat_id")
+  chat   Chat?   @relation(fields: [chatId], references: [id])
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("engagement_events")
 }

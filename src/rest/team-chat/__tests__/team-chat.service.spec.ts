@@ -1,9 +1,5 @@
 import { Test } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
 const mockChatModel = {
@@ -189,9 +185,7 @@ describe('TeamChatService', () => {
     it('should throw when user is not a team member', async () => {
       mockTeamModel.findUnique.mockResolvedValue(mockTeam());
 
-      await expect(service.getTeamChats('team-1', 'outsider')).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(service.getTeamChats('team-1', 'outsider')).rejects.toThrow(ForbiddenException);
     });
   });
 

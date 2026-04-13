@@ -293,7 +293,10 @@ describe('ChatService', () => {
       mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
       mockMessageModel.create.mockResolvedValue(mockMessage({ chatId: 'ann-1' }));
 
-      const result = await service.sendMessage({ chatId: 'ann-1', content: 'Announcement!' }, 'creator-1');
+      const result = await service.sendMessage(
+        { chatId: 'ann-1', content: 'Announcement!' },
+        'creator-1'
+      );
 
       expect(result.content).toBe('Hello!');
       expect(mockMessageModel.create).toHaveBeenCalled();
@@ -380,7 +383,11 @@ describe('ChatService', () => {
     });
 
     it('should throw NotFoundException for non-announcement chat', async () => {
-      mockChatModel.findUnique.mockResolvedValue({ id: 'chat-1', type: 'GROUP', organizationId: null });
+      mockChatModel.findUnique.mockResolvedValue({
+        id: 'chat-1',
+        type: 'GROUP',
+        organizationId: null,
+      });
 
       await expect(
         service.updateAnnouncementChat('chat-1', { name: 'Test' }, 'creator-1')

@@ -44,7 +44,7 @@ export class TeamService {
   async findAll(): Promise<TeamResponseDto[]> {
     const teams = await prisma.team.findMany({
       orderBy: { name: 'asc' },
-	  include: { users: { select: { id: true, username: true, name: true } } },
+      include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     return teams.map((team) => this.toResponse(team));
@@ -53,7 +53,7 @@ export class TeamService {
   async findOne(id: string): Promise<TeamResponseDto> {
     const team = await prisma.team.findUnique({
       where: { id },
-	  include: { users: { select: { id: true, username: true, name: true } } },
+      include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     if (!team) {
@@ -83,7 +83,7 @@ export class TeamService {
         description: dto.description ?? '',
         sportId: dto.sportId,
       },
-	  include: { users: { select: { id: true, username: true, name: true } } },
+      include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     return this.toResponse(updatedTeam);
@@ -96,7 +96,7 @@ export class TeamService {
   ): Promise<TeamResponseDto> {
     const team = await prisma.team.findUnique({
       where: { id },
-	  include: { users: { select: { id: true, username: true, name: true } } },
+      include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     if (!team) {
@@ -117,7 +117,7 @@ export class TeamService {
       data: {
         captainId: dto.captainId,
       },
-	  include: { users: { select: { id: true, username: true, name: true } } },
+      include: { users: { select: { id: true, username: true, name: true } } },
     });
 
     await this.notificationService.create(
@@ -472,7 +472,7 @@ export class TeamService {
     description: string;
     captainId: string;
     sportId: string;
-	users: { id: string; username: string | null; name: string | null; email: string | null }[];
+    users: { id: string; username: string | null; name: string | null; email: string | null }[];
   }): TeamResponseDto {
     return {
       id: team.id,
@@ -480,13 +480,13 @@ export class TeamService {
       description: team.description,
       captainId: team.captainId,
       sportId: team.sportId,
-	  members: team.users?.map((u) => ({
+      members: team.users?.map((u) => ({
         sub: u.id,
         username: u.username ?? undefined,
         name: u.name ?? undefined,
         email: u.email ?? undefined,
         scopes: [],
-	  })),
+      })),
     };
   }
 

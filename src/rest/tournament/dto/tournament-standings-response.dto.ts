@@ -31,6 +31,9 @@ export class TournamentStandingsResponseDto {
   @ApiProperty({ description: 'Tournament ID', example: 'clr1abc2d0001' })
   tournamentId!: string;
 
-  @ApiProperty({ description: 'Team standings sorted by wins then point differential', type: [TeamStandingDto] })
+  @ApiProperty({
+    description: 'Team standings sorted by wins then point differential',
+    type: [TeamStandingDto],
+  })
   standings!: TeamStandingDto[];
 }

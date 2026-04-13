@@ -826,16 +826,40 @@ describe('TournamentService', () => {
       // For getBracket call at end
       mockTournamentMatch.findMany.mockResolvedValue([
         {
-          id: 'match-2', round: 1, matchNumber: 1, status: 'PENDING', nextMatchId: 'match-1',
-          team1: fourTeams[0], team2: fourTeams[1], team1Score: null, team2Score: null, winner: null,
+          id: 'match-2',
+          round: 1,
+          matchNumber: 1,
+          status: 'PENDING',
+          nextMatchId: 'match-1',
+          team1: fourTeams[0],
+          team2: fourTeams[1],
+          team1Score: null,
+          team2Score: null,
+          winner: null,
         },
         {
-          id: 'match-3', round: 1, matchNumber: 2, status: 'PENDING', nextMatchId: 'match-1',
-          team1: fourTeams[2], team2: fourTeams[3], team1Score: null, team2Score: null, winner: null,
+          id: 'match-3',
+          round: 1,
+          matchNumber: 2,
+          status: 'PENDING',
+          nextMatchId: 'match-1',
+          team1: fourTeams[2],
+          team2: fourTeams[3],
+          team1Score: null,
+          team2Score: null,
+          winner: null,
         },
         {
-          id: 'match-1', round: 2, matchNumber: 1, status: 'PENDING', nextMatchId: null,
-          team1: null, team2: null, team1Score: null, team2Score: null, winner: null,
+          id: 'match-1',
+          round: 2,
+          matchNumber: 1,
+          status: 'PENDING',
+          nextMatchId: null,
+          team1: null,
+          team2: null,
+          team1Score: null,
+          team2Score: null,
+          winner: null,
         },
       ]);
 
@@ -906,22 +930,40 @@ describe('TournamentService', () => {
       mockTournament.findUnique.mockResolvedValue({ id: 'tournament-1' });
       mockTournamentMatch.findMany.mockResolvedValue([
         {
-          id: 'match-1', round: 1, matchNumber: 1, status: 'COMPLETED', nextMatchId: 'match-3',
+          id: 'match-1',
+          round: 1,
+          matchNumber: 1,
+          status: 'COMPLETED',
+          nextMatchId: 'match-3',
           team1: { id: 't1', name: 'A', captainId: 'c1' },
           team2: { id: 't2', name: 'B', captainId: 'c2' },
-          team1Score: 3, team2Score: 1,
+          team1Score: 3,
+          team2Score: 1,
           winner: { id: 't1', name: 'A', captainId: 'c1' },
         },
         {
-          id: 'match-2', round: 1, matchNumber: 2, status: 'PENDING', nextMatchId: 'match-3',
+          id: 'match-2',
+          round: 1,
+          matchNumber: 2,
+          status: 'PENDING',
+          nextMatchId: 'match-3',
           team1: { id: 't3', name: 'C', captainId: 'c3' },
           team2: { id: 't4', name: 'D', captainId: 'c4' },
-          team1Score: null, team2Score: null, winner: null,
+          team1Score: null,
+          team2Score: null,
+          winner: null,
         },
         {
-          id: 'match-3', round: 2, matchNumber: 1, status: 'PENDING', nextMatchId: null,
+          id: 'match-3',
+          round: 2,
+          matchNumber: 1,
+          status: 'PENDING',
+          nextMatchId: null,
           team1: { id: 't1', name: 'A', captainId: 'c1' },
-          team2: null, team1Score: null, team2Score: null, winner: null,
+          team2: null,
+          team1Score: null,
+          team2Score: null,
+          winner: null,
         },
       ]);
 
@@ -952,9 +994,7 @@ describe('TournamentService', () => {
 
   describe('recordMatchResult', () => {
     it('should record result and advance winner to next match', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique
         .mockResolvedValueOnce({
@@ -1023,9 +1063,7 @@ describe('TournamentService', () => {
     });
 
     it('should mark tournament COMPLETED when final match is decided', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'final-match',
@@ -1079,9 +1117,7 @@ describe('TournamentService', () => {
     });
 
     it('should award TOURNAMENT_MATCH_WIN achievement to winning team members', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'match-1',
@@ -1097,15 +1133,23 @@ describe('TournamentService', () => {
         nextMatchId: 'match-3',
         nextMatch: { id: 'match-3' },
       });
-      mockTournamentMatch.findUnique.mockResolvedValueOnce({ id: 'match-3', team1Id: null, team2Id: null });
+      mockTournamentMatch.findUnique.mockResolvedValueOnce({
+        id: 'match-3',
+        team1Id: null,
+        team2Id: null,
+      });
       mockTournamentMatch.update
         .mockResolvedValueOnce({
-          id: 'match-1', round: 1, matchNumber: 1,
+          id: 'match-1',
+          round: 1,
+          matchNumber: 1,
           team1: { id: 'team-1', name: 'Alpha', captainId: 'cap-1' },
           team2: { id: 'team-2', name: 'Bravo', captainId: 'cap-2' },
-          team1Score: 10, team2Score: 5,
+          team1Score: 10,
+          team2Score: 5,
           winner: { id: 'team-1', name: 'Alpha', captainId: 'cap-1' },
-          status: 'COMPLETED', nextMatchId: 'match-3',
+          status: 'COMPLETED',
+          nextMatchId: 'match-3',
         })
         .mockResolvedValueOnce({});
       mockTeamModel.findUnique.mockResolvedValue({
@@ -1135,9 +1179,7 @@ describe('TournamentService', () => {
     });
 
     it('should award TOURNAMENT_WIN achievement when final match won', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'final',
@@ -1154,12 +1196,16 @@ describe('TournamentService', () => {
         nextMatch: null,
       });
       mockTournamentMatch.update.mockResolvedValueOnce({
-        id: 'final', round: 2, matchNumber: 1,
+        id: 'final',
+        round: 2,
+        matchNumber: 1,
         team1: { id: 'team-1', name: 'Alpha', captainId: 'cap-1' },
         team2: { id: 'team-2', name: 'Bravo', captainId: 'cap-2' },
-        team1Score: 7, team2Score: 3,
+        team1Score: 7,
+        team2Score: 3,
         winner: { id: 'team-1', name: 'Alpha', captainId: 'cap-1' },
-        status: 'COMPLETED', nextMatchId: null,
+        status: 'COMPLETED',
+        nextMatchId: null,
       });
       mockTournament.update.mockResolvedValue({});
       mockTeamModel.findUnique.mockResolvedValue({
@@ -1188,9 +1234,7 @@ describe('TournamentService', () => {
     });
 
     it('should throw BadRequestException for tied scores', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'match-1',
@@ -1215,9 +1259,7 @@ describe('TournamentService', () => {
     });
 
     it('should throw BadRequestException when match is already completed', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'match-1',
@@ -1240,9 +1282,7 @@ describe('TournamentService', () => {
     });
 
     it('should throw BadRequestException when tournament is not INPROGRESS', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'OPEN' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'OPEN' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
 
       await expect(
@@ -1256,9 +1296,7 @@ describe('TournamentService', () => {
     });
 
     it('should throw NotFoundException when match does not belong to tournament', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
       mockTournamentMatch.findUnique.mockResolvedValueOnce({
         id: 'match-1',
@@ -1277,9 +1315,7 @@ describe('TournamentService', () => {
     });
 
     it('should throw ForbiddenException when user is MEMBER role', async () => {
-      mockTournament.findUnique.mockResolvedValue(
-        mockTournamentData({ status: 'INPROGRESS' })
-      );
+      mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'INPROGRESS' }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'MEMBER' }));
 
       await expect(

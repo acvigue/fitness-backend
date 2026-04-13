@@ -26,10 +26,7 @@ export class TeamChatService {
     private readonly notificationService: NotificationService
   ) {}
 
-  async createOrGetTeamChat(
-    dto: CreateTeamChatDto,
-    userId: string
-  ): Promise<TeamChatResponseDto> {
+  async createOrGetTeamChat(dto: CreateTeamChatDto, userId: string): Promise<TeamChatResponseDto> {
     if (dto.fromTeamId === dto.toTeamId) {
       throw new BadRequestException('Cannot create a chat with your own team');
     }

@@ -1,9 +1,5 @@
 import { Test } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
 const mockTeamModel = {
@@ -47,9 +43,17 @@ function mockMeetup(overrides: Record<string, unknown> = {}) {
   return {
     id: 'meetup-1',
     proposingTeamId: 'team-1',
-    proposingTeam: { name: 'Team Alpha', captainId: 'captain-1', users: [{ id: 'captain-1' }, { id: 'user-2' }] },
+    proposingTeam: {
+      name: 'Team Alpha',
+      captainId: 'captain-1',
+      users: [{ id: 'captain-1' }, { id: 'user-2' }],
+    },
     receivingTeamId: 'team-2',
-    receivingTeam: { name: 'Team Beta', captainId: 'captain-2', users: [{ id: 'captain-2' }, { id: 'user-4' }] },
+    receivingTeam: {
+      name: 'Team Beta',
+      captainId: 'captain-2',
+      users: [{ id: 'captain-2' }, { id: 'user-4' }],
+    },
     title: 'Saturday Scrimmage',
     description: null,
     location: 'Central Park',
@@ -114,10 +118,12 @@ describe('MeetupService', () => {
     });
 
     it('should throw when teams are blocked', async () => {
-      mockTeamModel.findUnique.mockResolvedValueOnce({
-        id: 'team-1',
-        users: [{ id: 'captain-1' }],
-      }).mockResolvedValueOnce({ id: 'team-2' });
+      mockTeamModel.findUnique
+        .mockResolvedValueOnce({
+          id: 'team-1',
+          users: [{ id: 'captain-1' }],
+        })
+        .mockResolvedValueOnce({ id: 'team-2' });
       vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(true);
 
       await expect(
@@ -316,17 +322,13 @@ describe('MeetupService', () => {
       mockMeetupModel.findUnique.mockResolvedValue(mockMeetup());
       mockTeamModel.findFirst.mockResolvedValue(null);
 
-      await expect(service.getMeetup('meetup-1', 'outsider')).rejects.toThrow(
-        ForbiddenException
-      );
+      await expect(service.getMeetup('meetup-1', 'outsider')).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw when meetup not found', async () => {
       mockMeetupModel.findUnique.mockResolvedValue(null);
 
-      await expect(service.getMeetup('missing', 'captain-1')).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(service.getMeetup('missing', 'captain-1')).rejects.toThrow(NotFoundException);
     });
   });
 });
