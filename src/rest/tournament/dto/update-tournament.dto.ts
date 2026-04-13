@@ -6,10 +6,9 @@ import {
   IsInt,
   Min,
   IsOptional,
-  IsEnum,
+  IsIn,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { TournamentStatus } from '@/generated/prisma/enums';
 
 export class UpdateTournamentDto {
   @ApiPropertyOptional({ description: 'Tournament name', example: 'Updated Championship' })
@@ -39,10 +38,10 @@ export class UpdateTournamentDto {
 
   @ApiPropertyOptional({
     description: 'Tournament status',
-    enum: TournamentStatus,
-    example: TournamentStatus.UPCOMING,
+    enum: ['UPCOMING', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    example: 'UPCOMING',
   })
-  @IsEnum(TournamentStatus)
+  @IsIn(['UPCOMING', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
   @IsOptional()
-  status?: TournamentStatus;
+  status?: string;
 }

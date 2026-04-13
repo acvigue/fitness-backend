@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MatchStatus } from '@/generated/prisma/enums';
 import { TournamentTeamResponseDto } from './tournament-team-response.dto';
 
 export class TournamentMatchResponseDto {
@@ -27,9 +26,16 @@ export class TournamentMatchResponseDto {
   @ApiPropertyOptional({ description: 'Winning team', type: () => TournamentTeamResponseDto })
   winner!: TournamentTeamResponseDto | null;
 
-  @ApiProperty({ description: 'Match status', enum: MatchStatus, example: MatchStatus.PENDING })
-  status!: MatchStatus;
+  @ApiProperty({
+    description: 'Match status',
+    enum: ['PENDING', 'READY', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    example: 'PENDING',
+  })
+  status!: string;
 
-  @ApiPropertyOptional({ description: 'Next match ID the winner advances to', example: 'cm456def789ghi' })
+  @ApiPropertyOptional({
+    description: 'Next match ID the winner advances to',
+    example: 'cm456def789ghi',
+  })
   nextMatchId!: string | null;
 }
