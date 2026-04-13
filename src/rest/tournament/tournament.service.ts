@@ -277,6 +277,10 @@ export class TournamentService {
       throw new ForbiddenException('Only the team captain can register for tournaments');
     }
 
+    if (team.sportId !== tournament.sportId) {
+      throw new BadRequestException('Team sport does not match the tournament sport');
+    }
+
     if (tournament.teams.some((t) => t.id === teamId)) {
       throw new BadRequestException('Team is already registered for this tournament');
     }
@@ -332,6 +336,13 @@ export class TournamentService {
     if (!tournament) throw new NotFoundException('Tournament not found');
     await this.requireOrgManager(tournament.organizationId, userId);
 
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.sportId !== tournament.sportId) {
+      throw new BadRequestException('Team sport does not match the tournament sport');
+    }
+
     if (tournament.teams.some((t) => t.id === teamId)) {
       throw new BadRequestException('Team is already registered for this tournament');
     }
@@ -380,6 +391,13 @@ export class TournamentService {
 
     await this.requireOrgManager(tournament.organizationId, userId);
 
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    if (team.sportId !== tournament.sportId) {
+      throw new BadRequestException('Team sport does not match the tournament sport');
+    }
+
     const existing = await prisma.tournamentInvitation.findFirst({
       where: { tournamentId, teamId, status: 'PENDING' },
     });
@@ -392,15 +410,12 @@ export class TournamentService {
       data: { tournamentId, teamId },
     });
 
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (team) {
-      await this.notificationService.create(
-        team.captainId,
-        'TOURNAMENT_INVITE',
-        'Tournament Invitation',
-        `Your team "${team.name}" has been invited to tournament "${tournament.name}"`
-      );
-    }
+    await this.notificationService.create(
+      team.captainId,
+      'TOURNAMENT_INVITE',
+      'Tournament Invitation',
+      `Your team "${team.name}" has been invited to tournament "${tournament.name}"`
+    );
 
     return this.toInvitationResponse(invitation);
   }
@@ -423,6 +438,10 @@ export class TournamentService {
 
     if (invitation.team.captainId !== userId) {
       throw new ForbiddenException('Only the team captain can respond to tournament invitations');
+    }
+
+    if (invitation.team.sportId !== invitation.tournament.sportId) {
+      throw new BadRequestException('Team sport does not match the tournament sport');
     }
 
     const status = accept ? 'ACCEPTED' : 'DECLINED';
