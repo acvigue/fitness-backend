@@ -39,6 +39,7 @@ model User {
   achievements       UserAchievement[]
   createdTournaments Tournament[]      @relation("TournamentCreator")
   tournaments        Tournament[]      @relation("TournamentParticipants")
+  videos			 Video[]		   @relation("VideoUploader")
 
   engagementEvents        EngagementEvent[]
   targetedEngagementEvents EngagementEvent[] @relation("TargetUserEngagement")
@@ -86,6 +87,7 @@ model Sport {
   profiles    UserProfile[] @relation("UserFavoriteSports")
   tournaments Tournament[]
   teams       Team[]
+  videos	  Video[]
 
   @@map("sports")
 }
@@ -571,4 +573,17 @@ model EngagementEvent {
   @@index([type])
   @@index([createdAt])
   @@map("engagement_events")
+}
+
+model Video {
+  id    String     @id @default(cuid())
+  uploaderId    String               @map("uploader_id")
+  uploader      User                 @relation("VideoUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+  sportId     String   @db.Uuid @map("sport_id")
+  sport   Sport @relation(fields: [sportId], references: [id])
+  url       String
+  mimeType  String   @map("mime_type")
+  size      Int
 }
