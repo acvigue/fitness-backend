@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
 
 export class VideoResponseDto {
   @ApiProperty({ description: 'Video ID', example: 'cm123abc456def789ghi0001' })
@@ -22,8 +21,7 @@ export class VideoResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   sportId!: string;
-  
+
   @ApiProperty({ description: 'Video url' })
   url!: string;
-
 }

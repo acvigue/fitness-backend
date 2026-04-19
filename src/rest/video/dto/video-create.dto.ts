@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 export class VideoCreateDto {
   @ApiProperty({ description: 'Video name', example: 'Cool Video' })
   @IsString()
   @IsNotEmpty()
   name!: string;
-   
+
   @ApiProperty({ description: 'Video description', example: 'Cool stuff happens' })
   @IsString()
   @IsNotEmpty()
@@ -18,11 +18,9 @@ export class VideoCreateDto {
   })
   @IsUUID()
   sportId!: string;
-  
+
   @ApiProperty({ description: 'Video url', example: '123.123.123' })
   @IsString()
   @IsNotEmpty()
   url!: string;
-
-
 }

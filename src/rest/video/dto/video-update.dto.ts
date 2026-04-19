@@ -22,7 +22,7 @@ export class VideoUpdateDto {
   @IsString()
   @IsOptional()
   description?: string;
-  
+
   @ApiProperty({ description: 'Video url', example: '123.123.123' })
   @IsString()
   @IsNotEmpty()

@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
@@ -22,7 +12,6 @@ import { VideoService } from './video.service';
 import { VideoCreateDto } from './dto/video-create.dto';
 import { VideoResponseDto } from './dto/video-response.dto';
 import { VideoUpdateDto } from './dto/video-update.dto';
-
 
 @ApiTags('Videos')
 @ApiBearerAuth()
@@ -49,7 +38,6 @@ export class VideoController {
   findAll(): Promise<VideoResponseDto[]> {
     return this.videoService.findAll();
   }
-
 
   @Get(':id')
   @ApiOperation({ summary: 'Get video' })
@@ -84,9 +72,7 @@ export class VideoController {
   @ApiForbiddenResponse('You are not the video uploader')
   @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
-  delete(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser
-  ): Promise<{ warning?: string }> {
+  delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.videoService.delete(id, user.sub);
   }
+}

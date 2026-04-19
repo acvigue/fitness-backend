@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { UserService } from '@/rest/user/user.service';
@@ -27,7 +22,7 @@ export class VideoService {
         description: dto.description,
         uploaderId: userId,
         sportId: dto.sportId,
-		url: dto.url,
+        url: dto.url,
       },
     });
 
@@ -73,14 +68,13 @@ export class VideoService {
         name: dto.name,
         description: dto.description,
         sportId: dto.sportId,
-		url: dto.url,
+        url: dto.url,
       },
     });
 
     return this.toResponse(updatedVideo);
   }
 
-  
   async delete(id: string, userId: string) {
     const video = await prisma.video.findUnique({
       where: { id },

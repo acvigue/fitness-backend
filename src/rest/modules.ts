@@ -12,6 +12,7 @@ import { UserModule } from '@/rest/user/user.module';
 import { TournamentModule } from '@/rest/tournament/tournament.module';
 import { UtilsModule } from '@/rest/utils/utils.module';
 import { AchievementModule } from '~/rest/achievement/achievement.module';
+import { VideoModule } from './video/video.module';
 
 export const restFeatureModules = [
   AchievementModule,
@@ -28,4 +29,5 @@ export const restFeatureModules = [
   TournamentModule,
   UserModule,
   UtilsModule,
+  VideoModule,
 ] as const;

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { ChatMemberDto } from '@/rest/chat/dto/chat-response.dto';
 
 export class TeamChatResponseDto {

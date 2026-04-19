@@ -16,7 +16,8 @@
     "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "vite-node prisma/seed.ts"
+    "seed": "vite-node prisma/seed.ts",
+    "fullcheck": "prisma generate && prisma migrate dev && npm run lint && npm run format && npm run build"
   },
   "keywords": [],
   "author": "",

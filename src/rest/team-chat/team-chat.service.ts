@@ -8,7 +8,6 @@ import { prisma } from '@/shared/utils';
 import { ChatService } from '@/rest/chat/chat.service';
 import { TeamBlockService } from '@/rest/team-block/team-block.service';
 import { NotificationService } from '@/rest/notification/notification.service';
-import { paginate, type PaginatedResult, type PaginationParams } from '@/rest/common/pagination';
 import type { CreateTeamChatDto } from './dto/create-team-chat.dto';
 import type { TeamChatResponseDto } from './dto/team-chat-response.dto';
 import type { SendTeamMessageDto } from './dto/send-team-message.dto';
@@ -229,7 +228,7 @@ export class TeamChatService {
     team1Id: string,
     team2Id: string,
     senderId: string,
-    chatId: string
+    _chatId: string
   ): Promise<void> {
     // Find which team the sender belongs to
     const senderTeam = await prisma.team.findFirst({

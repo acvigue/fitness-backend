@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SportResponseDto } from '@/rest/sport/dto/sport-response.dto';
 import { UserAchievementResponseDto } from '@/rest/achievement/dto/user-achievement-response.dto';
-import { TournamentService } from '~/rest/tournament/tournament.service';
 import { TournamentResponseDto } from '~/rest/tournament/dto/tournament-response.dto';
 
 export class UserProfilePictureDto {
