@@ -60,6 +60,7 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
       { id: 'sport-2', name: 'Tennis', icon: '🎾' },
     ],
     pictures: [],
+    tournaments: [],
     featuredAchievements: [],
     createdAt: NOW,
     updatedAt: NOW,
@@ -221,6 +222,7 @@ describe('UserService', () => {
         pictures: [
           { id: 'pic-1', url: 'https://example.com/pic.jpg', alt: 'Photo', isPrimary: true },
         ],
+        tournaments: [],
         featuredAchievements: [],
       });
     });
@@ -253,6 +255,7 @@ describe('UserService', () => {
           user: { select: { firstName: true, lastName: true } },
           pictures: true,
           favoriteSports: true,
+          tournaments: { include: { users: true, teams: true, sport: true } },
           featuredAchievements: { include: { achievement: true } },
         },
       });
@@ -270,6 +273,7 @@ describe('UserService', () => {
         include: {
           user: { select: { firstName: true, lastName: true } },
           pictures: true,
+          tournaments: { include: { users: true, teams: true, sport: true } },
           favoriteSports: true,
           featuredAchievements: { include: { achievement: true } },
         },
@@ -330,6 +334,7 @@ describe('UserService', () => {
           user: { select: { firstName: true, lastName: true } },
           pictures: true,
           favoriteSports: true,
+          tournaments: { include: { users: true, teams: true, sport: true } },
           featuredAchievements: { include: { achievement: true } },
         },
       });

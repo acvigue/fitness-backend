@@ -466,7 +466,12 @@ describe('TournamentService', () => {
   describe('joinTournament', () => {
     it('should register a team when captain and tournament is open', async () => {
       mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
-      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        captainId: 'user-1',
+        sportId: 'sport-1',
+        users: [],
+      });
       mockTournament.update.mockResolvedValue(
         mockTournamentData({ teams: [{ id: 'team-1', name: 'Alpha', captainId: 'user-1' }] })
       );
@@ -530,7 +535,12 @@ describe('TournamentService', () => {
       mockTournament.findUnique.mockResolvedValue(
         mockTournamentData({ teams: [{ id: 'team-1' }] })
       );
-      mockTeamModel.findUnique.mockResolvedValue({ id: 'team-1', captainId: 'user-1' });
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        captainId: 'user-1',
+        sportId: 'sport-1',
+        users: [],
+      });
       mockTournament.update.mockResolvedValue(mockTournamentData());
 
       await service.leaveTournament('tournament-1', 'team-1', 'user-1');
@@ -569,6 +579,12 @@ describe('TournamentService', () => {
     it('should add a team when user is org manager', async () => {
       mockTournament.findUnique.mockResolvedValue(mockTournamentData({ teams: [] }));
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        captainId: 'user-1',
+        sportId: 'sport-1',
+        users: [],
+      });
       mockTournament.update.mockResolvedValue(
         mockTournamentData({ teams: [{ id: 'team-1', name: 'Alpha', captainId: 'cap-1' }] })
       );
@@ -607,6 +623,12 @@ describe('TournamentService', () => {
         mockTournamentData({ teams: [{ id: 'team-1' }] })
       );
       mockOrganizationMember.findUnique.mockResolvedValue(mockMembership({ role: 'ADMIN' }));
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        captainId: 'user-1',
+        sportId: 'sport-1',
+        users: [],
+      });
       mockTournament.update.mockResolvedValue(mockTournamentData());
 
       await service.removeTeam('tournament-1', 'team-1', 'user-1');
@@ -646,6 +668,7 @@ describe('TournamentService', () => {
         id: 'team-1',
         name: 'Alpha',
         captainId: 'cap-1',
+        sportId: 'sport-1',
       });
 
       const result = await service.sendTournamentInvitation('tournament-1', 'team-1', 'user-1');
