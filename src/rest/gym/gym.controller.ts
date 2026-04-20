@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { GymService } from './gym.service';
 import { CreateGymDto } from './dto/create-gym.dto';
+import { UpdateGymDto } from './dto/update-gym.dto';
 
 @ApiTags('Gyms')
 @Controller({ path: 'gyms', version: '1' })
@@ -9,7 +10,7 @@ export class GymController {
   constructor(private readonly gymService: GymService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new gym' })
+  @ApiOperation({ summary: 'Create a new gym with optional recurring weekly rules' })
   create(@Body() createGymDto: CreateGymDto) {
     return this.gymService.create(createGymDto);
   }
@@ -30,14 +31,14 @@ export class GymController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get one gym by ID' })
+  @ApiOperation({ summary: 'Get one gym by ID including recurring weekly rules' })
   findOne(@Param('id') id: string) {
     return this.gymService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a gym' })
-  update(@Param('id') id: string, @Body() updateGymDto: Partial<CreateGymDto>) {
+  @ApiOperation({ summary: 'Update a gym and optionally replace recurring weekly rules' })
+  update(@Param('id') id: string, @Body() updateGymDto: UpdateGymDto) {
     return this.gymService.update(id, updateGymDto);
   }
 
