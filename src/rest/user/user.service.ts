@@ -84,6 +84,21 @@ export class UserService {
     return this.toProfileResponse(profile);
   }
 
+  async getPrivacy(userId: string): Promise<UpdateUserProfilePrivacyDto> {
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) {
+      throw new NotFoundException();
+    }
+    return {
+      privateBio: profile.privateBio,
+      privateSports: profile.privateSports,
+      privateTournaments: profile.privateTournaments,
+      privateAchievements: profile.privateAchievements,
+    };
+  }
+
   async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfileResponseDto> {
     // Ensure profile exists
     await prisma.userProfile.upsert({
@@ -179,7 +194,7 @@ export class UserService {
       privateBio: data.privateBio,
       privateSports: data.privateSports,
       privateTournaments: data.privateTournaments,
-      privateAchievements: dto.privateAchievements,
+      privateAchievements: data.privateAchievements,
     };
   }
 

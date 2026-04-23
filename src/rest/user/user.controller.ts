@@ -92,6 +92,15 @@ export class UserController {
     return this.userService.updateProfile(user.sub, dto);
   }
 
+  @Get('profile/privacy')
+  @ApiOperation({ summary: 'Update current user profile privacy' })
+  @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
+  async getProfilePrivacy(
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<UpdateUserProfilePrivacyDto> {
+    return this.userService.getPrivacy(user.sub);
+  }
+
   @Patch('profile/privacy')
   @ApiOperation({ summary: 'Update current user profile privacy' })
   @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
