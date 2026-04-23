@@ -17,6 +17,7 @@ import { UserService } from './user.service';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMembershipResponseDto } from './dto/user-membership-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
+import { UpdateUserProfilePrivacyDto } from './dto/update-user-profile-privacy.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
 import { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
@@ -89,6 +90,16 @@ export class UserController {
     @Body() dto: UpdateUserProfileDto
   ): Promise<UserProfileResponseDto> {
     return this.userService.updateProfile(user.sub, dto);
+  }
+
+  @Patch('profile/privacy')
+  @ApiOperation({ summary: 'Update current user profile privacy' })
+  @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
+  async updateProfilePrivacy(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateUserProfilePrivacyDto
+  ): Promise<UpdateUserProfilePrivacyDto> {
+    return this.userService.updatePrivacy(user.sub, dto);
   }
 
   @Post('sessions/enrich')

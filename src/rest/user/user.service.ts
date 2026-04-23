@@ -14,6 +14,7 @@ import type { DeactivateAccountResponseDto } from './dto/deactivate-account-resp
 import type { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
 import type { TournamentResponseDto } from '~/rest/tournament/dto/tournament-response.dto';
+import { UpdateUserProfilePrivacyDto } from '~/rest/user/dto/update-user-profile-privacy.dto';
 
 @Injectable()
 export class UserService {
@@ -159,6 +160,27 @@ export class UserService {
     });
 
     return this.toProfileResponse(updated);
+  }
+
+  async updatePrivacy(
+    userId: string,
+    dto: UpdateUserProfilePrivacyDto
+  ): Promise<UpdateUserProfilePrivacyDto> {
+    const data = await prisma.userProfile.update({
+      where: { userId: userId },
+      data: {
+        privateBio: dto.privateBio,
+        privateSports: dto.privateSports,
+        privateTournaments: dto.privateTournaments,
+        privateAchievements: dto.privateAchievements,
+      },
+    });
+    return {
+      privateBio: data.privateBio,
+      privateSports: data.privateSports,
+      privateTournaments: data.privateTournaments,
+      privateAchievements: dto.privateAchievements,
+    };
   }
 
   private async createProfile(userId: string): Promise<UserProfileResponseDto> {
