@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PaginationMetaDto } from '@/rest/common/pagination';
 
 export class VideoResponseDto {
   @ApiProperty({ description: 'Video ID', example: 'cm123abc456def789ghi0001' })
@@ -24,4 +25,12 @@ export class VideoResponseDto {
 
   @ApiProperty({ description: 'Video url' })
   url!: string;
+}
+
+export class PaginatedVideoResponseDto {
+  @ApiProperty({ type: [VideoResponseDto] })
+  data!: VideoResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta!: PaginationMetaDto;
 }

@@ -1,5 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import {
@@ -8,9 +19,14 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
 } from '@/rest/common';
+import {
+  ZodValidationPipe,
+  paginationSchema,
+  type PaginationParams,
+} from '@/rest/common/pagination';
 import { VideoService } from './video.service';
 import { VideoCreateDto } from './dto/video-create.dto';
-import { VideoResponseDto } from './dto/video-response.dto';
+import { VideoResponseDto, PaginatedVideoResponseDto } from './dto/video-response.dto';
 import { VideoUpdateDto } from './dto/video-update.dto';
 
 @ApiTags('Videos')
@@ -33,10 +49,16 @@ export class VideoController {
 
   @Get()
   @ApiOperation({ summary: 'List all available videos' })
-  @ApiResponse({ status: 200, type: [VideoResponseDto] })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'sportId', required: false, type: String, description: 'Filter by sport ID' })
+  @ApiResponse({ status: 200, type: PaginatedVideoResponseDto })
   @ApiCommonErrorResponses()
-  findAll(): Promise<VideoResponseDto[]> {
-    return this.videoService.findAll();
+  findAll(
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams,
+    @Query('sportId') sportId?: string
+  ): Promise<PaginatedVideoResponseDto> {
+    return this.videoService.findAll(pagination, { sportId });
   }
 
   @Get(':id')
