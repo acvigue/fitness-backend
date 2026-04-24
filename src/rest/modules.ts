@@ -12,6 +12,7 @@ import { TeamModule } from '@/rest/team/team.module';
 import { TeamBlockModule } from '@/rest/team-block/team-block.module';
 import { TeamChatModule } from '@/rest/team-chat/team-chat.module';
 import { UserModule } from '@/rest/user/user.module';
+import { UserBlockModule } from '@/rest/user-block/user-block.module';
 import { TournamentModule } from '@/rest/tournament/tournament.module';
 import { UtilsModule } from '@/rest/utils/utils.module';
 import { AchievementModule } from '~/rest/achievement/achievement.module';
@@ -34,6 +35,7 @@ export const restFeatureModules = [
   TeamChatModule,
   TournamentModule,
   UserModule,
+  UserBlockModule,
   UtilsModule,
   VideoModule,
 ] as const;

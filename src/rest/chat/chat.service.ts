@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
+import { UserBlockService } from '@/rest/user-block/user-block.service';
 import type { OrganizationRole } from '@/generated/prisma/client';
 import type { ChatResponseDto } from './dto/chat-response.dto';
 import type { MessageResponseDto } from './dto/message-response.dto';
@@ -28,6 +29,8 @@ function mapMedia(media: { id: string; url: string; mimeType: string }[]) {
 
 @Injectable()
 export class ChatService {
+  constructor(private readonly userBlockService: UserBlockService) {}
+
   async getUserChats(userId: string): Promise<UserChatResponseDto[]> {
     const chats = await prisma.chat.findMany({
       where: { members: { some: { id: userId } } },
@@ -94,6 +97,12 @@ export class ChatService {
       const found = new Set(existingUsers.map((u) => u.id));
       const missing = uniqueRecipientIds.filter((id) => !found.has(id));
       throw new NotFoundException(`Users not found: ${missing.join(', ')}`);
+    }
+
+    for (const recipientId of uniqueRecipientIds) {
+      if (await this.userBlockService.isBlocked(creatorId, recipientId)) {
+        throw new ForbiddenException('Cannot start a chat with a blocked user');
+      }
     }
 
     // For DIRECT chats, check if one already exists between these two users
@@ -192,11 +201,21 @@ export class ChatService {
   async sendMessage(dto: SendMessageDto, senderId: string): Promise<MessageResponseDto> {
     const chat = await prisma.chat.findFirst({
       where: { id: dto.chatId, members: { some: { id: senderId } } },
-      select: { id: true, type: true, organizationId: true, writeRoles: true },
+      include: {
+        members: { select: { id: true } },
+      },
     });
 
     if (!chat) {
       throw new ForbiddenException('You are not a member of this chat');
+    }
+
+    // Enforce user-to-user block for direct messages
+    if (chat.type === 'DIRECT') {
+      const other = chat.members.find((m) => m.id !== senderId);
+      if (other && (await this.userBlockService.isBlocked(senderId, other.id))) {
+        throw new ForbiddenException('Cannot send messages to a blocked user');
+      }
     }
 
     // Enforce write permissions for announcement channels

@@ -9,6 +9,7 @@ import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { UserService } from '@/rest/user/user.service';
 import { AchievementService } from '@/rest/achievement/achievement.service';
+import { UserBlockService } from '@/rest/user-block/user-block.service';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
@@ -23,7 +24,8 @@ export class TeamService {
   constructor(
     private readonly notificationService: NotificationService,
     private readonly userService: UserService,
-    private readonly achievementService: AchievementService
+    private readonly achievementService: AchievementService,
+    private readonly userBlockService: UserBlockService
   ) {}
 
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
@@ -271,6 +273,10 @@ export class TeamService {
       throw new ForbiddenException('Only the team captain can send invitations');
     }
 
+    if (await this.userBlockService.isBlocked(userId, targetUserId)) {
+      throw new ForbiddenException('Cannot invite a blocked user or a user who has blocked you');
+    }
+
     const existing = await prisma.teamInvitation.findFirst({
       where: { teamId, userId: targetUserId, type: 'INVITE', status: 'PENDING' },
     });
@@ -298,6 +304,10 @@ export class TeamService {
 
     if (!team) {
       throw new NotFoundException('Team not found');
+    }
+
+    if (await this.userBlockService.isBlocked(userId, team.captainId)) {
+      throw new ForbiddenException('Cannot request to join — the team captain blocked you');
     }
 
     const existing = await prisma.teamInvitation.findFirst({

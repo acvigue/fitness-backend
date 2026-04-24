@@ -64,12 +64,20 @@ describe('TeamChatService', () => {
   let teamBlockService: InstanceType<typeof TeamBlockService>;
 
   beforeAll(async () => {
+    const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const module = await Test.createTestingModule({
       providers: [
         TeamChatService,
         ChatService,
         TeamBlockService,
         { provide: NotificationService, useValue: mockNotificationService },
+        {
+          provide: UserBlockService,
+          useValue: {
+            isBlocked: vi.fn().mockResolvedValue(false),
+            didBlock: vi.fn().mockResolvedValue(false),
+          },
+        },
       ],
     }).compile();
 

@@ -107,14 +107,23 @@ const mockKeycloakAdmin = {
 
 describe('UserService', () => {
   let service: InstanceType<typeof UserService>;
+  const mockUserBlockService = {
+    isBlocked: vi.fn().mockResolvedValue(false),
+    didBlock: vi.fn().mockResolvedValue(false),
+  };
 
   beforeAll(async () => {
+    const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const module = await Test.createTestingModule({
       providers: [
         UserService,
         {
           provide: KeycloakAdminService,
           useValue: mockKeycloakAdmin,
+        },
+        {
+          provide: UserBlockService,
+          useValue: mockUserBlockService,
         },
       ],
     }).compile();

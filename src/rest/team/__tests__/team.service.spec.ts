@@ -93,14 +93,20 @@ function mockInv(overrides: Record<string, unknown> = {}) {
 
 describe('TeamService', () => {
   let service: InstanceType<typeof TeamService>;
+  const mockUserBlockService = {
+    isBlocked: vi.fn().mockResolvedValue(false),
+    didBlock: vi.fn().mockResolvedValue(false),
+  };
 
   beforeAll(async () => {
+    const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const module = await Test.createTestingModule({
       providers: [
         TeamService,
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: UserService, useValue: mockUserService },
         { provide: AchievementService, useValue: mockAchievementService },
+        { provide: UserBlockService, useValue: mockUserBlockService },
       ],
     }).compile();
 

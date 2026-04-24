@@ -76,10 +76,15 @@ function mockMessage(overrides: Record<string, unknown> = {}) {
 
 describe('ChatService', () => {
   let service: InstanceType<typeof ChatService>;
+  const mockUserBlockService = {
+    isBlocked: vi.fn().mockResolvedValue(false),
+    didBlock: vi.fn().mockResolvedValue(false),
+  };
 
   beforeAll(async () => {
+    const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const module = await Test.createTestingModule({
-      providers: [ChatService],
+      providers: [ChatService, { provide: UserBlockService, useValue: mockUserBlockService }],
     }).compile();
 
     service = module.get(ChatService);
@@ -226,7 +231,7 @@ describe('ChatService', () => {
 
   describe('sendMessage', () => {
     it('should create a message and return it', async () => {
-      mockChatModel.findFirst.mockResolvedValue({ id: 'chat-1' });
+      mockChatModel.findFirst.mockResolvedValue({ id: 'chat-1', type: 'GROUP', members: [] });
       mockMessageModel.create.mockResolvedValue(mockMessage());
 
       const result = await service.sendMessage(
@@ -240,7 +245,7 @@ describe('ChatService', () => {
     });
 
     it('should call prisma.message.create with correct data', async () => {
-      mockChatModel.findFirst.mockResolvedValue({ id: 'chat-1' });
+      mockChatModel.findFirst.mockResolvedValue({ id: 'chat-1', type: 'GROUP', members: [] });
       mockMessageModel.create.mockResolvedValue(mockMessage());
 
       await service.sendMessage({ chatId: 'chat-1', content: 'Test' }, 'creator-1');
@@ -275,6 +280,7 @@ describe('ChatService', () => {
         type: 'ANNOUNCEMENT',
         organizationId: 'org-1',
         writeRoles: ['STAFF', 'ADMIN'],
+        members: [],
       });
       mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'MEMBER' });
 
@@ -289,6 +295,7 @@ describe('ChatService', () => {
         type: 'ANNOUNCEMENT',
         organizationId: 'org-1',
         writeRoles: ['STAFF', 'ADMIN'],
+        members: [],
       });
       mockOrgMemberModel.findUnique.mockResolvedValue({ role: 'ADMIN' });
       mockMessageModel.create.mockResolvedValue(mockMessage({ chatId: 'ann-1' }));

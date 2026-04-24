@@ -1,5 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { prisma } from '@/shared/utils';
+import { UserBlockService } from '@/rest/user-block/user-block.service';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { UserResponseDto } from './dto/user-response.dto';
 import type { UpdateNameDto } from './dto/update-name.dto';
@@ -19,7 +25,10 @@ import { UpdateUserProfilePrivacyDto } from '~/rest/user/dto/update-user-profile
 
 @Injectable()
 export class UserService {
-  constructor(private readonly keycloakAdmin: KeycloakAdminService) {}
+  constructor(
+    private readonly keycloakAdmin: KeycloakAdminService,
+    private readonly userBlockService: UserBlockService
+  ) {}
   async getOrCreateMe(user: AuthenticatedUser): Promise<UserResponseDto> {
     const existing = await prisma.user.findUnique({
       where: { id: user.sub },
@@ -68,6 +77,12 @@ export class UserService {
   }
 
   async getProfile(userId: string, viewerId?: string): Promise<UserProfileResponseDto> {
+    if (viewerId && viewerId !== userId) {
+      if (await this.userBlockService.didBlock(userId, viewerId)) {
+        throw new ForbiddenException('You are not allowed to view this profile');
+      }
+    }
+
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
       include: {
