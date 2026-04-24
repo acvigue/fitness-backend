@@ -36,6 +36,8 @@ import { TournamentBracketResponseDto } from './dto/tournament-bracket-response.
 import { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
 import { TournamentStandingsResponseDto } from './dto/tournament-standings-response.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
+import { CreateTournamentRecapDto } from './dto/create-tournament-recap.dto';
+import { TournamentRecapResponseDto } from './dto/tournament-recap-response.dto';
 
 @ApiTags('Tournaments')
 @ApiBearerAuth()
@@ -248,6 +250,45 @@ export class TournamentController {
   @ApiCommonErrorResponses()
   getStandings(@Param('id') id: string): Promise<TournamentStandingsResponseDto> {
     return this.tournamentService.getStandings(id);
+  }
+
+  @Get(':id/recaps')
+  @ApiOperation({ summary: 'List recap videos for a tournament' })
+  @ApiResponse({ status: 200, type: [TournamentRecapResponseDto] })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  listRecaps(@Param('id') id: string): Promise<TournamentRecapResponseDto[]> {
+    return this.tournamentService.listRecaps(id);
+  }
+
+  @Post(':id/recaps')
+  @ApiOperation({ summary: 'Link a recap video to a completed tournament (org manager only)' })
+  @ApiResponse({ status: 201, type: TournamentRecapResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Requires STAFF or ADMIN role in the organization')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  addRecap(
+    @Param('id') id: string,
+    @Body() dto: CreateTournamentRecapDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentRecapResponseDto> {
+    return this.tournamentService.addRecap(id, dto.videoId, user.sub);
+  }
+
+  @Delete(':id/recaps/:recapId')
+  @ApiOperation({ summary: 'Remove a recap video (org manager only)' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiResponse({ status: 204, description: 'Recap removed' })
+  @ApiForbiddenResponse('Requires STAFF or ADMIN role in the organization')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  removeRecap(
+    @Param('id') id: string,
+    @Param('recapId') recapId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.tournamentService.removeRecap(id, recapId, user.sub);
   }
 
   @Patch(':id/matches/:matchId/result')

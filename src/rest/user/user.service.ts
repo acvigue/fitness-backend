@@ -6,6 +6,7 @@ import type { UpdateNameDto } from './dto/update-name.dto';
 import type { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import type { UserMembershipResponseDto } from './dto/user-membership-response.dto';
+import type { ProfileComparisonResponseDto } from './dto/profile-comparison-response.dto';
 import type { KeycloakSessionResponseDto } from './dto/keycloak-session-response.dto';
 import type { RevokeSessionsResponseDto } from './dto/revoke-sessions-response.dto';
 import type { UserLookupResponseDto } from './dto/user-lookup-response.dto';
@@ -105,6 +106,43 @@ export class UserService {
       favoriteSports: profile.privateSports ? [] : response.favoriteSports,
       tournaments: profile.privateTournaments ? [] : response.tournaments,
       featuredAchievements: profile.privateAchievements ? [] : response.featuredAchievements,
+    };
+  }
+
+  async compareProfiles(
+    aId: string,
+    bId: string,
+    viewerId: string
+  ): Promise<ProfileComparisonResponseDto> {
+    const [profileA, profileB] = await Promise.all([
+      this.getProfile(aId, viewerId),
+      this.getProfile(bId, viewerId),
+    ]);
+
+    const [achievementCountA, achievementCountB] = await Promise.all([
+      prisma.userAchievement.count({ where: { userId: aId, unlockedAt: { not: null } } }),
+      prisma.userAchievement.count({ where: { userId: bId, unlockedAt: { not: null } } }),
+    ]);
+
+    return {
+      a: {
+        profile: profileA,
+        stats: {
+          tournamentCount: profileA.tournaments.length,
+          achievementCount: achievementCountA,
+          featuredAchievementCount: profileA.featuredAchievements.length,
+          favoriteSportsCount: profileA.favoriteSports.length,
+        },
+      },
+      b: {
+        profile: profileB,
+        stats: {
+          tournamentCount: profileB.tournaments.length,
+          achievementCount: achievementCountB,
+          featuredAchievementCount: profileB.featuredAchievements.length,
+          favoriteSportsCount: profileB.favoriteSports.length,
+        },
+      },
     };
   }
 

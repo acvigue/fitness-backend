@@ -305,6 +305,7 @@ model Tournament {
   teams        Team[]                 @relation("TournamentTeams")
   matches      TournamentMatch[]
   invitations  TournamentInvitation[]
+  recaps       TournamentRecap[]
   sportId      String                 @map("sport_id") @db.Uuid
   userProfiles UserProfile[]          @relation("TournamentHistory")
 
@@ -627,4 +628,37 @@ model Video {
   size        Int
   name        String
   description String
+
+  progress TournamentRecap[]
+  watchProgress VideoProgress[]
+}
+
+model VideoProgress {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  videoId         String   @map("video_id")
+  video           Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  positionSeconds Int      @default(0) @map("position_seconds")
+  completed       Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@map("video_progress")
+}
+
+model TournamentRecap {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  videoId      String   @map("video_id")
+  uploadedById String   @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, videoId])
+  @@index([tournamentId])
+  @@map("tournament_recaps")
 }

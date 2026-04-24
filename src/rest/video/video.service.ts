@@ -6,6 +6,7 @@ import { AchievementService } from '@/rest/achievement/achievement.service';
 import type { VideoCreateDto } from './dto/video-create.dto';
 import type { VideoResponseDto } from './dto/video-response.dto';
 import type { VideoUpdateDto } from './dto/video-update.dto';
+import type { UpdateVideoProgressDto, VideoProgressResponseDto } from './dto/video-progress.dto';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 
@@ -132,5 +133,59 @@ export class VideoService {
     await prisma.video.delete({
       where: { id },
     });
+  }
+
+  async updateProgress(
+    videoId: string,
+    userId: string,
+    dto: UpdateVideoProgressDto
+  ): Promise<VideoProgressResponseDto> {
+    const video = await prisma.video.findUnique({ where: { id: videoId } });
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    const record = await prisma.videoProgress.upsert({
+      where: { userId_videoId: { userId, videoId } },
+      create: {
+        userId,
+        videoId,
+        positionSeconds: dto.positionSeconds,
+        completed: dto.completed ?? false,
+      },
+      update: {
+        positionSeconds: dto.positionSeconds,
+        completed: dto.completed ?? undefined,
+      },
+    });
+
+    return {
+      videoId: record.videoId,
+      positionSeconds: record.positionSeconds,
+      completed: record.completed,
+      updatedAt: record.updatedAt.toISOString(),
+    };
+  }
+
+  async getProgress(videoId: string, userId: string): Promise<VideoProgressResponseDto> {
+    const record = await prisma.videoProgress.findUnique({
+      where: { userId_videoId: { userId, videoId } },
+    });
+
+    if (!record) {
+      return {
+        videoId,
+        positionSeconds: 0,
+        completed: false,
+        updatedAt: new Date(0).toISOString(),
+      };
+    }
+
+    return {
+      videoId: record.videoId,
+      positionSeconds: record.positionSeconds,
+      completed: record.completed,
+      updatedAt: record.updatedAt.toISOString(),
+    };
   }
 }

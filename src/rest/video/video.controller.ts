@@ -17,6 +17,7 @@ import { VideoService } from './video.service';
 import { VideoCreateDto } from './dto/video-create.dto';
 import { VideoResponseDto, PaginatedVideoResponseDto } from './dto/video-response.dto';
 import { VideoUpdateDto } from './dto/video-update.dto';
+import { UpdateVideoProgressDto, VideoProgressResponseDto } from './dto/video-progress.dto';
 
 @ApiTags('Videos')
 @ApiBearerAuth()
@@ -85,5 +86,30 @@ export class VideoController {
   @ApiCommonErrorResponses()
   delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.videoService.delete(id, user.sub);
+  }
+
+  @Post(':id/progress')
+  @ApiOperation({ summary: 'Record or update playback progress for a video' })
+  @ApiResponse({ status: 200, type: VideoProgressResponseDto })
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  updateProgress(
+    @Param('id') id: string,
+    @Body() dto: UpdateVideoProgressDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<VideoProgressResponseDto> {
+    return this.videoService.updateProgress(id, user.sub, dto);
+  }
+
+  @Get(':id/progress')
+  @ApiOperation({ summary: 'Get the current user’s playback progress for a video' })
+  @ApiResponse({ status: 200, type: VideoProgressResponseDto })
+  @ApiCommonErrorResponses()
+  getProgress(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<VideoProgressResponseDto> {
+    return this.videoService.getProgress(id, user.sub);
   }
 }

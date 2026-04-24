@@ -34,6 +34,17 @@ const mockTournamentMatch = {
   update: vi.fn(),
 };
 
+const mockTournamentRecap = {
+  findUnique: vi.fn(),
+  findMany: vi.fn(),
+  create: vi.fn(),
+  delete: vi.fn(),
+};
+
+const mockVideoModel = {
+  findUnique: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     tournament: mockTournament,
@@ -41,6 +52,8 @@ vi.mock('@/shared/utils', () => ({
     team: mockTeamModel,
     tournamentInvitation: mockTournamentInvitation,
     tournamentMatch: mockTournamentMatch,
+    tournamentRecap: mockTournamentRecap,
+    video: mockVideoModel,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         tournament: mockTournament,
@@ -1349,6 +1362,131 @@ describe('TournamentService', () => {
           'user-1'
         )
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('recaps', () => {
+    const completedTournament = mockTournamentData({ status: 'COMPLETED' });
+    const recapRecord = {
+      id: 'recap-1',
+      tournamentId: 'tournament-1',
+      videoId: 'v-1',
+      uploadedById: 'user-1',
+      createdAt: NOW,
+      video: {
+        id: 'v-1',
+        name: 'Finals Recap',
+        description: 'highlights',
+        uploaderId: 'user-1',
+        sportId: 'sport-1',
+        url: 'https://cdn.example/v-1',
+      },
+    };
+
+    describe('listRecaps', () => {
+      it('returns recaps for a tournament', async () => {
+        mockTournament.findUnique.mockResolvedValue(completedTournament);
+        mockTournamentRecap.findMany.mockResolvedValue([recapRecord]);
+
+        const result = await service.listRecaps('tournament-1');
+        expect(result).toHaveLength(1);
+        expect(result[0].video.name).toBe('Finals Recap');
+      });
+
+      it('throws NotFoundException for missing tournament', async () => {
+        mockTournament.findUnique.mockResolvedValue(null);
+        await expect(service.listRecaps('nope')).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe('addRecap', () => {
+      it('rejects when tournament is not completed', async () => {
+        mockTournament.findUnique.mockResolvedValue(mockTournamentData({ status: 'OPEN' }));
+        await expect(service.addRecap('tournament-1', 'v-1', 'user-1')).rejects.toThrow(
+          BadRequestException
+        );
+      });
+
+      it('rejects non-org-manager', async () => {
+        mockTournament.findUnique.mockResolvedValue(completedTournament);
+        mockOrganizationMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
+
+        await expect(service.addRecap('tournament-1', 'v-1', 'user-1')).rejects.toThrow(
+          ForbiddenException
+        );
+      });
+
+      it('rejects duplicate recap link', async () => {
+        mockTournament.findUnique.mockResolvedValue(completedTournament);
+        mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+        mockVideoModel.findUnique.mockResolvedValue(recapRecord.video);
+        mockTournamentRecap.findUnique.mockResolvedValue(recapRecord);
+
+        await expect(service.addRecap('tournament-1', 'v-1', 'user-1')).rejects.toThrow(
+          BadRequestException
+        );
+      });
+
+      it('creates recap when all checks pass', async () => {
+        mockTournament.findUnique.mockResolvedValue(completedTournament);
+        mockOrganizationMember.findUnique.mockResolvedValue({ role: 'ADMIN' });
+        mockVideoModel.findUnique.mockResolvedValue(recapRecord.video);
+        mockTournamentRecap.findUnique.mockResolvedValue(null);
+        mockTournamentRecap.create.mockResolvedValue(recapRecord);
+
+        const result = await service.addRecap('tournament-1', 'v-1', 'user-1');
+        expect(result.id).toBe('recap-1');
+        expect(mockTournamentRecap.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: {
+              tournamentId: 'tournament-1',
+              videoId: 'v-1',
+              uploadedById: 'user-1',
+            },
+          })
+        );
+      });
+
+      it('throws NotFoundException for missing video', async () => {
+        mockTournament.findUnique.mockResolvedValue(completedTournament);
+        mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+        mockVideoModel.findUnique.mockResolvedValue(null);
+
+        await expect(service.addRecap('tournament-1', 'v-1', 'user-1')).rejects.toThrow(
+          NotFoundException
+        );
+      });
+    });
+
+    describe('removeRecap', () => {
+      it('deletes recap when user is org manager', async () => {
+        mockTournamentRecap.findUnique.mockResolvedValue({
+          ...recapRecord,
+          tournament: completedTournament,
+        });
+        mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+
+        await service.removeRecap('tournament-1', 'recap-1', 'user-1');
+        expect(mockTournamentRecap.delete).toHaveBeenCalledWith({ where: { id: 'recap-1' } });
+      });
+
+      it('rejects when recap not found', async () => {
+        mockTournamentRecap.findUnique.mockResolvedValue(null);
+        await expect(service.removeRecap('tournament-1', 'r-x', 'user-1')).rejects.toThrow(
+          NotFoundException
+        );
+      });
+
+      it('rejects when recap belongs to other tournament', async () => {
+        mockTournamentRecap.findUnique.mockResolvedValue({
+          ...recapRecord,
+          tournamentId: 'other',
+          tournament: completedTournament,
+        });
+        await expect(service.removeRecap('tournament-1', 'recap-1', 'user-1')).rejects.toThrow(
+          NotFoundException
+        );
+      });
     });
   });
 });

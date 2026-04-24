@@ -1050,6 +1050,93 @@ export class TournamentService {
     };
   }
 
+  async listRecaps(tournamentId: string) {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) {
+      throw new NotFoundException('Tournament not found');
+    }
+
+    const recaps = await prisma.tournamentRecap.findMany({
+      where: { tournamentId },
+      include: { video: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return recaps.map((r) => ({
+      id: r.id,
+      tournamentId: r.tournamentId,
+      uploadedById: r.uploadedById,
+      createdAt: r.createdAt.toISOString(),
+      video: {
+        id: r.video.id,
+        name: r.video.name,
+        description: r.video.description,
+        uploaderId: r.video.uploaderId,
+        sportId: r.video.sportId,
+        url: r.video.url,
+      },
+    }));
+  }
+
+  async addRecap(tournamentId: string, videoId: string, userId: string) {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) {
+      throw new NotFoundException('Tournament not found');
+    }
+
+    if (tournament.status !== 'COMPLETED') {
+      throw new BadRequestException('Recap videos can only be added to completed tournaments');
+    }
+
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    const video = await prisma.video.findUnique({ where: { id: videoId } });
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    const existing = await prisma.tournamentRecap.findUnique({
+      where: { tournamentId_videoId: { tournamentId, videoId } },
+    });
+    if (existing) {
+      throw new BadRequestException('Video is already linked to this tournament');
+    }
+
+    const recap = await prisma.tournamentRecap.create({
+      data: { tournamentId, videoId, uploadedById: userId },
+      include: { video: true },
+    });
+
+    return {
+      id: recap.id,
+      tournamentId: recap.tournamentId,
+      uploadedById: recap.uploadedById,
+      createdAt: recap.createdAt.toISOString(),
+      video: {
+        id: recap.video.id,
+        name: recap.video.name,
+        description: recap.video.description,
+        uploaderId: recap.video.uploaderId,
+        sportId: recap.video.sportId,
+        url: recap.video.url,
+      },
+    };
+  }
+
+  async removeRecap(tournamentId: string, recapId: string, userId: string) {
+    const recap = await prisma.tournamentRecap.findUnique({
+      where: { id: recapId },
+      include: { tournament: true },
+    });
+    if (!recap || recap.tournamentId !== tournamentId) {
+      throw new NotFoundException('Recap not found');
+    }
+
+    await this.requireOrgManager(recap.tournament.organizationId, userId);
+
+    await prisma.tournamentRecap.delete({ where: { id: recapId } });
+  }
+
   private async requireOrgManager(organizationId: string, userId: string): Promise<void> {
     const membership = await prisma.organizationMember.findUnique({
       where: { userId_organizationId: { userId, organizationId } },

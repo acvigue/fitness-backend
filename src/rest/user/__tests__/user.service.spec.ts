@@ -21,11 +21,16 @@ const mockOrganizationMember = {
   findMany: vi.fn(),
 };
 
+const mockUserAchievement = {
+  count: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     user: mockUser,
     userProfile: mockUserProfile,
     organizationMember: mockOrganizationMember,
+    userAchievement: mockUserAchievement,
   },
   redis: {},
   redisSub: {},
@@ -62,6 +67,10 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
     pictures: [],
     tournaments: [],
     featuredAchievements: [],
+    privateBio: false,
+    privateSports: false,
+    privateTournaments: false,
+    privateAchievements: false,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -278,6 +287,132 @@ describe('UserService', () => {
           featuredAchievements: { include: { achievement: true } },
         },
       });
+    });
+
+    describe('privacy enforcement', () => {
+      const tournament = {
+        id: 't-1',
+        name: 'T',
+        format: 'SINGLE_ELIMINATION',
+        status: 'COMPLETED',
+        maxTeams: 4,
+        organizationId: 'org-1',
+        createdById: 'user-1',
+        startDate: NOW,
+        createdAt: NOW,
+        sport: { id: 'sport-1', name: 'Basketball', icon: '🏀' },
+        users: [],
+        teams: [],
+      };
+      const achievement = {
+        id: 'ua-1',
+        progress: 1,
+        unlockedAt: NOW,
+        achievement: {
+          id: 'a-1',
+          name: 'First Match',
+          description: 'desc',
+          icon: null,
+          criteriaType: 'TOURNAMENT_PARTICIPATION',
+          threshold: 1,
+        },
+      };
+
+      it('returns full profile when viewer is the owner', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({
+            userId: 'user-1',
+            privateBio: true,
+            privateSports: true,
+            tournaments: [tournament],
+            featuredAchievements: [achievement],
+          })
+        );
+
+        const result = await service.getProfile('user-1', 'user-1');
+
+        expect(result.bio).toBe('Hello world');
+        expect(result.favoriteSports).toHaveLength(2);
+      });
+
+      it('omits bio when privateBio is true and viewer is another user', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({ userId: 'user-1', privateBio: true })
+        );
+        const result = await service.getProfile('user-1', 'user-2');
+        expect(result.bio).toBeNull();
+      });
+
+      it('empties favoriteSports when privateSports is true', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({ userId: 'user-1', privateSports: true })
+        );
+        const result = await service.getProfile('user-1', 'user-2');
+        expect(result.favoriteSports).toEqual([]);
+      });
+
+      it('empties tournaments when privateTournaments is true', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({ userId: 'user-1', privateTournaments: true, tournaments: [tournament] })
+        );
+        const result = await service.getProfile('user-1', 'user-2');
+        expect(result.tournaments).toEqual([]);
+      });
+
+      it('empties featuredAchievements when privateAchievements is true', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({
+            userId: 'user-1',
+            privateAchievements: true,
+            featuredAchievements: [achievement],
+          })
+        );
+        const result = await service.getProfile('user-1', 'user-2');
+        expect(result.featuredAchievements).toEqual([]);
+      });
+
+      it('shows all data when no privacy flags set', async () => {
+        mockUserProfile.findUnique.mockResolvedValue(
+          mockProfile({
+            userId: 'user-1',
+            tournaments: [tournament],
+            featuredAchievements: [achievement],
+          })
+        );
+        const result = await service.getProfile('user-1', 'user-2');
+        expect(result.bio).toBe('Hello world');
+        expect(result.tournaments).toHaveLength(1);
+        expect(result.featuredAchievements).toHaveLength(1);
+      });
+    });
+  });
+
+  describe('compareProfiles', () => {
+    it('returns two sides with computed stats', async () => {
+      mockUserProfile.findUnique.mockResolvedValueOnce(mockProfile({ userId: 'a' }));
+      mockUserProfile.findUnique.mockResolvedValueOnce(mockProfile({ userId: 'b' }));
+      mockUserAchievement.count.mockResolvedValueOnce(3);
+      mockUserAchievement.count.mockResolvedValueOnce(5);
+
+      const result = await service.compareProfiles('a', 'b', 'viewer');
+
+      expect(result.a.profile.userId).toBe('a');
+      expect(result.b.profile.userId).toBe('b');
+      expect(result.a.stats.achievementCount).toBe(3);
+      expect(result.b.stats.achievementCount).toBe(5);
+      expect(result.a.stats.favoriteSportsCount).toBe(2);
+    });
+
+    it('respects privacy — hidden sections still reflected in returned profile', async () => {
+      mockUserProfile.findUnique.mockResolvedValueOnce(
+        mockProfile({ userId: 'a', privateBio: true })
+      );
+      mockUserProfile.findUnique.mockResolvedValueOnce(mockProfile({ userId: 'b' }));
+      mockUserAchievement.count.mockResolvedValue(0);
+
+      const result = await service.compareProfiles('a', 'b', 'viewer');
+      expect(result.a.profile.bio).toBeNull();
+      expect(result.b.profile.bio).toBe('Hello world');
     });
   });
 
