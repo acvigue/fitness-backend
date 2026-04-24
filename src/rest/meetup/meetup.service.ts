@@ -8,7 +8,7 @@ import { prisma } from '@/shared/utils';
 import { TeamBlockService } from '@/rest/team-block/team-block.service';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { EngagementService } from '@/rest/engagement/engagement.service';
-import { EngagementType } from '@/generated/prisma/enums';
+import { EngagementType, type MeetupStatus } from '@/generated/prisma/enums';
 import type { CreateMeetupDto } from './dto/create-meetup.dto';
 import type { MeetupResponseDto } from './dto/meetup-response.dto';
 
@@ -180,7 +180,11 @@ export class MeetupService {
     return this.toResponse(updated);
   }
 
-  async getTeamMeetups(teamId: string, userId: string): Promise<MeetupResponseDto[]> {
+  async getTeamMeetups(
+    teamId: string,
+    userId: string,
+    status?: MeetupStatus
+  ): Promise<MeetupResponseDto[]> {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
       include: { users: { select: { id: true } } },
@@ -191,10 +195,13 @@ export class MeetupService {
       throw new ForbiddenException('You are not a member of this team');
     }
 
+    const where: Record<string, unknown> = {
+      OR: [{ proposingTeamId: teamId }, { receivingTeamId: teamId }],
+    };
+    if (status) where.status = status;
+
     const meetups = await prisma.meetup.findMany({
-      where: {
-        OR: [{ proposingTeamId: teamId }, { receivingTeamId: teamId }],
-      },
+      where,
       include: {
         proposingTeam: { select: { name: true, captainId: true } },
         receivingTeam: { select: { name: true, captainId: true } },

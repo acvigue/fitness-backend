@@ -306,6 +306,22 @@ describe('MeetupService', () => {
         ForbiddenException
       );
     });
+
+    it('applies status filter when provided', async () => {
+      mockTeamModel.findUnique.mockResolvedValue({
+        id: 'team-1',
+        users: [{ id: 'captain-1' }],
+      });
+      mockMeetupModel.findMany.mockResolvedValue([]);
+
+      await service.getTeamMeetups('team-1', 'captain-1', 'ACCEPTED');
+
+      expect(mockMeetupModel.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'ACCEPTED' }),
+        })
+      );
+    });
   });
 
   // ─── getMeetup ──��────────────────────────────────────

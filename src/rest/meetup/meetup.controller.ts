@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Body, Param, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { MeetupStatus } from '@/generated/prisma/enums';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import {
@@ -31,15 +32,17 @@ export class MeetupController {
   }
 
   @Get('team/:teamId')
-  @ApiOperation({ summary: 'List all meetups for a team' })
+  @ApiOperation({ summary: 'List meetups for a team (optionally filter by status)' })
+  @ApiQuery({ name: 'status', required: false, enum: MeetupStatus })
   @ApiResponse({ status: 200, type: [MeetupResponseDto] })
   @ApiForbiddenResponse()
   @ApiCommonErrorResponses()
   getTeamMeetups(
     @Param('teamId') teamId: string,
-    @CurrentUser() user: AuthenticatedUser
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('status') status?: keyof typeof MeetupStatus
   ): Promise<MeetupResponseDto[]> {
-    return this.meetupService.getTeamMeetups(teamId, user.sub);
+    return this.meetupService.getTeamMeetups(teamId, user.sub, status);
   }
 
   @Get(':id')

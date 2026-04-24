@@ -8,8 +8,9 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import {
@@ -46,11 +47,18 @@ export class TeamController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all available teams' })
+  @ApiOperation({ summary: 'List or search teams' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Filter by team name (case-insensitive)',
+  })
+  @ApiQuery({ name: 'sportId', required: false, type: String, description: 'Filter by sport' })
   @ApiResponse({ status: 200, type: [TeamResponseDto] })
   @ApiCommonErrorResponses()
-  findAll(): Promise<TeamResponseDto[]> {
-    return this.teamService.findAll();
+  findAll(@Query('q') q?: string, @Query('sportId') sportId?: string): Promise<TeamResponseDto[]> {
+    return this.teamService.findAll({ q, sportId });
   }
 
   @Get('invitations/mine')

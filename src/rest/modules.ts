@@ -1,4 +1,5 @@
 import { AuditModule } from '@/rest/audit/audit.module';
+import { BroadcastModule } from '@/rest/broadcast/broadcast.module';
 import { ChatModule } from '@/rest/chat/chat.module';
 import { EngagementModule } from '@/rest/engagement/engagement.module';
 import { GymModule } from '@/rest/gym/gym.module';
@@ -22,6 +23,7 @@ import { VideoModule } from './video/video.module';
 export const restFeatureModules = [
   AchievementModule,
   AuditModule,
+  BroadcastModule,
   ChatModule,
   EngagementModule,
   GymModule,

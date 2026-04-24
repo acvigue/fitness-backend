@@ -509,6 +509,9 @@ model Team {
   meetupsProposed Meetup[] @relation("MeetupProposer")
   meetupsReceived Meetup[] @relation("MeetupReceiver")
 
+  // Broadcasts (US #54)
+  broadcasts Broadcast[]
+
   engagementEvents EngagementEvent[]
 
   @@index([captainId])
@@ -646,6 +649,33 @@ model TeamBlock {
   @@index([blockingTeamId])
   @@index([blockedTeamId])
   @@map("team_blocks")
+}
+
+model Broadcast {
+  id        String   @id @default(cuid())
+  teamId    String   @map("team_id")
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  authorId  String   @map("author_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  receipts BroadcastReceipt[]
+
+  @@index([teamId])
+  @@map("broadcasts")
+}
+
+model BroadcastReceipt {
+  id           String    @id @default(cuid())
+  broadcastId  String    @map("broadcast_id")
+  broadcast    Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  userId       String    @map("user_id")
+  deliveredAt  DateTime  @default(now()) @map("delivered_at")
+  readAt       DateTime? @map("read_at")
+
+  @@unique([broadcastId, userId])
+  @@index([userId])
+  @@map("broadcast_receipts")
 }
 
 enum MeetupStatus {

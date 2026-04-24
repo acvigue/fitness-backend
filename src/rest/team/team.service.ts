@@ -50,8 +50,17 @@ export class TeamService {
     return this.toResponse(team);
   }
 
-  async findAll(): Promise<TeamResponseDto[]> {
+  async findAll(filters?: { q?: string; sportId?: string }): Promise<TeamResponseDto[]> {
+    const where: Record<string, unknown> = {};
+    if (filters?.q) {
+      where.name = { contains: filters.q, mode: 'insensitive' };
+    }
+    if (filters?.sportId) {
+      where.sportId = filters.sportId;
+    }
+
     const teams = await prisma.team.findMany({
+      where,
       orderBy: { name: 'asc' },
       include: { users: { select: { id: true, username: true, name: true } } },
     });

@@ -130,6 +130,19 @@ describe('TeamService', () => {
       expect(result[0].id).toBe('team-1');
       expect(result[1].id).toBe('team-2');
     });
+
+    it('passes name + sport filters to prisma', async () => {
+      mockTeam.findMany.mockResolvedValue([]);
+      await service.findAll({ q: 'eagles', sportId: 'sport-1' });
+      expect(mockTeam.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            name: { contains: 'eagles', mode: 'insensitive' },
+            sportId: 'sport-1',
+          },
+        })
+      );
+    });
   });
 
   describe('findOne', () => {
