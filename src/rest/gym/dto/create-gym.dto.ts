@@ -23,6 +23,7 @@ export class WeeklyAvailabilityRuleDto {
     example: 0,
     minimum: 0,
     maximum: 6,
+    type: Number,
   })
   @IsInt()
   @Min(0)
@@ -32,6 +33,7 @@ export class WeeklyAvailabilityRuleDto {
   @ApiProperty({
     description: 'Start time in 30-minute increments',
     example: '08:00',
+    type: String,
   })
   @IsString()
   @Matches(TIME_PATTERN, {
@@ -42,6 +44,7 @@ export class WeeklyAvailabilityRuleDto {
   @ApiProperty({
     description: 'End time in 30-minute increments',
     example: '17:30',
+    type: String,
   })
   @IsString()
   @Matches(TIME_PATTERN, {
@@ -52,6 +55,7 @@ export class WeeklyAvailabilityRuleDto {
   @ApiProperty({
     description: 'Whether this recurring time range is open',
     example: true,
+    type: Boolean,
   })
   @IsBoolean()
   isOpen!: boolean;
@@ -61,6 +65,7 @@ export class CreateGymDto {
   @ApiProperty({
     description: 'Gym name',
     example: 'Corec Main Gym',
+    type: String,
   })
   @IsString()
   @IsNotEmpty()
@@ -70,6 +75,7 @@ export class CreateGymDto {
   @ApiProperty({
     description: 'Organization ID that owns this gym',
     example: 'clr1abc2d0000',
+    type: String,
   })
   @IsString()
   @IsNotEmpty()
@@ -78,6 +84,7 @@ export class CreateGymDto {
   @ApiPropertyOptional({
     description: 'Gym description',
     example: 'Main basketball and volleyball court area',
+    type: String,
   })
   @IsOptional()
   @IsString()
@@ -86,6 +93,7 @@ export class CreateGymDto {
   @ApiPropertyOptional({
     description: 'Gym location',
     example: 'Building A, Floor 1',
+    type: String,
   })
   @IsOptional()
   @IsString()
@@ -95,6 +103,7 @@ export class CreateGymDto {
   @ApiPropertyOptional({
     description: 'Maximum recommended capacity',
     example: 100,
+    type: Number,
   })
   @IsOptional()
   @IsInt()
@@ -105,6 +114,7 @@ export class CreateGymDto {
     description: 'Whether the gym is active',
     example: true,
     default: true,
+    type: Boolean,
   })
   @IsOptional()
   @IsBoolean()

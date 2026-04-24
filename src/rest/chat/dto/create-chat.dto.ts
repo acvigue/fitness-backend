@@ -25,6 +25,7 @@ export class CreateChatDto {
     description: 'Chat name (required for group chats with 2+ recipients, ignored for 1-to-1)',
     example: 'Gym Buddies',
     maxLength: 100,
+    type: String,
   })
   @IsString()
   @IsOptional()

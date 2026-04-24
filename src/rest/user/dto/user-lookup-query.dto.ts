@@ -7,6 +7,7 @@ export class UserLookupQueryDto {
     example: 'john',
     minLength: 2,
     maxLength: 100,
+    type: String,
   })
   @IsString()
   @IsNotEmpty()

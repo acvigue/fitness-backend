@@ -16,6 +16,7 @@ export class UpdateReminderPreferenceDto {
   @ApiPropertyOptional({
     description:
       'Tournament ID for a per-tournament override. Omit for a global default applying to all tournaments.',
+    type: String,
   })
   @IsOptional()
   @IsString()
@@ -23,7 +24,7 @@ export class UpdateReminderPreferenceDto {
 }
 
 export class ReminderPreferenceResponseDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   id!: string;
 
   @ApiProperty({ nullable: true, type: String })
@@ -32,6 +33,6 @@ export class ReminderPreferenceResponseDto {
   @ApiProperty({ type: [Number] })
   intervalsMinutes!: number[];
 
-  @ApiProperty({ format: 'date-time' })
+  @ApiProperty({ format: 'date-time', type: String })
   updatedAt!: string;
 }

@@ -3,7 +3,7 @@ import { IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
 import { EngagementType } from '@/generated/prisma/enums';
 
 export class TrackEngagementDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   @IsString()
   userId!: string;
 
@@ -11,17 +11,17 @@ export class TrackEngagementDto {
   @IsEnum(EngagementType)
   type!: EngagementType;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsString()
   @IsOptional()
   targetUserId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsString()
   @IsOptional()
   teamId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsString()
   @IsOptional()
   chatId?: string;

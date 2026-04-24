@@ -2,16 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import { ChatMemberDto } from '@/rest/chat/dto/chat-response.dto';
 
 export class TeamChatResponseDto {
-  @ApiProperty({ description: 'Chat ID', example: 'clr1abc2d0000' })
+  @ApiProperty({ description: 'Chat ID', example: 'clr1abc2d0000', type: String })
   id!: string;
 
-  @ApiProperty({ description: 'Chat name', example: 'Team Alpha x Team Beta' })
+  @ApiProperty({ description: 'Chat name', example: 'Team Alpha x Team Beta', type: String })
   name!: string | null;
 
-  @ApiProperty({ description: 'Team 1 ID' })
+  @ApiProperty({ description: 'Team 1 ID', type: String })
   team1Id!: string;
 
-  @ApiProperty({ description: 'Team 2 ID' })
+  @ApiProperty({ description: 'Team 2 ID', type: String })
   team2Id!: string;
 
   @ApiProperty({ type: [ChatMemberDto], description: 'Chat members' })

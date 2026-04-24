@@ -14,6 +14,7 @@ export class CreateAnnouncementChatDto {
   @ApiProperty({
     description: 'Organization ID this announcement channel belongs to',
     example: 'clr1abc2d0000',
+    type: String,
   })
   @IsString()
   @IsNotEmpty()
@@ -23,6 +24,7 @@ export class CreateAnnouncementChatDto {
     description: 'Announcement channel name',
     example: 'General Announcements',
     maxLength: 100,
+    type: String,
   })
   @IsString()
   @IsNotEmpty()

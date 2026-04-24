@@ -1,13 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ReportResponseDto {
-  @ApiProperty({ description: 'Report ID', example: 'rep-123' })
+  @ApiProperty({ description: 'Report ID', example: 'rep-123', type: String })
   id!: string;
 
-  @ApiProperty({ description: 'Reporter User ID', example: 'wejfe023r2343' })
+  @ApiProperty({ description: 'Reporter User ID', example: 'wejfe023r2343', type: String })
   reporterId!: string;
 
-  @ApiProperty({ description: 'Reported User ID', example: 'wejfe023r2343' })
+  @ApiProperty({ description: 'Reported User ID', example: 'wejfe023r2343', type: String })
   reportedId!: string;
 
   @ApiPropertyOptional({
@@ -23,7 +23,7 @@ export class ReportResponseDto {
   })
   reason!: string | null;
 
-  @ApiProperty({ description: 'Status', example: 'Banned' })
+  @ApiProperty({ description: 'Status', example: 'Banned', type: String })
   status!: string;
 
   @ApiProperty({ description: 'Created timestamp', format: 'date-time' })

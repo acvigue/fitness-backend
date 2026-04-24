@@ -7,6 +7,7 @@ export class UpdateAnnouncementChatDto {
     description: 'Updated channel name',
     example: 'Important Announcements',
     maxLength: 100,
+    type: String,
   })
   @IsString()
   @IsOptional()

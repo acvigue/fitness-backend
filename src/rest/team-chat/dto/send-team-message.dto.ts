@@ -2,7 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SendTeamMessageDto {
-  @ApiProperty({ description: 'Message content', example: 'Hey team, want to scrimmage?' })
+  @ApiProperty({
+    description: 'Message content',
+    example: 'Hey team, want to scrimmage?',
+    type: String,
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(5000)

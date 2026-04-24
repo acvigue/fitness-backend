@@ -86,6 +86,28 @@ async function main() {
   }
 
   console.log(`Done — ${achievements.length} achievement definitions seeded.`);
+
+  console.log('Seeding sports...');
+
+  const sports = [
+    'Soccer',
+    'Basketball',
+    'Football',
+    'Baseball',
+    'Tennis',
+    'Volleyball',
+  ];
+
+  for (const name of sports) {
+    await prisma.sport.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+    console.log(`  Upserted: ${name}`);
+  }
+
+  console.log(`Done — ${sports.length} sports seeded.`);
 }
 
 main()

@@ -11,19 +11,19 @@ import {
 import { RestrictionAction } from '@/generated/prisma/enums';
 
 export class SuspendUserDto {
-  @ApiProperty({ description: 'Suspension duration in hours', example: 24 })
+  @ApiProperty({ description: 'Suspension duration in hours', example: 24, type: Number })
   @IsInt()
   @Min(1)
   durationHours!: number;
 
-  @ApiProperty({ description: 'Reason for the suspension' })
+  @ApiProperty({ description: 'Reason for the suspension', type: String })
   @IsString()
   @IsNotEmpty()
   reason!: string;
 }
 
 export class BanUserDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   @IsString()
   @IsNotEmpty()
   reason!: string;
@@ -34,12 +34,12 @@ export class RestrictUserDto {
   @IsEnum(RestrictionAction, { each: true })
   actions!: (keyof typeof RestrictionAction)[];
 
-  @ApiProperty({ description: 'Duration in hours' })
+  @ApiProperty({ description: 'Duration in hours', type: Number })
   @IsInt()
   @Min(1)
   durationHours!: number;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   @IsString()
   @IsNotEmpty()
   reason!: string;
@@ -52,36 +52,36 @@ export class UnrestrictUserDto {
 }
 
 export class DeleteMessageDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   @IsString()
   @IsNotEmpty()
   reason!: string;
 }
 
 export class FlagMessageDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   reason?: string;
 }
 
 export class ListMessagesQueryDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   q?: string;
 
-  @ApiPropertyOptional({ format: 'date-time' })
+  @ApiPropertyOptional({ format: 'date-time', type: String })
   @IsOptional()
   @IsDateString()
   from?: string;
 
-  @ApiPropertyOptional({ format: 'date-time' })
+  @ApiPropertyOptional({ format: 'date-time', type: String })
   @IsOptional()
   @IsDateString()
   to?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   teamId?: string;

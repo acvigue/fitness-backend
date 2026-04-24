@@ -1,13 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class OrganizationMemberResponseDto {
-  @ApiProperty({ description: 'Membership ID' })
+  @ApiProperty({ description: 'Membership ID', type: String })
   id!: string;
 
-  @ApiProperty({ description: 'User ID' })
+  @ApiProperty({ description: 'User ID', type: String })
   userId!: string;
 
-  @ApiProperty({ description: 'Organization ID' })
+  @ApiProperty({ description: 'Organization ID', type: String })
   organizationId!: string;
 
   @ApiProperty({ description: 'Member role', enum: ['MEMBER', 'STAFF', 'ADMIN'] })

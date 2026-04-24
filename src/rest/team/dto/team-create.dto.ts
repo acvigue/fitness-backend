@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class TeamCreateDto {
-  @ApiProperty({ description: 'Team name', example: 'Purdue Badminton A' })
+  @ApiProperty({ description: 'Team name', example: 'Purdue Badminton A', type: String })
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -10,6 +10,7 @@ export class TeamCreateDto {
   @ApiProperty({
     description: 'Sport ID (UUID)',
     example: '550e8400-e29b-41d4-a716-446655440000',
+    type: String,
   })
   @IsUUID()
   sportId!: string;
@@ -18,6 +19,7 @@ export class TeamCreateDto {
     description: 'Team description',
     example: 'Competitive student badminton team',
     required: false,
+    type: String,
   })
   @IsString()
   @IsOptional()

@@ -12,18 +12,30 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTournamentDto {
-  @ApiProperty({ description: 'Tournament name', example: 'Spring Championship 2024' })
+  @ApiProperty({
+    description: 'Tournament name',
+    example: 'Spring Championship 2024',
+    type: String,
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
 
-  @ApiProperty({ description: 'Sport ID (UUID)', example: 'a1b2c3d4-0001-4000-8000-000000000001' })
+  @ApiProperty({
+    description: 'Sport ID (UUID)',
+    example: 'a1b2c3d4-0001-4000-8000-000000000001',
+    type: String,
+  })
   @IsUUID()
   @IsNotEmpty()
   sportId!: string;
 
-  @ApiProperty({ description: 'Organization ID hosting the tournament', example: 'clr1abc2d0000' })
+  @ApiProperty({
+    description: 'Organization ID hosting the tournament',
+    example: 'clr1abc2d0000',
+    type: String,
+  })
   @IsString()
   @IsNotEmpty()
   organizationId!: string;
@@ -32,6 +44,7 @@ export class CreateTournamentDto {
     description: 'Maximum number of teams (must be a power of 2 for SINGLE_ELIMINATION)',
     example: 16,
     minimum: 2,
+    type: Number,
   })
   @IsInt()
   @Min(2)
@@ -40,6 +53,7 @@ export class CreateTournamentDto {
   @ApiProperty({
     description: 'Tournament start date (ISO 8601)',
     example: '2024-06-01T09:00:00Z',
+    type: String,
   })
   @IsDateString()
   @IsNotEmpty()

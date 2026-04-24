@@ -1,18 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class NotificationResponseDto {
-  @ApiProperty({ description: 'Notification ID', example: 'cm123abc456def789ghi0001' })
+  @ApiProperty({
+    description: 'Notification ID',
+    example: 'cm123abc456def789ghi0001',
+    type: String,
+  })
   id!: string;
 
-  @ApiProperty({ description: 'Notification type', example: 'TEAM_INVITE' })
+  @ApiProperty({ description: 'Notification type', example: 'TEAM_INVITE', type: String })
   type!: string;
 
-  @ApiProperty({ description: 'Notification title', example: 'Team Invitation' })
+  @ApiProperty({ description: 'Notification title', example: 'Team Invitation', type: String })
   title!: string;
 
   @ApiProperty({
     description: 'Notification content',
     example: 'You have been invited to join Team Alpha',
+    type: String,
   })
   content!: string;
 
@@ -34,9 +39,13 @@ export class NotificationResponseDto {
   })
   readAt?: string | null;
 
-  @ApiProperty({ description: 'Whether the notification has been dismissed', example: false })
+  @ApiProperty({
+    description: 'Whether the notification has been dismissed',
+    example: false,
+    type: Boolean,
+  })
   dismissed!: boolean;
 
-  @ApiProperty({ description: 'Creation timestamp', format: 'date-time' })
+  @ApiProperty({ description: 'Creation timestamp', format: 'date-time', type: String })
   createdAt!: string;
 }

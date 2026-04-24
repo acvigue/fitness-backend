@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class TeamInviteDto {
-  @ApiProperty({ description: 'User ID to invite', example: 'user-123' })
+  @ApiProperty({ description: 'User ID to invite', example: 'user-123', type: String })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)

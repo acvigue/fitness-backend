@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
 
 export class UpdateVideoProgressDto {
-  @ApiProperty({ description: 'Current playback position in seconds', example: 45 })
+  @ApiProperty({ description: 'Current playback position in seconds', example: 45, type: Number })
   @IsInt()
   @Min(0)
   positionSeconds!: number;
@@ -11,6 +11,7 @@ export class UpdateVideoProgressDto {
     description: 'Whether the user has completed the video',
     required: false,
     default: false,
+    type: Boolean,
   })
   @IsOptional()
   @IsBoolean()
@@ -18,15 +19,15 @@ export class UpdateVideoProgressDto {
 }
 
 export class VideoProgressResponseDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   videoId!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: Number })
   positionSeconds!: number;
 
-  @ApiProperty()
+  @ApiProperty({ type: Boolean })
   completed!: boolean;
 
-  @ApiProperty({ format: 'date-time' })
+  @ApiProperty({ format: 'date-time', type: String })
   updatedAt!: string;
 }

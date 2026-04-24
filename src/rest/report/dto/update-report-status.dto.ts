@@ -9,7 +9,7 @@ export enum ReportStatus {
 }
 
 export class UpdateReportStatusDto {
-  @ApiProperty({ description: 'Report ID', example: 'clr1abc2d0000' })
+  @ApiProperty({ description: 'Report ID', example: 'clr1abc2d0000', type: String })
   @IsString()
   @IsNotEmpty()
   reportId!: string;

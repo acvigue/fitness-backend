@@ -10,10 +10,14 @@ export class UserAchievementResponseDto {
   })
   id!: string | null;
 
-  @ApiProperty({ description: 'Current progress', example: 3 })
+  @ApiProperty({ description: 'Current progress', example: 3, type: Number })
   progress!: number;
 
-  @ApiPropertyOptional({ description: 'Date achievement was unlocked', format: 'date-time' })
+  @ApiPropertyOptional({
+    description: 'Date achievement was unlocked',
+    format: 'date-time',
+    type: String,
+  })
   unlockedAt!: string | null;
 
   @ApiProperty({

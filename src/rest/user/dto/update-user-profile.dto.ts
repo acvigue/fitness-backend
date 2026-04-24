@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class UpdateUserProfileDto {
-  @ApiPropertyOptional({ description: 'User bio', example: 'Fitness enthusiast' })
+  @ApiPropertyOptional({ description: 'User bio', example: 'Fitness enthusiast', type: String })
   @IsString()
   @IsOptional()
   @MaxLength(1000)

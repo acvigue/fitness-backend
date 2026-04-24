@@ -2,16 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import { VideoResponseDto } from '@/rest/video/dto/video-response.dto';
 
 export class TournamentRecapResponseDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   tournamentId!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   uploadedById!: string;
 
-  @ApiProperty({ format: 'date-time' })
+  @ApiProperty({ format: 'date-time', type: String })
   createdAt!: string;
 
   @ApiProperty({ type: VideoResponseDto })
