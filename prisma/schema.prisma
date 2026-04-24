@@ -499,11 +499,49 @@ model Gym {
 
   availabilityRules      GymAvailabilityRule[]
   availabilityExceptions GymAvailabilityException[]
+  slots                  GymSlot[]
+  subscriptions          GymSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+enum GymSlotStatus {
+  AVAILABLE
+  RESERVED
+  CLOSED
+}
+
+model GymSlot {
+  id       String        @id @default(cuid())
+  gymId    String        @map("gym_id")
+  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  startsAt DateTime      @map("starts_at")
+  endsAt   DateTime      @map("ends_at")
+  status   GymSlotStatus @default(AVAILABLE)
+  reservedByTeamId String? @map("reserved_by_team_id")
+  note     String?
+  updatedById String?    @map("updated_by_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@index([gymId, startsAt])
+  @@index([status])
+  @@map("gym_slots")
+}
+
+model GymSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  gymId     String   @map("gym_id")
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, gymId])
+  @@index([gymId])
+  @@map("gym_subscriptions")
 }
 
 model GymAvailabilityRule {
