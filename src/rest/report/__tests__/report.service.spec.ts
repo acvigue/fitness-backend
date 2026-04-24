@@ -57,6 +57,7 @@ describe('ReportService', () => {
         id: 'report-1',
         userId1: 'user-1',
         userId2: 'user-2',
+        messageId: null,
         reason: 'Harassment',
         status: 'PENDING',
         createdAt: NOW,
@@ -65,8 +66,10 @@ describe('ReportService', () => {
       const result = await service.create({ reportedId: 'user-2', reason: 'Harassment' }, 'user-1');
 
       expect(result).toEqual({
+        id: 'report-1',
         reporterId: 'user-1',
         reportedId: 'user-2',
+        messageId: null,
         reason: 'Harassment',
         status: 'PENDING',
         createdAt: NOW,
@@ -80,6 +83,7 @@ describe('ReportService', () => {
         id: 'report-1',
         userId1: 'user-1',
         userId2: 'user-2',
+        messageId: null,
         reason: 'Spam',
         status: 'PENDING',
         createdAt: NOW,
@@ -91,6 +95,7 @@ describe('ReportService', () => {
         data: {
           userId1: 'user-1',
           userId2: 'user-2',
+          messageId: null,
           reason: 'Spam',
           status: 'PENDING',
         },

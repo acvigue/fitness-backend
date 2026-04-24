@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
+import { EngagementService } from '@/rest/engagement/engagement.service';
+import { EngagementType } from '@/generated/prisma/enums';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { UserResponseDto } from './dto/user-response.dto';
 import type { UpdateNameDto } from './dto/update-name.dto';
@@ -27,7 +29,8 @@ import { UpdateUserProfilePrivacyDto } from '~/rest/user/dto/update-user-profile
 export class UserService {
   constructor(
     private readonly keycloakAdmin: KeycloakAdminService,
-    private readonly userBlockService: UserBlockService
+    private readonly userBlockService: UserBlockService,
+    private readonly engagementService: EngagementService
   ) {}
   async getOrCreateMe(user: AuthenticatedUser): Promise<UserResponseDto> {
     const existing = await prisma.user.findUnique({
@@ -81,6 +84,13 @@ export class UserService {
       if (await this.userBlockService.didBlock(userId, viewerId)) {
         throw new ForbiddenException('You are not allowed to view this profile');
       }
+      this.engagementService
+        .recordEvent({
+          userId: viewerId,
+          type: EngagementType.PROFILE_VIEW,
+          targetUserId: userId,
+        })
+        .catch(() => undefined);
     }
 
     const profile = await prisma.userProfile.findUnique({

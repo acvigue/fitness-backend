@@ -7,6 +7,14 @@ export class CreateReportDto {
   @IsNotEmpty()
   reportedId!: string;
 
+  @ApiPropertyOptional({
+    description: 'ID of the specific offending message (optional)',
+    example: 'msg-abc123',
+  })
+  @IsString()
+  @IsOptional()
+  messageId?: string;
+
   @ApiPropertyOptional({ description: 'Reason for the report', example: 'Inappropriate behavior' })
   @IsString()
   @IsOptional()

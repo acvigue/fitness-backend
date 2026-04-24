@@ -9,6 +9,8 @@ import { prisma } from '@/shared/utils';
 import { ChatService } from '@/rest/chat/chat.service';
 import { TeamBlockService } from '@/rest/team-block/team-block.service';
 import { NotificationService } from '@/rest/notification/notification.service';
+import { EngagementService } from '@/rest/engagement/engagement.service';
+import { EngagementType } from '@/generated/prisma/enums';
 import type { CreateTeamChatDto } from './dto/create-team-chat.dto';
 import type { TeamChatResponseDto } from './dto/team-chat-response.dto';
 import type { SendTeamMessageDto } from './dto/send-team-message.dto';
@@ -32,7 +34,8 @@ export class TeamChatService {
   constructor(
     private readonly chatService: ChatService,
     private readonly teamBlockService: TeamBlockService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly engagementService: EngagementService
   ) {}
 
   async createOrGetTeamChat(dto: CreateTeamChatDto, userId: string): Promise<TeamChatResponseDto> {
@@ -176,6 +179,21 @@ export class TeamChatService {
       { chatId, content: dto.content, mediaIds: dto.mediaIds },
       userId
     );
+
+    this.engagementService
+      .recordEvent({
+        userId,
+        type: EngagementType.TEAM_CHAT_MESSAGE,
+        chatId,
+      })
+      .catch(() => undefined);
+    this.engagementService
+      .recordEvent({
+        userId,
+        type: EngagementType.INTER_TEAM_INTERACTION,
+        chatId,
+      })
+      .catch(() => undefined);
 
     // Notify other team's members (fire-and-forget)
     this.notifyOtherTeam(team1Id, team2Id, userId, chatId).catch((err) =>

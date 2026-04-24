@@ -5,9 +5,10 @@ import { UserService } from '@/rest/user/user.service';
 import { KeycloakAdminService } from '@/rest/user/keycloak-admin.service';
 import { AuthModule } from '@/rest/auth/auth.module';
 import { UserBlockModule } from '@/rest/user-block/user-block.module';
+import { EngagementModule } from '@/rest/engagement/engagement.module';
 
 @Module({
-  imports: [AuthModule, UserBlockModule],
+  imports: [AuthModule, UserBlockModule, EngagementModule],
   controllers: [UserController, UsersController],
   providers: [UserService, KeycloakAdminService],
   exports: [UserService, KeycloakAdminService],

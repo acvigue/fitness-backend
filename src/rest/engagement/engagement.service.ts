@@ -1,14 +1,24 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { EngagementType } from '@/generated/prisma/enums';
 import type { Prisma } from '@/generated/prisma/client';
+import { AchievementService } from '@/rest/achievement/achievement.service';
 
 // Event types that are inherently cumulative — each occurrence is a distinct data point.
-const COUNTABLE_EVENT_TYPES = new Set<EngagementType>([EngagementType.MESSAGE_SENT]);
+const COUNTABLE_EVENT_TYPES = new Set<EngagementType>([
+  EngagementType.MESSAGE_SENT,
+  EngagementType.PROFILE_VIEW,
+  EngagementType.TEAM_CHAT_MESSAGE,
+  EngagementType.MEETUP_ATTENDED,
+  EngagementType.INTER_TEAM_INTERACTION,
+]);
 
 @Injectable()
 export class EngagementService {
   private readonly prisma = prisma;
+  private readonly logger = new Logger(EngagementService.name);
+
+  constructor(private readonly achievementService: AchievementService) {}
 
   async trackEvent(
     params: {
@@ -25,6 +35,17 @@ export class EngagementService {
       throw new ForbiddenException('Cannot record engagement on behalf of another user');
     }
 
+    return this.recordEvent(params);
+  }
+
+  async recordEvent(params: {
+    userId: string;
+    type: EngagementType;
+    targetUserId?: string;
+    teamId?: string;
+    chatId?: string;
+    metadata?: Record<string, unknown>;
+  }) {
     if (!COUNTABLE_EVENT_TYPES.has(params.type)) {
       const existing = await this.prisma.engagementEvent.findFirst({
         where: {
@@ -40,12 +61,23 @@ export class EngagementService {
       }
     }
 
-    return this.prisma.engagementEvent.create({
+    const event = await this.prisma.engagementEvent.create({
       data: {
         ...params,
         metadata: params.metadata as Prisma.InputJsonValue | undefined,
       },
     });
+
+    // Fire-and-forget achievement increment so callers aren't blocked on tier logic.
+    this.achievementService
+      .incrementProgress(params.userId, params.type)
+      .catch((err) =>
+        this.logger.warn(
+          `Engagement event saved but achievement increment failed for ${params.userId}: ${err?.message ?? err}`
+        )
+      );
+
+    return event;
   }
 
   async getUserEngagement(userId: string) {

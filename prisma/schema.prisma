@@ -187,12 +187,16 @@ model Report {
   userId1      String
   reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id], onDelete: Cascade)
   userId2      String
+  messageId    String?        @map("message_id")
+  message      Message?       @relation("ReportedMessage", fields: [messageId], references: [id], onDelete: Cascade)
   reason       String?
   status       StatusOnReport @default(PENDING)
   createdAt    DateTime       @default(now()) @map("created_at")
 
+  @@unique([userId1, messageId])
   @@index([userId1])
   @@index([userId2])
+  @@index([messageId])
 }
 
 enum ChatType {
@@ -266,6 +270,8 @@ model Message {
   media     Media[]     @relation("MessageMedia")
   read      Boolean     @default(false)
   createdAt DateTime    @default(now()) @map("created_at")
+
+  reports Report[] @relation("ReportedMessage")
 
   @@index([chatId, createdAt])
   @@index([senderId])
@@ -641,6 +647,9 @@ enum EngagementType {
   TEAM_LEAVE
   CHAT_CREATED
   TOURNAMENT_JOIN
+  TEAM_CHAT_MESSAGE
+  MEETUP_ATTENDED
+  INTER_TEAM_INTERACTION
 }
 
 model EngagementEvent {

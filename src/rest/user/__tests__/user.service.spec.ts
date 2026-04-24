@@ -111,9 +111,11 @@ describe('UserService', () => {
     isBlocked: vi.fn().mockResolvedValue(false),
     didBlock: vi.fn().mockResolvedValue(false),
   };
+  const mockEngagementService = { recordEvent: vi.fn().mockResolvedValue({}) };
 
   beforeAll(async () => {
     const { UserBlockService } = await import('@/rest/user-block/user-block.service');
+    const { EngagementService } = await import('@/rest/engagement/engagement.service');
     const module = await Test.createTestingModule({
       providers: [
         UserService,
@@ -124,6 +126,10 @@ describe('UserService', () => {
         {
           provide: UserBlockService,
           useValue: mockUserBlockService,
+        },
+        {
+          provide: EngagementService,
+          useValue: mockEngagementService,
         },
       ],
     }).compile();

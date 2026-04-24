@@ -61,6 +61,19 @@ async function main() {
     { name: 'New Member', description: 'Join your first organization', criteriaType: 'ORGANIZATION_JOIN', threshold: 1, icon: null },
     { name: 'Community Member', description: 'Join 3 organizations', criteriaType: 'ORGANIZATION_JOIN', threshold: 3, icon: null },
     { name: 'Community Leader', description: 'Join 10 organizations', criteriaType: 'ORGANIZATION_JOIN', threshold: 10, icon: null },
+    // Student engagement (US#34)
+    { name: 'First Message', description: 'Send your first message', criteriaType: 'MESSAGE_SENT', threshold: 1, icon: null },
+    { name: 'Chatty', description: 'Send 50 messages', criteriaType: 'MESSAGE_SENT', threshold: 50, icon: null },
+    { name: 'Conversationalist', description: 'Send 500 messages', criteriaType: 'MESSAGE_SENT', threshold: 500, icon: null },
+    { name: 'First Group Chat', description: 'Create your first group chat', criteriaType: 'CHAT_CREATED', threshold: 1, icon: null },
+    { name: 'First Profile Peek', description: 'View another student’s profile', criteriaType: 'PROFILE_VIEW', threshold: 1, icon: null },
+    { name: 'Curious', description: 'View 25 profiles', criteriaType: 'PROFILE_VIEW', threshold: 25, icon: null },
+    // Team engagement (US#49)
+    { name: 'First Team Chat', description: 'Post your first team-chat message', criteriaType: 'TEAM_CHAT_MESSAGE', threshold: 1, icon: null },
+    { name: 'Team Chatter', description: 'Post 50 team-chat messages', criteriaType: 'TEAM_CHAT_MESSAGE', threshold: 50, icon: null },
+    { name: 'First Meetup', description: 'Attend your first meetup', criteriaType: 'MEETUP_ATTENDED', threshold: 1, icon: null },
+    { name: 'Meetup Regular', description: 'Attend 10 meetups', criteriaType: 'MEETUP_ATTENDED', threshold: 10, icon: null },
+    { name: 'Inter-Team Ambassador', description: 'Interact with 5 other teams', criteriaType: 'INTER_TEAM_INTERACTION', threshold: 5, icon: null },
   ];
 
   for (const achievement of achievements) {

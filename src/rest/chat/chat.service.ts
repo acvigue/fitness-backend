@@ -7,6 +7,8 @@ import {
 import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
+import { EngagementService } from '@/rest/engagement/engagement.service';
+import { EngagementType } from '@/generated/prisma/enums';
 import type { OrganizationRole } from '@/generated/prisma/client';
 import type { ChatResponseDto } from './dto/chat-response.dto';
 import type { MessageResponseDto } from './dto/message-response.dto';
@@ -29,7 +31,10 @@ function mapMedia(media: { id: string; url: string; mimeType: string }[]) {
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly userBlockService: UserBlockService) {}
+  constructor(
+    private readonly userBlockService: UserBlockService,
+    private readonly engagementService: EngagementService
+  ) {}
 
   async getUserChats(userId: string): Promise<UserChatResponseDto[]> {
     const chats = await prisma.chat.findMany({
@@ -142,6 +147,12 @@ export class ChatService {
       },
       include: { members: { select: MEMBER_SELECT } },
     });
+
+    if (chatType === 'GROUP') {
+      this.engagementService
+        .recordEvent({ userId: creatorId, type: EngagementType.CHAT_CREATED, chatId: chat.id })
+        .catch(() => undefined);
+    }
 
     return {
       id: chat.id,
@@ -281,6 +292,14 @@ export class ChatService {
       read: message.read,
       createdAt: message.createdAt,
     };
+
+    this.engagementService
+      .recordEvent({
+        userId: senderId,
+        type: EngagementType.MESSAGE_SENT,
+        chatId: message.chatId,
+      })
+      .catch(() => undefined);
 
     await redis.publish('chat:messages', JSON.stringify(response));
 

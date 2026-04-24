@@ -7,6 +7,8 @@ import {
 import { prisma } from '@/shared/utils';
 import { TeamBlockService } from '@/rest/team-block/team-block.service';
 import { NotificationService } from '@/rest/notification/notification.service';
+import { EngagementService } from '@/rest/engagement/engagement.service';
+import { EngagementType } from '@/generated/prisma/enums';
 import type { CreateMeetupDto } from './dto/create-meetup.dto';
 import type { MeetupResponseDto } from './dto/meetup-response.dto';
 
@@ -14,7 +16,8 @@ import type { MeetupResponseDto } from './dto/meetup-response.dto';
 export class MeetupService {
   constructor(
     private readonly teamBlockService: TeamBlockService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly engagementService: EngagementService
   ) {}
 
   async proposeMeetup(dto: CreateMeetupDto, userId: string): Promise<MeetupResponseDto> {
@@ -103,6 +106,13 @@ export class MeetupService {
           `"${updated.title}" with ${updated.proposingTeam.name} & ${updated.receivingTeam.name} has been confirmed`
         );
       }
+      this.engagementService
+        .recordEvent({
+          userId: memberId,
+          type: EngagementType.MEETUP_ATTENDED,
+          metadata: { meetupId: updated.id },
+        })
+        .catch(() => undefined);
     }
 
     return this.toResponse(updated);

@@ -70,11 +70,13 @@ describe('MeetupService', () => {
   let teamBlockService: InstanceType<typeof TeamBlockService>;
 
   beforeAll(async () => {
+    const { EngagementService } = await import('@/rest/engagement/engagement.service');
     const module = await Test.createTestingModule({
       providers: [
         MeetupService,
         TeamBlockService,
         { provide: NotificationService, useValue: mockNotificationService },
+        { provide: EngagementService, useValue: { recordEvent: vi.fn().mockResolvedValue({}) } },
       ],
     }).compile();
 
