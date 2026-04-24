@@ -27,6 +27,7 @@ export class NotificationResponseDto {
 
   @ApiProperty({
     description: 'Timestamp the notification was marked read',
+    type: 'string',
     format: 'date-time',
     required: false,
     nullable: true,
