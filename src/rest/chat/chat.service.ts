@@ -201,9 +201,12 @@ export class ChatService {
 
     // Enforce write permissions for announcement channels
     if (chat.type === 'ANNOUNCEMENT') {
+      if (!chat.organizationId) {
+        throw new Error(`Announcement channel ${chat.id} is missing an organization`);
+      }
       const membership = await prisma.organizationMember.findUnique({
         where: {
-          userId_organizationId: { userId: senderId, organizationId: chat.organizationId! },
+          userId_organizationId: { userId: senderId, organizationId: chat.organizationId },
         },
       });
       if (!membership || !chat.writeRoles.includes(membership.role)) {
@@ -394,7 +397,11 @@ export class ChatService {
       throw new NotFoundException('Announcement channel not found');
     }
 
-    await this.requireOrgRole(chat.organizationId!, userId, ['STAFF', 'ADMIN']);
+    if (!chat.organizationId) {
+      throw new Error(`Announcement channel ${chat.id} is missing an organization`);
+    }
+
+    await this.requireOrgRole(chat.organizationId, userId, ['STAFF', 'ADMIN']);
 
     const updated = await prisma.chat.update({
       where: { id: chatId },
@@ -427,7 +434,11 @@ export class ChatService {
       throw new NotFoundException('Announcement channel not found');
     }
 
-    await this.requireOrgRole(chat.organizationId!, userId, ['STAFF', 'ADMIN']);
+    if (!chat.organizationId) {
+      throw new Error(`Announcement channel ${chat.id} is missing an organization`);
+    }
+
+    await this.requireOrgRole(chat.organizationId, userId, ['STAFF', 'ADMIN']);
 
     await prisma.chat.delete({ where: { id: chatId } });
   }

@@ -1,4 +1,5 @@
-import { Injectable, LogLevel, Scope } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
+import type { LogLevel } from '@nestjs/common';
 
 export type LogContext = {
   requestId?: string;

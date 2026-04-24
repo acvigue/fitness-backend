@@ -1,13 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { CreateGymDto, WeeklyAvailabilityRuleDto } from './dto/create-gym.dto';
 import { UpdateGymDto } from './dto/update-gym.dto';
 
 @Injectable()
 export class GymService {
-  async create(createGymDto: CreateGymDto) {
+  async create(createGymDto: CreateGymDto, userId: string) {
     const weeklyRules = createGymDto.weeklyRules ?? [];
     this.validateWeeklyRules(weeklyRules);
+    await this.ensureOrgMember(userId, createGymDto.organizationId);
 
     const gym = await prisma.$transaction(async (tx) => {
       const createdGym = await tx.gym.create({
@@ -96,8 +102,12 @@ export class GymService {
     return gym;
   }
 
-  async update(id: string, data: UpdateGymDto) {
-    await this.ensureExists(id);
+  async update(id: string, data: UpdateGymDto, userId: string) {
+    const existing = await this.getForMutation(id, userId);
+
+    if (data.organizationId !== undefined && data.organizationId !== existing.organizationId) {
+      await this.ensureOrgMember(userId, data.organizationId);
+    }
 
     const weeklyRules = data.weeklyRules;
     if (weeklyRules) {
@@ -151,22 +161,36 @@ export class GymService {
     });
   }
 
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, userId: string) {
+    await this.getForMutation(id, userId);
 
     return prisma.gym.delete({
       where: { id },
     });
   }
 
-  private async ensureExists(id: string) {
+  private async getForMutation(id: string, userId: string) {
     const gym = await prisma.gym.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, organizationId: true },
     });
 
     if (!gym) {
       throw new NotFoundException(`Gym with id "${id}" not found`);
+    }
+
+    await this.ensureOrgMember(userId, gym.organizationId);
+    return gym;
+  }
+
+  private async ensureOrgMember(userId: string, organizationId: string) {
+    const membership = await prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId } },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this gym’s organization');
     }
   }
 

@@ -66,7 +66,7 @@ export class UserService {
     };
   }
 
-  async getProfile(userId: string): Promise<UserProfileResponseDto> {
+  async getProfile(userId: string, viewerId?: string): Promise<UserProfileResponseDto> {
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
       include: {
@@ -81,7 +81,31 @@ export class UserService {
       return this.createProfile(userId);
     }
 
-    return this.toProfileResponse(profile);
+    const response = this.toProfileResponse(profile);
+    return this.applyPrivacy(response, profile, viewerId);
+  }
+
+  private applyPrivacy(
+    response: UserProfileResponseDto,
+    profile: {
+      userId: string;
+      privateBio: boolean;
+      privateSports: boolean;
+      privateTournaments: boolean;
+      privateAchievements: boolean;
+    },
+    viewerId?: string
+  ): UserProfileResponseDto {
+    if (viewerId === undefined || viewerId === profile.userId) {
+      return response;
+    }
+    return {
+      ...response,
+      bio: profile.privateBio ? null : response.bio,
+      favoriteSports: profile.privateSports ? [] : response.favoriteSports,
+      tournaments: profile.privateTournaments ? [] : response.tournaments,
+      featuredAchievements: profile.privateAchievements ? [] : response.featuredAchievements,
+    };
   }
 
   async getPrivacy(userId: string): Promise<UpdateUserProfilePrivacyDto> {

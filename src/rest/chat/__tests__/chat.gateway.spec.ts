@@ -40,7 +40,7 @@ interface MockSocket {
   emit: ReturnType<typeof vi.fn>;
   join: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
-  to: ReturnType<typeof vi.fn>;
+  to: ((room: string) => { emit: ReturnType<typeof vi.fn> }) & ReturnType<typeof vi.fn>;
 }
 
 function createMockSocket(token?: string): MockSocket {
@@ -51,7 +51,7 @@ function createMockSocket(token?: string): MockSocket {
     emit: vi.fn(),
     join: vi.fn(),
     disconnect: vi.fn(),
-    to: vi.fn(() => ({ emit: roomEmit })),
+    to: vi.fn(() => ({ emit: roomEmit })) as MockSocket['to'],
   };
 }
 

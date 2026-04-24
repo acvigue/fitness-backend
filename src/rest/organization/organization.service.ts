@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -19,6 +20,8 @@ import type { OrganizationRole } from '@/generated/prisma/client';
 
 @Injectable()
 export class OrganizationService {
+  private readonly logger = new Logger(OrganizationService.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly achievementService: AchievementService
@@ -37,7 +40,11 @@ export class OrganizationService {
         },
       });
 
-      this.achievementService.incrementProgress(userId, 'ORGANIZATION_CREATE').catch(() => {});
+      this.achievementService
+        .incrementProgress(userId, 'ORGANIZATION_CREATE')
+        .catch((err) =>
+          this.logger.error(`Failed to award ORGANIZATION_CREATE achievement for ${userId}`, err)
+        );
 
       return {
         id: org.id,
@@ -134,7 +141,11 @@ export class OrganizationService {
       data: { userId, organizationId, role: 'MEMBER' },
     });
 
-    this.achievementService.incrementProgress(userId, 'ORGANIZATION_JOIN').catch(() => {});
+    this.achievementService
+      .incrementProgress(userId, 'ORGANIZATION_JOIN')
+      .catch((err) =>
+        this.logger.error(`Failed to award ORGANIZATION_JOIN achievement for ${userId}`, err)
+      );
 
     return member;
   }

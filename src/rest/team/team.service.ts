@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
@@ -17,6 +18,8 @@ import type { TeamMemberProfileResponseDto } from './dto/team-member-profile-res
 
 @Injectable()
 export class TeamService {
+  private readonly logger = new Logger(TeamService.name);
+
   constructor(
     private readonly notificationService: NotificationService,
     private readonly userService: UserService,
@@ -36,7 +39,11 @@ export class TeamService {
       },
     });
 
-    this.achievementService.incrementProgress(userId, 'TEAM_CREATE').catch(() => {});
+    this.achievementService
+      .incrementProgress(userId, 'TEAM_CREATE')
+      .catch((err) =>
+        this.logger.error(`Failed to award TEAM_CREATE achievement for ${userId}`, err)
+      );
 
     return this.toResponse(team);
   }
@@ -356,7 +363,11 @@ export class TeamService {
         data: { users: { connect: { id: invitation.userId } } },
       });
 
-      this.achievementService.incrementProgress(invitation.userId, 'TEAM_JOIN').catch(() => {});
+      this.achievementService
+        .incrementProgress(invitation.userId, 'TEAM_JOIN')
+        .catch((err) =>
+          this.logger.error(`Failed to award TEAM_JOIN achievement for ${invitation.userId}`, err)
+        );
     }
 
     // Notify the other party
@@ -472,7 +483,12 @@ export class TeamService {
     description: string;
     captainId: string;
     sportId: string;
-    users: { id: string; username: string | null; name: string | null; email: string | null }[];
+    users?: {
+      id: string;
+      username: string | null;
+      name: string | null;
+      email?: string | null;
+    }[];
   }): TeamResponseDto {
     return {
       id: team.id,
@@ -480,13 +496,14 @@ export class TeamService {
       description: team.description,
       captainId: team.captainId,
       sportId: team.sportId,
-      members: team.users?.map((u) => ({
-        sub: u.id,
-        username: u.username ?? undefined,
-        name: u.name ?? undefined,
-        email: u.email ?? undefined,
-        scopes: [],
-      })),
+      members:
+        team.users?.map((u) => ({
+          sub: u.id,
+          username: u.username ?? undefined,
+          name: u.name ?? undefined,
+          email: u.email ?? undefined,
+          scopes: [],
+        })) ?? [],
     };
   }
 

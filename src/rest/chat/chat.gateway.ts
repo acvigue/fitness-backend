@@ -2,12 +2,10 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  OnGatewayInit,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
+import type { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import { OidcAuthService, type AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { ChatService } from './chat.service';

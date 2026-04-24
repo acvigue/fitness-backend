@@ -14,10 +14,15 @@ const mockReportModel = {
   update: vi.fn(),
 };
 
+const mockOrganizationMemberModel = {
+  findFirst: vi.fn(),
+};
+
 vi.mock('@/shared/utils', () => ({
   prisma: {
     user: mockUserModel,
     report: mockReportModel,
+    organizationMember: mockOrganizationMemberModel,
   },
   redis: {},
   redisSub: {},
@@ -146,7 +151,8 @@ describe('ReportService', () => {
   // ─── get ────────────────────────────────────────────
 
   describe('get', () => {
-    it('should return all reports', async () => {
+    it('should return all reports for an org admin', async () => {
+      mockOrganizationMemberModel.findFirst.mockResolvedValueOnce({ id: 'member-1' });
       mockReportModel.findMany.mockResolvedValue([
         {
           userId1: 'user-1',
@@ -164,7 +170,7 @@ describe('ReportService', () => {
         },
       ]);
 
-      const result = await service.getAllReports();
+      const result = await service.getAllReports('admin-1');
 
       expect(result).toEqual([
         {
@@ -182,6 +188,14 @@ describe('ReportService', () => {
           createdAt: NOW,
         },
       ]);
+    });
+
+    it('should throw when requester is not an org admin', async () => {
+      mockOrganizationMemberModel.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.getAllReports('non-admin')).rejects.toThrow();
+
+      expect(mockReportModel.findMany).not.toHaveBeenCalled();
     });
 
     it('should return only reports that the user made', async () => {
@@ -232,9 +246,11 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
     });
-    it('should throw an error when the status string does not match a possible status', async () => {
-      await expect(service.updateStatus('user-1', 'user-2', 'RESOewfiufweiLVED')).rejects.toThrow(
-        Error
+    it('should throw NotFoundException when the report does not exist', async () => {
+      mockReportModel.findUnique.mockResolvedValueOnce(null);
+
+      await expect(service.updateStatus('missing-report', 'RESOLVED')).rejects.toThrow(
+        NotFoundException
       );
       expect(mockReportModel.update).not.toHaveBeenCalled();
     });

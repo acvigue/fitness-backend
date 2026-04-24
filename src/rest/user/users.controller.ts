@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { UserService } from './user.service';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { ApiCommonErrorResponses, ApiNotFoundResponse } from '@/rest/common';
+import { CurrentUser } from '@/shared/current-user.decorator';
+import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -15,7 +17,10 @@ export class UsersController {
   @ApiResponse({ status: 200, type: UserProfileResponseDto })
   @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
-  async getUserProfile(@Param('userId') userId: string): Promise<UserProfileResponseDto> {
-    return this.userService.getProfile(userId);
+  async getUserProfile(
+    @Param('userId') userId: string,
+    @CurrentUser() viewer: AuthenticatedUser
+  ): Promise<UserProfileResponseDto> {
+    return this.userService.getProfile(userId, viewer.sub);
   }
 }

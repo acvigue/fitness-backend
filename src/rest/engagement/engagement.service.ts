@@ -1,21 +1,50 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import { EngagementType } from '@/generated/prisma/enums';
+import type { Prisma } from '@/generated/prisma/client';
+
+// Event types that are inherently cumulative — each occurrence is a distinct data point.
+const COUNTABLE_EVENT_TYPES = new Set<EngagementType>([EngagementType.MESSAGE_SENT]);
 
 @Injectable()
 export class EngagementService {
   private readonly prisma = prisma;
 
-  async trackEvent(params: {
-    userId: string;
-    type: EngagementType;
-    targetUserId?: string;
-    teamId?: string;
-    chatId?: string;
-    metadata?: Record<string, any>;
-  }) {
+  async trackEvent(
+    params: {
+      userId: string;
+      type: EngagementType;
+      targetUserId?: string;
+      teamId?: string;
+      chatId?: string;
+      metadata?: Record<string, unknown>;
+    },
+    authenticatedUserId: string
+  ) {
+    if (params.userId !== authenticatedUserId) {
+      throw new ForbiddenException('Cannot record engagement on behalf of another user');
+    }
+
+    if (!COUNTABLE_EVENT_TYPES.has(params.type)) {
+      const existing = await this.prisma.engagementEvent.findFirst({
+        where: {
+          userId: params.userId,
+          type: params.type,
+          targetUserId: params.targetUserId ?? null,
+          teamId: params.teamId ?? null,
+          chatId: params.chatId ?? null,
+        },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
     return this.prisma.engagementEvent.create({
-      data: params,
+      data: {
+        ...params,
+        metadata: params.metadata as Prisma.InputJsonValue | undefined,
+      },
     });
   }
 

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -94,6 +95,8 @@ function toResponse(tournament: {
 
 @Injectable()
 export class TournamentService {
+  private readonly logger = new Logger(TournamentService.name);
+
   constructor(
     private readonly notificationService: NotificationService,
     private readonly achievementService: AchievementService
@@ -736,8 +739,12 @@ export class TournamentService {
     const roundsMap = new Map<number, TournamentMatchResponseDto[]>();
     for (const m of matches) {
       const dto = this.toMatchResponse(m);
-      if (!roundsMap.has(m.round)) roundsMap.set(m.round, []);
-      roundsMap.get(m.round)!.push(dto);
+      let roundMatches = roundsMap.get(m.round);
+      if (!roundMatches) {
+        roundMatches = [];
+        roundsMap.set(m.round, roundMatches);
+      }
+      roundMatches.push(dto);
     }
 
     return {
@@ -821,7 +828,10 @@ export class TournamentService {
 
     const standings = tournament.teams
       .map((team) => {
-        const s = standingsMap.get(team.id)!;
+        const s = standingsMap.get(team.id);
+        if (!s) {
+          throw new Error(`Missing standings entry for team ${team.id}`);
+        }
         return {
           team: { id: team.id, name: team.name, captainId: team.captainId },
           played: s.played,
@@ -914,12 +924,22 @@ export class TournamentService {
 
       // Award match win achievement (fire-and-forget)
       if (winnerId) {
-        this.awardMatchAchievements(winnerId, false).catch(() => {});
+        this.awardMatchAchievements(winnerId, false).catch((err) =>
+          this.logger.error(
+            `Failed to award match achievements for team ${winnerId} (round-robin)`,
+            err
+          )
+        );
       }
 
       // If tournament just completed, award tournament win to top-standing team
       if (pendingCount === 0) {
-        this.awardRoundRobinWinner(tournamentId).catch(() => {});
+        this.awardRoundRobinWinner(tournamentId).catch((err) =>
+          this.logger.error(
+            `Failed to award round-robin winner for tournament ${tournamentId}`,
+            err
+          )
+        );
       }
     } else {
       // Single elimination bracket progression
@@ -935,7 +955,12 @@ export class TournamentService {
 
       // Award achievements to winning team members (fire-and-forget)
       if (winnerId) {
-        this.awardMatchAchievements(winnerId, !match.nextMatchId).catch(() => {});
+        this.awardMatchAchievements(winnerId, !match.nextMatchId).catch((err) =>
+          this.logger.error(
+            `Failed to award match achievements for team ${winnerId} (single-elim)`,
+            err
+          )
+        );
       }
     }
 

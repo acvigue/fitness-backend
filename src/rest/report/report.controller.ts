@@ -28,11 +28,11 @@ export class ReportController {
   }
 
   @Get('all')
-  @ApiOperation({ summary: 'Get all reports' })
+  @ApiOperation({ summary: 'Get all reports (organization admins only)' })
   @ApiResponse({ status: 200, type: [ReportResponseDto] })
   @ApiCommonErrorResponses()
-  findAll(): Promise<ReportResponseDto[]> {
-    return this.reportService.getAllReports();
+  findAll(@CurrentUser() user: AuthenticatedUser): Promise<ReportResponseDto[]> {
+    return this.reportService.getAllReports(user.sub);
   }
 
   @Get('user')

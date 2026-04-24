@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
@@ -17,8 +18,17 @@ import type { ChatPaginationParams } from '@/rest/chat/dto/chat-history-query.dt
 
 const MEMBER_SELECT = { id: true, username: true, name: true } as const;
 
+function assertTeamId(value: string | null, chatId: string): string {
+  if (!value) {
+    throw new Error(`Team chat ${chatId} is missing a team reference`);
+  }
+  return value;
+}
+
 @Injectable()
 export class TeamChatService {
+  private readonly logger = new Logger(TeamChatService.name);
+
   constructor(
     private readonly chatService: ChatService,
     private readonly teamBlockService: TeamBlockService,
@@ -69,8 +79,8 @@ export class TeamChatService {
       return {
         id: existing.id,
         name: existing.name,
-        team1Id: existing.team1Id!,
-        team2Id: existing.team2Id!,
+        team1Id: assertTeamId(existing.team1Id, existing.id),
+        team2Id: assertTeamId(existing.team2Id, existing.id),
         members: existing.members,
         createdAt: existing.createdAt,
       };
@@ -98,8 +108,8 @@ export class TeamChatService {
     return {
       id: chat.id,
       name: chat.name,
-      team1Id: chat.team1Id!,
-      team2Id: chat.team2Id!,
+      team1Id: assertTeamId(chat.team1Id, chat.id),
+      team2Id: assertTeamId(chat.team2Id, chat.id),
       members: chat.members,
       createdAt: chat.createdAt,
     };
@@ -128,8 +138,8 @@ export class TeamChatService {
     return chats.map((c) => ({
       id: c.id,
       name: c.name,
-      team1Id: c.team1Id!,
-      team2Id: c.team2Id!,
+      team1Id: assertTeamId(c.team1Id, c.id),
+      team2Id: assertTeamId(c.team2Id, c.id),
       members: c.members,
       createdAt: c.createdAt,
     }));
@@ -149,14 +159,17 @@ export class TeamChatService {
       throw new NotFoundException('Team chat not found');
     }
 
+    const team1Id = assertTeamId(chat.team1Id, chat.id);
+    const team2Id = assertTeamId(chat.team2Id, chat.id);
+
     // Re-check block status
-    const blocked = await this.teamBlockService.isBlocked(chat.team1Id!, chat.team2Id!);
+    const blocked = await this.teamBlockService.isBlocked(team1Id, team2Id);
     if (blocked) {
       throw new ForbiddenException('Messaging between these teams is blocked');
     }
 
     // Lazy membership sync: if user is in either team but not in chat, add them
-    await this.syncMemberIfNeeded(chatId, chat.team1Id!, chat.team2Id!, userId);
+    await this.syncMemberIfNeeded(chatId, team1Id, team2Id, userId);
 
     // Delegate to existing chat service
     const message = await this.chatService.sendMessage(
@@ -165,7 +178,9 @@ export class TeamChatService {
     );
 
     // Notify other team's members (fire-and-forget)
-    this.notifyOtherTeam(chat.team1Id!, chat.team2Id!, userId, chatId).catch(() => {});
+    this.notifyOtherTeam(team1Id, team2Id, userId, chatId).catch((err) =>
+      this.logger.error(`Failed to notify other team for chat ${chatId}`, err)
+    );
 
     return message;
   }
@@ -184,8 +199,11 @@ export class TeamChatService {
       throw new NotFoundException('Team chat not found');
     }
 
+    const team1Id = assertTeamId(chat.team1Id, chat.id);
+    const team2Id = assertTeamId(chat.team2Id, chat.id);
+
     // Lazy membership sync
-    await this.syncMemberIfNeeded(chatId, chat.team1Id!, chat.team2Id!, userId);
+    await this.syncMemberIfNeeded(chatId, team1Id, team2Id, userId);
 
     return this.chatService.getHistory(chatId, userId, pagination);
   }

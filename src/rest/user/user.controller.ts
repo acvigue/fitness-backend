@@ -79,7 +79,7 @@ export class UserController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, type: UserProfileResponseDto })
   async getProfile(@CurrentUser() user: AuthenticatedUser): Promise<UserProfileResponseDto> {
-    return this.userService.getProfile(user.sub);
+    return this.userService.getProfile(user.sub, user.sub);
   }
 
   @Patch('profile')

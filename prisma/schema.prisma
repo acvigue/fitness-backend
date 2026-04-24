@@ -155,13 +155,16 @@ enum StatusOnReport {
 
 model Report {
   id           String         @id @default(cuid())
-  reporter     User           @relation("ReportSubmitter", fields: [userId1], references: [id])
+  reporter     User           @relation("ReportSubmitter", fields: [userId1], references: [id], onDelete: Cascade)
   userId1      String
-  reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id])
+  reportedUser User           @relation("ReportedUser", fields: [userId2], references: [id], onDelete: Cascade)
   userId2      String
   reason       String?
   status       StatusOnReport @default(PENDING)
   createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@index([userId1])
+  @@index([userId2])
 }
 
 enum ChatType {
@@ -274,7 +277,7 @@ model UserAchievement {
 model Tournament {
   id     String           @id @unique @default(cuid())
   name   String
-  sport  Sport            @relation(fields: [sportId], references: [id])
+  sport  Sport            @relation(fields: [sportId], references: [id], onDelete: Restrict)
   format TournamentFormat @default(SINGLE_ELIMINATION)
   status TournamentStatus @default(OPEN)
 
@@ -283,9 +286,9 @@ model Tournament {
   createdAt DateTime @default(now()) @map("created_at")
 
   createdById    String       @map("created_by_id")
-  createdBy      User         @relation("TournamentCreator", fields: [createdById], references: [id])
+  createdBy      User         @relation("TournamentCreator", fields: [createdById], references: [id], onDelete: Cascade)
   organizationId String       @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   users        User[]                 @relation("TournamentParticipants")
   teams        Team[]                 @relation("TournamentTeams")
@@ -348,18 +351,18 @@ model TournamentMatch {
   matchNumber  Int        @map("match_number")
 
   team1Id    String? @map("team1_id")
-  team1      Team?   @relation("MatchTeam1", fields: [team1Id], references: [id])
+  team1      Team?   @relation("MatchTeam1", fields: [team1Id], references: [id], onDelete: SetNull)
   team2Id    String? @map("team2_id")
-  team2      Team?   @relation("MatchTeam2", fields: [team2Id], references: [id])
+  team2      Team?   @relation("MatchTeam2", fields: [team2Id], references: [id], onDelete: SetNull)
   team1Score Int?    @map("team1_score")
   team2Score Int?    @map("team2_score")
   winnerId   String? @map("winner_id")
-  winner     Team?   @relation("MatchWinner", fields: [winnerId], references: [id])
+  winner     Team?   @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
 
   status MatchStatus @default(PENDING)
 
   nextMatchId     String?           @map("next_match_id")
-  nextMatch       TournamentMatch?  @relation("BracketProgression", fields: [nextMatchId], references: [id])
+  nextMatch       TournamentMatch?  @relation("BracketProgression", fields: [nextMatchId], references: [id], onDelete: SetNull)
   previousMatches TournamentMatch[] @relation("BracketProgression")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -562,13 +565,13 @@ model EngagementEvent {
   type EngagementType
 
   targetUserId String? @map("target_user_id")
-  targetUser   User?   @relation("TargetUserEngagement", fields: [targetUserId], references: [id])
+  targetUser   User?   @relation("TargetUserEngagement", fields: [targetUserId], references: [id], onDelete: SetNull)
 
   teamId String? @map("team_id")
-  team   Team?   @relation(fields: [teamId], references: [id])
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   chatId String? @map("chat_id")
-  chat   Chat?   @relation(fields: [chatId], references: [id])
+  chat   Chat?   @relation(fields: [chatId], references: [id], onDelete: SetNull)
 
   metadata Json?
 
@@ -587,7 +590,7 @@ model Video {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   sportId     String   @map("sport_id") @db.Uuid
-  sport       Sport    @relation(fields: [sportId], references: [id])
+  sport       Sport    @relation(fields: [sportId], references: [id], onDelete: Restrict)
   url         String
   mimeType    String   @map("mime_type")
   size        Int

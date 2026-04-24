@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import type { StatusOnReport } from '@/generated/prisma/enums';
 import type { CreateReportDto } from './dto/create-report.dto';
@@ -41,7 +46,9 @@ export class ReportService {
     };
   }
 
-  async getAllReports(): Promise<ReportResponseDto[]> {
+  async getAllReports(requesterId: string): Promise<ReportResponseDto[]> {
+    await this.ensureOrgAdmin(requesterId);
+
     const reports = await prisma.report.findMany({ orderBy: { createdAt: 'desc' } });
     return reports.map((r) => ({
       reporterId: r.userId1,
@@ -50,6 +57,17 @@ export class ReportService {
       status: r.status,
       createdAt: r.createdAt,
     }));
+  }
+
+  private async ensureOrgAdmin(userId: string) {
+    const adminMembership = await prisma.organizationMember.findFirst({
+      where: { userId, role: 'ADMIN' },
+      select: { id: true },
+    });
+
+    if (!adminMembership) {
+      throw new ForbiddenException('Only organization admins can list all reports');
+    }
   }
 
   async getReportsForUser(userId: string): Promise<ReportResponseDto[]> {

@@ -1,5 +1,5 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { OidcAuthService, type AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
@@ -9,6 +9,8 @@ import { prisma, redis } from '@/shared/utils';
 
 @Injectable()
 export class OidcAuthGuard implements CanActivate {
+  private readonly logger = new Logger(OidcAuthGuard.name);
+
   constructor(
     private readonly authService: OidcAuthService,
     private readonly reflector: Reflector
@@ -48,7 +50,9 @@ export class OidcAuthGuard implements CanActivate {
     request.user = user;
 
     // Fire-and-forget: upsert user in the background
-    this.syncUser(user).catch(() => {});
+    this.syncUser(user).catch((err) =>
+      this.logger.error(`Background user sync failed for ${user.sub}`, err)
+    );
 
     return true;
   }

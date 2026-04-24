@@ -4,28 +4,28 @@ import { NotificationService } from '@/rest/notification/notification.service';
 import { UserService } from '@/rest/user/user.service';
 import { AchievementService } from '@/rest/achievement/achievement.service';
 import type { VideoCreateDto } from './dto/video-create.dto';
-import type { VideoResponseDto, PaginatedVideoResponseDto } from './dto/video-response.dto';
+import type { VideoResponseDto } from './dto/video-response.dto';
 import type { VideoUpdateDto } from './dto/video-update.dto';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 
 function toResponse(video: {
-    id: string;
-    name: string;
-    description: string;
-    uploaderId: string;
-    sportId: string;
-    url: string;
-  }): VideoResponseDto {
-    return {
-      id: video.id,
-      name: video.name,
-      description: video.description,
-      uploaderId: video.uploaderId,
-      sportId: video.sportId,
-      url: video.url,
-    };
-  }
+  id: string;
+  name: string;
+  description: string;
+  uploaderId: string;
+  sportId: string;
+  url: string;
+}): VideoResponseDto {
+  return {
+    id: video.id,
+    name: video.name,
+    description: video.description,
+    uploaderId: video.uploaderId,
+    sportId: video.sportId,
+    url: video.url,
+  };
+}
 
 @Injectable()
 export class VideoService {
@@ -35,7 +35,6 @@ export class VideoService {
     private readonly achievementService: AchievementService
   ) {}
 
-
   async create(dto: VideoCreateDto, userId: string): Promise<VideoResponseDto> {
     const video = await prisma.video.create({
       data: {
@@ -44,12 +43,14 @@ export class VideoService {
         uploaderId: userId,
         sportId: dto.sportId,
         url: dto.url,
+        mimeType: dto.mimeType,
+        size: dto.size,
       },
     });
 
-    return this.toResponse(video);
+    return toResponse(video);
   }
-  
+
   async findAll(
     pagination: PaginationParams,
     filters?: {
@@ -86,7 +87,7 @@ export class VideoService {
       throw new NotFoundException('Video not found');
     }
 
-    return this.toResponse(video);
+    return toResponse(video);
   }
 
   async update(id: string, dto: VideoUpdateDto, userId: string): Promise<VideoResponseDto> {
@@ -112,7 +113,7 @@ export class VideoService {
       },
     });
 
-    return this.toResponse(updatedVideo);
+    return toResponse(updatedVideo);
   }
 
   async delete(id: string, userId: string) {
@@ -132,6 +133,4 @@ export class VideoService {
       where: { id },
     });
   }
-
-  
 }
