@@ -47,6 +47,8 @@ export class OidcAuthGuard implements CanActivate {
       throw new UnauthorizedException('Session has been revoked');
     }
 
+    await this.ensureNotSuspendedOrBanned(user.sub);
+
     request.user = user;
 
     // Fire-and-forget: upsert user in the background
@@ -76,6 +78,22 @@ export class OidcAuthGuard implements CanActivate {
         username: user.username,
       },
     });
+  }
+
+  private async ensureNotSuspendedOrBanned(userId: string): Promise<void> {
+    const now = new Date();
+    const [activeBan, activeSuspension] = await Promise.all([
+      prisma.userBan.findFirst({
+        where: { userId, revokedAt: null },
+        select: { id: true },
+      }),
+      prisma.userSuspension.findFirst({
+        where: { userId, revokedAt: null, endsAt: { gt: now } },
+        select: { id: true },
+      }),
+    ]);
+    if (activeBan) throw new UnauthorizedException('Your account has been banned');
+    if (activeSuspension) throw new UnauthorizedException('Your account is suspended');
   }
 
   private extractBearerToken(request: Request): string {

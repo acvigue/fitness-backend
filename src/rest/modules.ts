@@ -10,6 +10,7 @@ import { ReminderModule } from '@/rest/reminder/reminder.module';
 import { ReportModule } from '@/rest/report/report.module';
 import { SportModule } from '@/rest/sport/sport.module';
 import { MeetupModule } from '@/rest/meetup/meetup.module';
+import { ModerationModule } from '@/rest/moderation/moderation.module';
 import { TeamModule } from '@/rest/team/team.module';
 import { TeamBlockModule } from '@/rest/team-block/team-block.module';
 import { TeamChatModule } from '@/rest/team-chat/team-chat.module';
@@ -29,6 +30,7 @@ export const restFeatureModules = [
   GymModule,
   HealthModule,
   MeetupModule,
+  ModerationModule,
   NotificationModule,
   OrganizationModule,
   ReminderModule,

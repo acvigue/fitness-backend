@@ -81,15 +81,18 @@ describe('ChatService', () => {
     didBlock: vi.fn().mockResolvedValue(false),
   };
   const mockEngagementService = { recordEvent: vi.fn().mockResolvedValue({}) };
+  const mockModerationService = { assertAllowed: vi.fn().mockResolvedValue(undefined) };
 
   beforeAll(async () => {
     const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const { EngagementService } = await import('@/rest/engagement/engagement.service');
+    const { ModerationService } = await import('@/rest/moderation/moderation.service');
     const module = await Test.createTestingModule({
       providers: [
         ChatService,
         { provide: UserBlockService, useValue: mockUserBlockService },
         { provide: EngagementService, useValue: mockEngagementService },
+        { provide: ModerationService, useValue: mockModerationService },
       ],
     }).compile();
 

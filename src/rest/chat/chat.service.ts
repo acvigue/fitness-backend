@@ -8,6 +8,7 @@ import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
 import { EngagementService } from '@/rest/engagement/engagement.service';
+import { ModerationService } from '@/rest/moderation/moderation.service';
 import { EngagementType } from '@/generated/prisma/enums';
 import type { OrganizationRole } from '@/generated/prisma/client';
 import type { ChatResponseDto } from './dto/chat-response.dto';
@@ -33,7 +34,8 @@ function mapMedia(media: { id: string; url: string; mimeType: string }[]) {
 export class ChatService {
   constructor(
     private readonly userBlockService: UserBlockService,
-    private readonly engagementService: EngagementService
+    private readonly engagementService: EngagementService,
+    private readonly moderationService: ModerationService
   ) {}
 
   async getUserChats(userId: string): Promise<UserChatResponseDto[]> {
@@ -210,6 +212,8 @@ export class ChatService {
   }
 
   async sendMessage(dto: SendMessageDto, senderId: string): Promise<MessageResponseDto> {
+    await this.moderationService.assertAllowed(senderId, 'MESSAGING');
+
     const chat = await prisma.chat.findFirst({
       where: { id: dto.chatId, members: { some: { id: senderId } } },
       include: {

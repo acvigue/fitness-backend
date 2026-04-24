@@ -10,6 +10,7 @@ import { NotificationService } from '@/rest/notification/notification.service';
 import { UserService } from '@/rest/user/user.service';
 import { AchievementService } from '@/rest/achievement/achievement.service';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
+import { ModerationService } from '@/rest/moderation/moderation.service';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
@@ -25,7 +26,8 @@ export class TeamService {
     private readonly notificationService: NotificationService,
     private readonly userService: UserService,
     private readonly achievementService: AchievementService,
-    private readonly userBlockService: UserBlockService
+    private readonly userBlockService: UserBlockService,
+    private readonly moderationService: ModerationService
   ) {}
 
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
@@ -309,6 +311,8 @@ export class TeamService {
   }
 
   async requestToJoin(teamId: string, userId: string): Promise<TeamInvitationResponseDto> {
+    await this.moderationService.assertAllowed(userId, 'TEAM_JOIN');
+
     const team = await prisma.team.findUnique({ where: { id: teamId } });
 
     if (!team) {
@@ -367,6 +371,10 @@ export class TeamService {
 
     if (invitation.type === 'REQUEST' && invitation.team.captainId !== userId) {
       throw new ForbiddenException('Only the team captain can respond to join requests');
+    }
+
+    if (accept) {
+      await this.moderationService.assertAllowed(invitation.userId, 'TEAM_JOIN');
     }
 
     const status = accept ? 'ACCEPTED' : 'DECLINED';

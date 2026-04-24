@@ -53,7 +53,83 @@ model User {
   reminderPreferences ReminderPreference[]
   reminderDispatches  ReminderDispatch[]
 
+  suspensions  UserSuspension[]  @relation("SuspensionUser")
+  bans         UserBan[]         @relation("BanUser")
+  restrictions UserRestriction[] @relation("RestrictionUser")
+
   @@map("users")
+}
+
+model UserSuspension {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  user       User      @relation("SuspensionUser", fields: [userId], references: [id], onDelete: Cascade)
+  issuedById String    @map("issued_by_id")
+  reason     String
+  startsAt   DateTime  @default(now()) @map("starts_at")
+  endsAt     DateTime  @map("ends_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  appeals SuspensionAppeal[]
+
+  @@index([userId, revokedAt])
+  @@index([endsAt])
+  @@map("user_suspensions")
+}
+
+model UserBan {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  user       User      @relation("BanUser", fields: [userId], references: [id], onDelete: Cascade)
+  issuedById String    @map("issued_by_id")
+  reason     String
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, revokedAt])
+  @@map("user_bans")
+}
+
+enum SuspensionAppealStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model SuspensionAppeal {
+  id           String                 @id @default(cuid())
+  suspensionId String                 @map("suspension_id")
+  suspension   UserSuspension         @relation(fields: [suspensionId], references: [id], onDelete: Cascade)
+  userId       String                 @map("user_id")
+  message      String
+  status       SuspensionAppealStatus @default(PENDING)
+  createdAt    DateTime               @default(now()) @map("created_at")
+
+  @@index([suspensionId])
+  @@map("suspension_appeals")
+}
+
+enum RestrictionAction {
+  MESSAGING
+  TEAM_JOIN
+  TOURNAMENT_REGISTER
+}
+
+model UserRestriction {
+  id         String            @id @default(cuid())
+  userId     String            @map("user_id")
+  user       User              @relation("RestrictionUser", fields: [userId], references: [id], onDelete: Cascade)
+  issuedById String            @map("issued_by_id")
+  action     RestrictionAction
+  reason     String
+  endsAt     DateTime          @map("ends_at")
+  revokedAt  DateTime?         @map("revoked_at")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  @@index([userId, action, revokedAt])
+  @@index([endsAt])
+  @@map("user_restrictions")
 }
 
 model ReminderPreference {
@@ -302,6 +378,12 @@ model Message {
   media     Media[]     @relation("MessageMedia")
   read      Boolean     @default(false)
   createdAt DateTime    @default(now()) @map("created_at")
+
+  hiddenAt        DateTime? @map("hidden_at")
+  hiddenById      String?   @map("hidden_by_id")
+  deletedAt       DateTime? @map("deleted_at")
+  deletedById     String?   @map("deleted_by_id")
+  deletionReason  String?   @map("deletion_reason")
 
   reports Report[] @relation("ReportedMessage")
 

@@ -119,11 +119,16 @@ describe('TournamentService', () => {
   let service: InstanceType<typeof TournamentService>;
 
   beforeAll(async () => {
+    const { ModerationService } = await import('@/rest/moderation/moderation.service');
     const module = await Test.createTestingModule({
       providers: [
         TournamentService,
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: AchievementService, useValue: mockAchievementService },
+        {
+          provide: ModerationService,
+          useValue: { assertAllowed: vi.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

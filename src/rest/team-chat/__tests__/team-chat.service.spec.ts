@@ -66,6 +66,7 @@ describe('TeamChatService', () => {
   beforeAll(async () => {
     const { UserBlockService } = await import('@/rest/user-block/user-block.service');
     const { EngagementService } = await import('@/rest/engagement/engagement.service');
+    const { ModerationService } = await import('@/rest/moderation/moderation.service');
     const module = await Test.createTestingModule({
       providers: [
         TeamChatService,
@@ -80,6 +81,10 @@ describe('TeamChatService', () => {
           },
         },
         { provide: EngagementService, useValue: { recordEvent: vi.fn().mockResolvedValue({}) } },
+        {
+          provide: ModerationService,
+          useValue: { assertAllowed: vi.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

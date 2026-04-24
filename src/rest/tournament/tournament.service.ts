@@ -8,6 +8,7 @@ import {
 import { prisma } from '@/shared/utils';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { AchievementService } from '@/rest/achievement/achievement.service';
+import { ModerationService } from '@/rest/moderation/moderation.service';
 import type { PaginationParams } from '@/rest/common/pagination';
 import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateTournamentDto } from './dto/create-tournament.dto';
@@ -99,7 +100,8 @@ export class TournamentService {
 
   constructor(
     private readonly notificationService: NotificationService,
-    private readonly achievementService: AchievementService
+    private readonly achievementService: AchievementService,
+    private readonly moderationService: ModerationService
   ) {}
 
   async create(dto: CreateTournamentDto, userId: string): Promise<TournamentResponseDto> {
@@ -262,6 +264,8 @@ export class TournamentService {
     teamId: string,
     userId: string
   ): Promise<TournamentResponseDto> {
+    await this.moderationService.assertAllowed(userId, 'TOURNAMENT_REGISTER');
+
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: { teams: { select: { id: true } } },

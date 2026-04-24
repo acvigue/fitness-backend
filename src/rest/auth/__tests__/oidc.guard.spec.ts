@@ -11,8 +11,12 @@ vi.mock('@/shared/utils', () => ({
     user: {
       upsert: vi.fn().mockResolvedValue({}),
     },
+    userBan: { findFirst: vi.fn().mockResolvedValue(null) },
+    userSuspension: { findFirst: vi.fn().mockResolvedValue(null) },
   },
-  redis: {},
+  redis: {
+    exists: vi.fn().mockResolvedValue(0),
+  },
   redisSub: {},
 }));
 
