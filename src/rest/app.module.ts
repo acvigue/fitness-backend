@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { restFeatureModules } from '@/rest/modules';
 import { AuthModule } from '@/rest/auth/auth.module';
@@ -9,6 +10,7 @@ import { LoggerModule } from '@/shared/logger';
 @Module({
   imports: [
     LoggerModule,
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'short',

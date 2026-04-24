@@ -16,6 +16,23 @@ export class NotificationResponseDto {
   })
   content!: string;
 
+  @ApiProperty({
+    description: 'Additional structured metadata for client routing/actions',
+    required: false,
+    nullable: true,
+    type: 'object',
+    additionalProperties: true,
+  })
+  metadata?: Record<string, unknown> | null;
+
+  @ApiProperty({
+    description: 'Timestamp the notification was marked read',
+    format: 'date-time',
+    required: false,
+    nullable: true,
+  })
+  readAt?: string | null;
+
   @ApiProperty({ description: 'Whether the notification has been dismissed', example: false })
   dismissed!: boolean;
 

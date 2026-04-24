@@ -31,4 +31,16 @@ export class NotificationController {
   ): Promise<NotificationResponseDto> {
     return this.notificationService.dismiss(id, user.sub);
   }
+
+  @Patch(':id/read')
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  @ApiResponse({ status: 200, type: NotificationResponseDto })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  markRead(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<NotificationResponseDto> {
+    return this.notificationService.markRead(id, user.sub);
+  }
 }

@@ -12,15 +12,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id // OIDC subject (sub) claim
+  id        String     @id // OIDC subject (sub) claim
   email     String?
   name      String?
-  firstName String?  @map("first_name")
-  lastName  String?  @map("last_name")
+  firstName String?    @map("first_name")
+  lastName  String?    @map("last_name")
   username  String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  active    Boolean    @default(true)
+  role      SystemRole @default(STUDENT)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   profile UserProfile?
 
@@ -44,7 +45,17 @@ model User {
   engagementEvents         EngagementEvent[]
   targetedEngagementEvents EngagementEvent[] @relation("TargetUserEngagement")
 
+  auditLogsIssued AuditLog[] @relation("AuditActor")
+
   @@map("users")
+}
+
+enum SystemRole {
+  STUDENT
+  TEAM_CAPTAIN
+  ORG_MANAGER
+  DEPT_MANAGER
+  ADMIN
 }
 
 model Session {
@@ -374,17 +385,37 @@ model TournamentMatch {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
   content   String
-  dismissed Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  metadata  Json?
+  readAt    DateTime? @map("read_at")
+  dismissed Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@index([userId, dismissed])
+  @@index([userId, readAt])
   @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   @map("actor_id")
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 model Team {

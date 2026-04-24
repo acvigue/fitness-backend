@@ -7,6 +7,7 @@ const mockNotification = {
   findUnique: vi.fn(),
   update: vi.fn(),
   create: vi.fn(),
+  createMany: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -31,6 +32,8 @@ function mockN(overrides: Record<string, unknown> = {}) {
     type: 'TEAM_INVITE',
     title: 'Team Invitation',
     content: 'You have been invited to join Team Alpha',
+    metadata: null,
+    readAt: null,
     dismissed: false,
     createdAt: NOW,
     ...overrides,
@@ -103,6 +106,39 @@ describe('NotificationService', () => {
     });
   });
 
+  describe('markRead', () => {
+    it('should set readAt on the notification', async () => {
+      mockNotification.findUnique.mockResolvedValue(mockN());
+      mockNotification.update.mockResolvedValue(mockN({ readAt: NOW }));
+
+      const result = await service.markRead('notif-1', 'user-1');
+
+      expect(mockNotification.update).toHaveBeenCalledWith({
+        where: { id: 'notif-1' },
+        data: expect.objectContaining({ readAt: expect.any(Date) }),
+      });
+      expect(result.readAt).toBe(NOW.toISOString());
+    });
+
+    it('should not overwrite existing readAt', async () => {
+      const existingRead = new Date('2025-12-31T00:00:00Z');
+      mockNotification.findUnique.mockResolvedValue(mockN({ readAt: existingRead }));
+      mockNotification.update.mockResolvedValue(mockN({ readAt: existingRead }));
+
+      await service.markRead('notif-1', 'user-1');
+
+      expect(mockNotification.update).toHaveBeenCalledWith({
+        where: { id: 'notif-1' },
+        data: { readAt: existingRead },
+      });
+    });
+
+    it('should throw NotFoundException for missing notification', async () => {
+      mockNotification.findUnique.mockResolvedValue(null);
+      await expect(service.markRead('x', 'user-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('create', () => {
     it('should create a notification', async () => {
       mockNotification.create.mockResolvedValue(mockN());
@@ -120,9 +156,44 @@ describe('NotificationService', () => {
           type: 'TEAM_INVITE',
           title: 'Team Invitation',
           content: 'You have been invited to join Team Alpha',
+          metadata: undefined,
         },
       });
       expect(result.id).toBe('notif-1');
+    });
+
+    it('should pass metadata through to prisma', async () => {
+      mockNotification.create.mockResolvedValue(mockN({ metadata: { teamId: 't-1' } }));
+
+      await service.create('user-1', 'TEAM_INVITE', 'T', 'C', { teamId: 't-1' });
+
+      expect(mockNotification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ metadata: { teamId: 't-1' } }),
+      });
+    });
+  });
+
+  describe('createMany', () => {
+    it('returns 0 when input is empty', async () => {
+      const count = await service.createMany([]);
+      expect(count).toBe(0);
+      expect(mockNotification.createMany).not.toHaveBeenCalled();
+    });
+
+    it('batches multiple notifications and returns count', async () => {
+      mockNotification.createMany.mockResolvedValue({ count: 2 });
+      const count = await service.createMany([
+        { userId: 'u1', type: 'X', title: 'T', content: 'C' },
+        { userId: 'u2', type: 'X', title: 'T', content: 'C', metadata: { a: 1 } },
+      ]);
+
+      expect(count).toBe(2);
+      expect(mockNotification.createMany).toHaveBeenCalledWith({
+        data: [
+          { userId: 'u1', type: 'X', title: 'T', content: 'C', metadata: undefined },
+          { userId: 'u2', type: 'X', title: 'T', content: 'C', metadata: { a: 1 } },
+        ],
+      });
     });
   });
 });
