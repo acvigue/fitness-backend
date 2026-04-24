@@ -5,6 +5,7 @@ import { GymModule } from '@/rest/gym/gym.module';
 import { HealthModule } from '@/rest/health/health.module';
 import { NotificationModule } from '@/rest/notification/notification.module';
 import { OrganizationModule } from '@/rest/organization/organization.module';
+import { ReminderModule } from '@/rest/reminder/reminder.module';
 import { ReportModule } from '@/rest/report/report.module';
 import { SportModule } from '@/rest/sport/sport.module';
 import { MeetupModule } from '@/rest/meetup/meetup.module';
@@ -28,6 +29,7 @@ export const restFeatureModules = [
   MeetupModule,
   NotificationModule,
   OrganizationModule,
+  ReminderModule,
   ReportModule,
   SportModule,
   TeamModule,

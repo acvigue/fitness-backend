@@ -50,7 +50,39 @@ model User {
   blocksInitiated UserBlock[] @relation("UserBlocker")
   blocksReceived  UserBlock[] @relation("UserBlocked")
 
+  reminderPreferences ReminderPreference[]
+  reminderDispatches  ReminderDispatch[]
+
   @@map("users")
+}
+
+model ReminderPreference {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournamentId     String?  @map("tournament_id")
+  tournament       Tournament? @relation("ReminderPreferenceTournament", fields: [tournamentId], references: [id], onDelete: Cascade)
+  intervalsMinutes Int[]    @map("intervals_minutes")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, tournamentId])
+  @@index([tournamentId])
+  @@map("reminder_preferences")
+}
+
+model ReminderDispatch {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournamentId    String   @map("tournament_id")
+  tournament      Tournament @relation("ReminderDispatchTournament", fields: [tournamentId], references: [id], onDelete: Cascade)
+  intervalMinutes Int      @map("interval_minutes")
+  sentAt          DateTime @default(now()) @map("sent_at")
+
+  @@unique([userId, tournamentId, intervalMinutes])
+  @@index([tournamentId])
+  @@map("reminder_dispatches")
 }
 
 model UserBlock {
@@ -329,6 +361,8 @@ model Tournament {
   matches      TournamentMatch[]
   invitations  TournamentInvitation[]
   recaps       TournamentRecap[]
+  reminderPreferences ReminderPreference[] @relation("ReminderPreferenceTournament")
+  reminderDispatches  ReminderDispatch[]   @relation("ReminderDispatchTournament")
   sportId      String                 @map("sport_id") @db.Uuid
   userProfiles UserProfile[]          @relation("TournamentHistory")
 

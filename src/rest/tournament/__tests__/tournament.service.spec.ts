@@ -32,6 +32,7 @@ const mockTournamentMatch = {
   findMany: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  deleteMany: vi.fn(),
 };
 
 const mockTournamentRecap = {
@@ -1362,6 +1363,49 @@ describe('TournamentService', () => {
           'user-1'
         )
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('seedBracketFromStandings', () => {
+    it('rejects non-round-robin format', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({
+          format: 'SINGLE_ELIMINATION',
+          matches: [{ id: 'm-1', status: 'COMPLETED', round: 1 }],
+          teams: [],
+        })
+      );
+      mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+      await expect(service.seedBracketFromStandings('tournament-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('rejects when round robin has no matches', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({ format: 'ROUND_ROBIN', matches: [], teams: [] })
+      );
+      mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+      await expect(service.seedBracketFromStandings('tournament-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('rejects when pending matches remain', async () => {
+      mockTournament.findUnique.mockResolvedValue(
+        mockTournamentData({
+          format: 'ROUND_ROBIN',
+          matches: [
+            { id: 'm-1', status: 'COMPLETED', round: 1 },
+            { id: 'm-2', status: 'PENDING', round: 1 },
+          ],
+          teams: [],
+        })
+      );
+      mockOrganizationMember.findUnique.mockResolvedValue({ role: 'STAFF' });
+      await expect(service.seedBracketFromStandings('tournament-1', 'user-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 

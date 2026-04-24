@@ -1050,6 +1050,59 @@ export class TournamentService {
     };
   }
 
+  async seedBracketFromStandings(
+    tournamentId: string,
+    userId: string
+  ): Promise<TournamentBracketResponseDto> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        teams: { select: { id: true, name: true, captainId: true } },
+        matches: { select: { id: true, round: true, status: true } },
+      },
+    });
+
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (tournament.format !== 'ROUND_ROBIN') {
+      throw new BadRequestException(
+        'Bracket seeding from standings is only valid for round-robin tournaments'
+      );
+    }
+
+    if (tournament.matches.length === 0) {
+      throw new BadRequestException('Round robin has not yet been generated');
+    }
+
+    const pending = tournament.matches.find((m) => m.status === 'PENDING');
+    if (pending) {
+      throw new BadRequestException(
+        'All round robin matches must be completed before seeding the bracket'
+      );
+    }
+
+    const standings = await this.getStandings(tournamentId);
+    const ordered = standings.standings
+      .map((s) => tournament.teams.find((t) => t.id === s.teamId))
+      .filter((t): t is { id: string; name: string; captainId: string } => !!t);
+
+    // Clear existing round-robin matches — we're transitioning into a bracket phase.
+    await prisma.tournamentMatch.deleteMany({ where: { tournamentId } });
+
+    // Reseed: 1 v N, 2 v N-1, etc.
+    const seeded: typeof ordered = [];
+    for (let i = 0; i < Math.ceil(ordered.length / 2); i++) {
+      seeded.push(ordered[i]);
+      const mirror = ordered[ordered.length - 1 - i];
+      if (mirror && mirror.id !== ordered[i].id) {
+        seeded.push(mirror);
+      }
+    }
+
+    return this.generateSingleElimination(tournamentId, seeded);
+  }
+
   async listRecaps(tournamentId: string) {
     const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
     if (!tournament) {

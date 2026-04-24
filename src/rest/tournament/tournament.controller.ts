@@ -252,6 +252,22 @@ export class TournamentController {
     return this.tournamentService.getStandings(id);
   }
 
+  @Post(':id/seed-bracket')
+  @ApiOperation({
+    summary: 'Seed single-elimination bracket from round robin standings (org manager only)',
+  })
+  @ApiResponse({ status: 201, type: TournamentBracketResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Requires STAFF or ADMIN role in the organization')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  seedBracketFromStandings(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentBracketResponseDto> {
+    return this.tournamentService.seedBracketFromStandings(id, user.sub);
+  }
+
   @Get(':id/recaps')
   @ApiOperation({ summary: 'List recap videos for a tournament' })
   @ApiResponse({ status: 200, type: [TournamentRecapResponseDto] })
