@@ -3,8 +3,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPreference = {
   findMany: vi.fn(),
-  findUnique: vi.fn(),
-  upsert: vi.fn(),
+  findFirst: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
 };
 const mockDispatch = { create: vi.fn() };
 const mockTournament = { findMany: vi.fn() };
@@ -41,41 +42,51 @@ describe('ReminderService', () => {
   });
 
   describe('upsertPreference', () => {
-    it('stores global preference when tournamentId omitted', async () => {
-      mockPreference.upsert.mockResolvedValue({
+    it('creates a global preference when none exists', async () => {
+      mockPreference.findFirst.mockResolvedValue(null);
+      mockPreference.create.mockResolvedValue({
         id: 'p-1',
         tournamentId: null,
         intervalsMinutes: [1440, 60],
         updatedAt: NOW,
       });
       const result = await service.upsertPreference('u-1', { intervalsMinutes: [1440, 60] });
-      expect(mockPreference.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId_tournamentId: { userId: 'u-1', tournamentId: null } },
-        })
-      );
+      expect(mockPreference.findFirst).toHaveBeenCalledWith({
+        where: { userId: 'u-1', tournamentId: null },
+      });
+      expect(mockPreference.create).toHaveBeenCalledWith({
+        data: { userId: 'u-1', tournamentId: null, intervalsMinutes: [1440, 60] },
+      });
       expect(result.tournamentId).toBeNull();
     });
 
-    it('stores per-tournament preference', async () => {
-      mockPreference.upsert.mockResolvedValue({
+    it('updates an existing per-tournament preference', async () => {
+      mockPreference.findFirst.mockResolvedValue({
+        id: 'p-2',
+        tournamentId: 't-1',
+        intervalsMinutes: [120],
+        updatedAt: NOW,
+      });
+      mockPreference.update.mockResolvedValue({
         id: 'p-2',
         tournamentId: 't-1',
         intervalsMinutes: [60],
         updatedAt: NOW,
       });
       await service.upsertPreference('u-1', { intervalsMinutes: [60], tournamentId: 't-1' });
-      expect(mockPreference.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId_tournamentId: { userId: 'u-1', tournamentId: 't-1' } },
-        })
-      );
+      expect(mockPreference.findFirst).toHaveBeenCalledWith({
+        where: { userId: 'u-1', tournamentId: 't-1' },
+      });
+      expect(mockPreference.update).toHaveBeenCalledWith({
+        where: { id: 'p-2' },
+        data: { intervalsMinutes: [60] },
+      });
     });
   });
 
   describe('resolveIntervalsForUser', () => {
     it('prefers tournament-specific override', async () => {
-      mockPreference.findUnique
+      mockPreference.findFirst
         .mockResolvedValueOnce({ intervalsMinutes: [30] })
         .mockResolvedValueOnce({ intervalsMinutes: [1440] });
       const result = await service.resolveIntervalsForUser('u-1', 't-1');
@@ -83,7 +94,7 @@ describe('ReminderService', () => {
     });
 
     it('falls back to global preference', async () => {
-      mockPreference.findUnique
+      mockPreference.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ intervalsMinutes: [120] });
       const result = await service.resolveIntervalsForUser('u-1', 't-1');
@@ -91,7 +102,7 @@ describe('ReminderService', () => {
     });
 
     it('falls back to defaults when no preference exists', async () => {
-      mockPreference.findUnique.mockResolvedValue(null);
+      mockPreference.findFirst.mockResolvedValue(null);
       const result = await service.resolveIntervalsForUser('u-1', 't-1');
       expect(result).toEqual([1440, 60]);
     });
@@ -100,7 +111,7 @@ describe('ReminderService', () => {
   describe('fireRemindersForUser', () => {
     it('fires notifications for all intervals within window', async () => {
       // 60 min from start — both the 1440-min and 60-min reminders apply
-      mockPreference.findUnique.mockResolvedValue({ intervalsMinutes: [1440, 60] });
+      mockPreference.findFirst.mockResolvedValue({ intervalsMinutes: [1440, 60] });
       mockDispatch.create.mockResolvedValue({});
 
       await service.fireRemindersForUser('u-1', 't-1', 'Cup', START, NOW);
@@ -110,7 +121,7 @@ describe('ReminderService', () => {
     });
 
     it('skips already-dispatched intervals (unique constraint violation)', async () => {
-      mockPreference.findUnique.mockResolvedValue({ intervalsMinutes: [60] });
+      mockPreference.findFirst.mockResolvedValue({ intervalsMinutes: [60] });
       mockDispatch.create.mockRejectedValue(new Error('unique violation'));
 
       await service.fireRemindersForUser('u-1', 't-1', 'Cup', START, NOW);
@@ -119,7 +130,7 @@ describe('ReminderService', () => {
     });
 
     it('skips intervals further away than the remaining time', async () => {
-      mockPreference.findUnique.mockResolvedValue({ intervalsMinutes: [1440, 60] });
+      mockPreference.findFirst.mockResolvedValue({ intervalsMinutes: [1440, 60] });
       mockDispatch.create.mockResolvedValue({});
 
       // 2 days from start — nothing should fire yet (intervals < minutesUntilStart)

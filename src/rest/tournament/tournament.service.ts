@@ -1088,15 +1088,20 @@ export class TournamentService {
 
     const standings = await this.getStandings(tournamentId);
     const ordered = standings.standings
-      .map((s) => tournament.teams.find((t) => t.id === s.teamId))
+      .map((s) => tournament.teams.find((t) => t.id === s.team.id))
       .filter((t): t is { id: string; name: string; captainId: string } => !!t);
+
+    if (ordered.length < 2) {
+      throw new BadRequestException('At least 2 teams are required to seed a bracket');
+    }
 
     // Clear existing round-robin matches — we're transitioning into a bracket phase.
     await prisma.tournamentMatch.deleteMany({ where: { tournamentId } });
 
     // Reseed: 1 v N, 2 v N-1, etc.
     const seeded: typeof ordered = [];
-    for (let i = 0; i < Math.ceil(ordered.length / 2); i++) {
+    const half = Math.ceil(ordered.length / 2);
+    for (let i = 0; i < half; i++) {
       seeded.push(ordered[i]);
       const mirror = ordered[ordered.length - 1 - i];
       if (mirror && mirror.id !== ordered[i].id) {
@@ -1104,7 +1109,73 @@ export class TournamentService {
       }
     }
 
-    return this.generateSingleElimination(tournamentId, seeded);
+    return this.generateSingleEliminationBracket(tournamentId, seeded);
+  }
+
+  // Same as generateSingleElimination but skips the random shuffle (for seeded brackets).
+  private async generateSingleEliminationBracket(
+    tournamentId: string,
+    seededTeams: { id: string; name: string; captainId: string }[]
+  ): Promise<TournamentBracketResponseDto> {
+    const teams = seededTeams;
+    const bracketSize = nextPowerOfTwo(teams.length);
+    const totalRounds = Math.log2(bracketSize);
+
+    const matchIdsByRound: string[][] = [];
+
+    for (let round = totalRounds; round >= 1; round--) {
+      const matchesInRound = bracketSize / Math.pow(2, round);
+      const roundMatchIds: string[] = [];
+
+      for (let m = 1; m <= matchesInRound; m++) {
+        const nextMatchId =
+          round < totalRounds
+            ? matchIdsByRound[matchIdsByRound.length - 1][Math.ceil(m / 2) - 1]
+            : null;
+
+        const match = await prisma.tournamentMatch.create({
+          data: { tournamentId, round, matchNumber: m, nextMatchId },
+        });
+        roundMatchIds.push(match.id);
+      }
+
+      matchIdsByRound.push(roundMatchIds);
+    }
+
+    const round1MatchIds = matchIdsByRound[matchIdsByRound.length - 1];
+
+    for (let i = 0; i < round1MatchIds.length; i++) {
+      const team1 = teams[i * 2] ?? null;
+      const team2 = teams[i * 2 + 1] ?? null;
+      const isBye = !team1 || !team2;
+      const byeWinner = team1 ?? team2;
+
+      await prisma.tournamentMatch.update({
+        where: { id: round1MatchIds[i] },
+        data: {
+          team1Id: team1?.id ?? null,
+          team2Id: team2?.id ?? null,
+          status: isBye ? 'BYE' : 'PENDING',
+          winnerId: isBye ? (byeWinner?.id ?? null) : null,
+        },
+      });
+
+      if (isBye && byeWinner) {
+        const match = await prisma.tournamentMatch.findUnique({
+          where: { id: round1MatchIds[i] },
+        });
+        if (match?.nextMatchId) {
+          await this.placeWinnerInNextMatch(match.nextMatchId, byeWinner.id);
+        }
+      }
+    }
+
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { status: 'INPROGRESS' },
+    });
+
+    return this.getBracket(tournamentId);
   }
 
   async listRecaps(tournamentId: string) {
@@ -1131,6 +1202,8 @@ export class TournamentService {
         uploaderId: r.video.uploaderId,
         sportId: r.video.sportId,
         url: r.video.url,
+        mimeType: r.video.mimeType,
+        size: r.video.size,
       },
     }));
   }
@@ -1176,6 +1249,8 @@ export class TournamentService {
         uploaderId: recap.video.uploaderId,
         sportId: recap.video.sportId,
         url: recap.video.url,
+        mimeType: recap.video.mimeType,
+        size: recap.video.size,
       },
     };
   }

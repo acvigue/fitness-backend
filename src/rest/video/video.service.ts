@@ -17,6 +17,8 @@ function toResponse(video: {
   uploaderId: string;
   sportId: string;
   url: string;
+  mimeType: string;
+  size: number;
 }): VideoResponseDto {
   return {
     id: video.id,
@@ -25,6 +27,8 @@ function toResponse(video: {
     uploaderId: video.uploaderId,
     sportId: video.sportId,
     url: video.url,
+    mimeType: video.mimeType,
+    size: video.size,
   };
 }
 

@@ -27,28 +27,32 @@ export class ReminderService {
     userId: string,
     dto: UpdateReminderPreferenceDto
   ): Promise<ReminderPreferenceResponseDto> {
-    const pref = await prisma.reminderPreference.upsert({
-      where: {
-        userId_tournamentId: { userId, tournamentId: dto.tournamentId ?? null },
-      },
-      create: {
-        userId,
-        tournamentId: dto.tournamentId ?? null,
-        intervalsMinutes: dto.intervalsMinutes,
-      },
-      update: { intervalsMinutes: dto.intervalsMinutes },
+    const tournamentId = dto.tournamentId ?? null;
+    // Postgres treats NULL as distinct in UNIQUE indexes, so the (userId, tournamentId)
+    // unique constraint does not collapse multiple "global" rows together. Manually
+    // find-then-update or create to keep one row per (user, tournament|global) combo.
+    const existing = await prisma.reminderPreference.findFirst({
+      where: { userId, tournamentId },
     });
+    const pref = existing
+      ? await prisma.reminderPreference.update({
+          where: { id: existing.id },
+          data: { intervalsMinutes: dto.intervalsMinutes },
+        })
+      : await prisma.reminderPreference.create({
+          data: { userId, tournamentId, intervalsMinutes: dto.intervalsMinutes },
+        });
     return this.toResponse(pref);
   }
 
   async resolveIntervalsForUser(userId: string, tournamentId: string): Promise<number[]> {
-    const specific = await prisma.reminderPreference.findUnique({
-      where: { userId_tournamentId: { userId, tournamentId } },
+    const specific = await prisma.reminderPreference.findFirst({
+      where: { userId, tournamentId },
     });
     if (specific) return specific.intervalsMinutes;
 
-    const global = await prisma.reminderPreference.findUnique({
-      where: { userId_tournamentId: { userId, tournamentId: null } },
+    const global = await prisma.reminderPreference.findFirst({
+      where: { userId, tournamentId: null },
     });
     if (global) return global.intervalsMinutes;
 
@@ -59,12 +63,15 @@ export class ReminderService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async dispatchDueReminders(): Promise<void> {
     const now = new Date();
-    const horizon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const maxIntervalMinutes = await this.maxConfiguredIntervalMinutes();
+    const horizon = new Date(now.getTime() + maxIntervalMinutes * 60 * 1000);
 
+    // Anything not COMPLETED is eligible — INPROGRESS tournaments may still have a
+    // future start date when the bracket is generated ahead of time.
     const tournaments = await prisma.tournament.findMany({
       where: {
         startDate: { gt: now, lte: horizon },
-        status: { in: ['OPEN', 'CLOSED', 'UPCOMING'] },
+        status: { not: 'COMPLETED' },
       },
       include: { users: { select: { id: true } } },
     });
@@ -74,6 +81,20 @@ export class ReminderService {
         await this.fireRemindersForUser(participant.id, t.id, t.name, t.startDate, now);
       }
     }
+  }
+
+  private async maxConfiguredIntervalMinutes(): Promise<number> {
+    const defaultMax = Math.max(...DEFAULT_INTERVALS_MINUTES);
+    const prefs = await prisma.reminderPreference.findMany({
+      select: { intervalsMinutes: true },
+    });
+    let max = defaultMax;
+    for (const p of prefs) {
+      for (const m of p.intervalsMinutes) {
+        if (m > max) max = m;
+      }
+    }
+    return max;
   }
 
   async fireRemindersForUser(

@@ -132,6 +132,7 @@ describe('GymService (slots + subscriptions)', () => {
         reservedByTeamId: null,
         note: null,
       });
+      mockGymSubscription.findMany.mockResolvedValue([]);
 
       const result = await service.createSlot(
         'g-1',
@@ -139,6 +140,31 @@ describe('GymService (slots + subscriptions)', () => {
         'u-1'
       );
       expect(result.id).toBe('s-1');
+    });
+
+    it('notifies subscribers when slot is created', async () => {
+      mockGym.findUnique.mockResolvedValue({ id: 'g-1', organizationId: 'org-1' });
+      mockOrganizationMember.findUnique.mockResolvedValue({ id: 'm-1' });
+      mockGymSlot.create.mockResolvedValue({
+        id: 's-1',
+        gymId: 'g-1',
+        startsAt: NOW,
+        endsAt: NOW,
+        status: 'AVAILABLE',
+        reservedByTeamId: null,
+        note: null,
+      });
+      mockGymSubscription.findMany.mockResolvedValue([{ userId: 'u-sub-1' }]);
+
+      await service.createSlot(
+        'g-1',
+        { startsAt: '2026-01-01T00:00:00Z', endsAt: '2026-01-01T01:00:00Z' },
+        'u-1'
+      );
+
+      expect(notificationService.createMany).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'u-sub-1', type: 'GYM_STATUS_CHANGED' }),
+      ]);
     });
   });
 

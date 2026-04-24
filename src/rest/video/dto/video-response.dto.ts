@@ -27,6 +27,12 @@ export class VideoResponseDto {
 
   @ApiProperty({ description: 'Video url', type: String })
   url!: string;
+
+  @ApiProperty({ description: 'Video MIME type', example: 'video/mp4', type: String })
+  mimeType!: string;
+
+  @ApiProperty({ description: 'Video size in bytes', example: 1048576, type: Number })
+  size!: number;
 }
 
 export class PaginatedVideoResponseDto {

@@ -252,9 +252,20 @@ export class GymService {
       if (filters.to) start.lt = new Date(filters.to);
       where.startsAt = start;
     }
+    if (filters.location) {
+      where.gym = { location: { contains: filters.location, mode: 'insensitive' } };
+    }
+
+    const sortOrder = filters.sortOrder ?? 'asc';
+    const sortBy = filters.sortBy ?? 'startsAt';
+    const orderBy: Record<string, unknown>[] =
+      sortBy === 'location'
+        ? [{ gym: { location: sortOrder } }, { startsAt: sortOrder }]
+        : [{ [sortBy]: sortOrder }];
+
     const slots = await prisma.gymSlot.findMany({
       where,
-      orderBy: [{ startsAt: 'asc' }],
+      orderBy: orderBy as never,
     });
     return slots.map((s) => this.toSlotResponse(s));
   }
@@ -285,6 +296,9 @@ export class GymService {
         status: dto.status ?? 'AVAILABLE',
       },
     });
+
+    await this.dispatchStatusChangeNotifications(gymId, slot, /* isNew */ true);
+
     return this.toSlotResponse(slot);
   }
 
@@ -334,7 +348,8 @@ export class GymService {
 
   private async dispatchStatusChangeNotifications(
     gymId: string,
-    slot: { id: string; status: string; startsAt: Date; endsAt: Date }
+    slot: { id: string; status: string; startsAt: Date; endsAt: Date },
+    isNew = false
   ): Promise<void> {
     const subscriptions = await prisma.gymSubscription.findMany({
       where: { gymId },
@@ -342,8 +357,10 @@ export class GymService {
     });
     if (subscriptions.length === 0) return;
 
-    const title = 'Gym availability updated';
-    const content = `A gym you watch now has status ${slot.status}.`;
+    const title = isNew ? 'New gym availability' : 'Gym availability updated';
+    const content = isNew
+      ? `A gym you watch has a new ${slot.status} slot at ${slot.startsAt.toISOString()}.`
+      : `A gym you watch now has status ${slot.status}.`;
     await this.notificationService.createMany(
       subscriptions.map((s) => ({
         userId: s.userId,

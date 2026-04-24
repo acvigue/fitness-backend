@@ -12,7 +12,7 @@ import {
 
 @ApiTags('Broadcasts')
 @ApiBearerAuth()
-@Controller({ path: '', version: '1' })
+@Controller({ version: '1' })
 export class BroadcastController {
   constructor(private readonly broadcastService: BroadcastService) {}
 

@@ -1,6 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
 import { GymSlotStatus } from '@/generated/prisma/enums';
+
+export const GYM_SLOT_SORT_FIELDS = ['startsAt', 'endsAt', 'status', 'location'] as const;
+export type GymSlotSortField = (typeof GYM_SLOT_SORT_FIELDS)[number];
+export const GYM_SLOT_SORT_ORDERS = ['asc', 'desc'] as const;
+export type GymSlotSortOrder = (typeof GYM_SLOT_SORT_ORDERS)[number];
 
 export class GymSlotResponseDto {
   @ApiProperty({ type: String })
@@ -84,4 +89,30 @@ export class GymAvailabilityQueryDto {
   @IsOptional()
   @IsString()
   gymId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter slots whose gym location contains this string (case-insensitive)',
+    type: String,
+  })
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sort field',
+    enum: GYM_SLOT_SORT_FIELDS,
+    default: 'startsAt',
+  })
+  @IsOptional()
+  @IsIn(GYM_SLOT_SORT_FIELDS)
+  sortBy?: GymSlotSortField;
+
+  @ApiPropertyOptional({
+    description: 'Sort order',
+    enum: GYM_SLOT_SORT_ORDERS,
+    default: 'asc',
+  })
+  @IsOptional()
+  @IsIn(GYM_SLOT_SORT_ORDERS)
+  sortOrder?: GymSlotSortOrder;
 }
