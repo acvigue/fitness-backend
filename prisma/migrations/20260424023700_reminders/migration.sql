@@ -1,19 +1,3 @@
-
--- AlterEnum
--- This migration adds more than one value to an enum.
--- With PostgreSQL versions 11 and earlier, this is not possible
--- in a single migration. This can be worked around by creating
--- multiple migrations, each migration adding only one value to
--- the enum.
-
-
-ALTER TYPE "EngagementType" ADD VALUE 'TEAM_CHAT_MESSAGE';
-ALTER TYPE "EngagementType" ADD VALUE 'MEETUP_ATTENDED';
-ALTER TYPE "EngagementType" ADD VALUE 'INTER_TEAM_INTERACTION';
-
--- AlterTable
-ALTER TABLE "Report" ADD COLUMN     "message_id" TEXT;
-
 -- CreateTable
 CREATE TABLE "reminder_preferences" (
     "id" TEXT NOT NULL,
@@ -49,12 +33,6 @@ CREATE INDEX "reminder_dispatches_tournament_id_idx" ON "reminder_dispatches"("t
 -- CreateIndex
 CREATE UNIQUE INDEX "reminder_dispatches_user_id_tournament_id_interval_minutes_key" ON "reminder_dispatches"("user_id", "tournament_id", "interval_minutes");
 
--- CreateIndex
-CREATE INDEX "Report_message_id_idx" ON "Report"("message_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Report_userId1_message_id_key" ON "Report"("userId1", "message_id");
-
 -- AddForeignKey
 ALTER TABLE "reminder_preferences" ADD CONSTRAINT "reminder_preferences_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -66,7 +44,3 @@ ALTER TABLE "reminder_dispatches" ADD CONSTRAINT "reminder_dispatches_user_id_fk
 
 -- AddForeignKey
 ALTER TABLE "reminder_dispatches" ADD CONSTRAINT "reminder_dispatches_tournament_id_fkey" FOREIGN KEY ("tournament_id") REFERENCES "tournaments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Report" ADD CONSTRAINT "Report_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
