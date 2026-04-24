@@ -93,7 +93,7 @@ export class UserController {
   }
 
   @Get('profile/privacy')
-  @ApiOperation({ summary: 'Update current user profile privacy' })
+  @ApiOperation({ summary: 'Get current user profile privacy' })
   @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
   async getProfilePrivacy(
     @CurrentUser() user: AuthenticatedUser

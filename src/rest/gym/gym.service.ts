@@ -1,17 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { prisma } from '@/shared/utils';
 import { CreateGymDto, WeeklyAvailabilityRuleDto } from './dto/create-gym.dto';
 import { UpdateGymDto } from './dto/update-gym.dto';
 
 @Injectable()
 export class GymService {
-  constructor(private readonly prisma: PrismaService) {}
-
   async create(createGymDto: CreateGymDto) {
     const weeklyRules = createGymDto.weeklyRules ?? [];
     this.validateWeeklyRules(weeklyRules);
 
-    const gym = await this.prisma.$transaction(async (tx) => {
+    const gym = await prisma.$transaction(async (tx) => {
       const createdGym = await tx.gym.create({
         data: {
           name: createGymDto.name,
@@ -52,7 +50,7 @@ export class GymService {
   }
 
   async findAll() {
-    return this.prisma.gym.findMany({
+    return prisma.gym.findMany({
       include: {
         availabilityRules: {
           orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
@@ -65,7 +63,7 @@ export class GymService {
   }
 
   async findByOrganization(organizationId: string) {
-    return this.prisma.gym.findMany({
+    return prisma.gym.findMany({
       where: { organizationId },
       include: {
         availabilityRules: {
@@ -79,7 +77,7 @@ export class GymService {
   }
 
   async findOne(id: string) {
-    const gym = await this.prisma.gym.findUnique({
+    const gym = await prisma.gym.findUnique({
       where: { id },
       include: {
         availabilityRules: {
@@ -106,7 +104,7 @@ export class GymService {
       this.validateWeeklyRules(weeklyRules);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       await tx.gym.update({
         where: { id },
         data: {
@@ -156,13 +154,13 @@ export class GymService {
   async remove(id: string) {
     await this.ensureExists(id);
 
-    return this.prisma.gym.delete({
+    return prisma.gym.delete({
       where: { id },
     });
   }
 
   private async ensureExists(id: string) {
-    const gym = await this.prisma.gym.findUnique({
+    const gym = await prisma.gym.findUnique({
       where: { id },
       select: { id: true },
     });

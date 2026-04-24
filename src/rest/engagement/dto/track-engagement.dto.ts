@@ -1,24 +1,33 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
 import { EngagementType } from '@/generated/prisma/enums';
 
 export class TrackEngagementDto {
   @ApiProperty()
+  @IsString()
   userId!: string;
 
-  @ApiProperty({
-    enum: EngagementType,
-  })
+  @ApiProperty({ enum: EngagementType })
+  @IsEnum(EngagementType)
   type!: EngagementType;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
   targetUserId?: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
   teamId?: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
   chatId?: string;
 
-  @ApiProperty({ required: false })
-  metadata?: any;
+  @ApiPropertyOptional()
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 }

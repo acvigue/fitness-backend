@@ -1,4 +1,6 @@
 import { ChatModule } from '@/rest/chat/chat.module';
+import { EngagementModule } from '@/rest/engagement/engagement.module';
+import { GymModule } from '@/rest/gym/gym.module';
 import { HealthModule } from '@/rest/health/health.module';
 import { NotificationModule } from '@/rest/notification/notification.module';
 import { OrganizationModule } from '@/rest/organization/organization.module';
@@ -17,6 +19,8 @@ import { VideoModule } from './video/video.module';
 export const restFeatureModules = [
   AchievementModule,
   ChatModule,
+  EngagementModule,
+  GymModule,
   HealthModule,
   MeetupModule,
   NotificationModule,
