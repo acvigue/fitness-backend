@@ -28,6 +28,7 @@ export async function startRestServer(options: RestServerOptions = {}): Promise<
 
   const app = await NestFactory.create(AppModule, {
     logger: LoggerService.getLogLevels(),
+    rawBody: true,
   });
 
   app.useWebSocketAdapter(new IoAdapter(app));

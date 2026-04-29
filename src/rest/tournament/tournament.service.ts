@@ -19,6 +19,27 @@ import type { TournamentInvitationResponseDto } from './dto/tournament-invitatio
 import type { TournamentBracketResponseDto } from './dto/tournament-bracket-response.dto';
 import type { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
 import type { TournamentStandingsResponseDto } from './dto/tournament-standings-response.dto';
+import type { Prisma } from '@/generated/prisma/client';
+import { type VideoResponseDto, type VideoStatusValue } from '@/rest/video/dto/video-response.dto';
+import { MuxService } from '@/rest/video/mux.service';
+
+function videoToResponse(video: Prisma.VideoGetPayload<object>): VideoResponseDto {
+  const playbackId = video.muxPlaybackId;
+  return {
+    id: video.id,
+    name: video.name,
+    description: video.description,
+    uploaderId: video.uploaderId,
+    sportId: video.sportId,
+    status: video.status as VideoStatusValue,
+    playbackUrl: playbackId ? MuxService.playbackUrl(playbackId) : null,
+    thumbnailUrl: playbackId ? MuxService.thumbnailUrl(playbackId) : null,
+    durationSec: video.durationSec,
+    aspectRatio: video.aspectRatio,
+    createdAt: video.createdAt,
+    updatedAt: video.updatedAt,
+  };
+}
 
 const TOURNAMENT_INCLUDE = {
   sport: true,
@@ -1195,16 +1216,7 @@ export class TournamentService {
       tournamentId: r.tournamentId,
       uploadedById: r.uploadedById,
       createdAt: r.createdAt.toISOString(),
-      video: {
-        id: r.video.id,
-        name: r.video.name,
-        description: r.video.description,
-        uploaderId: r.video.uploaderId,
-        sportId: r.video.sportId,
-        url: r.video.url,
-        mimeType: r.video.mimeType,
-        size: r.video.size,
-      },
+      video: videoToResponse(r.video),
     }));
   }
 
@@ -1242,16 +1254,7 @@ export class TournamentService {
       tournamentId: recap.tournamentId,
       uploadedById: recap.uploadedById,
       createdAt: recap.createdAt.toISOString(),
-      video: {
-        id: recap.video.id,
-        name: recap.video.name,
-        description: recap.video.description,
-        uploaderId: recap.video.uploaderId,
-        sportId: recap.video.sportId,
-        url: recap.video.url,
-        mimeType: recap.video.mimeType,
-        size: recap.video.size,
-      },
+      video: videoToResponse(recap.video),
     };
   }
 

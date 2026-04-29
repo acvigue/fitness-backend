@@ -1,16 +1,19 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationMetaDto } from '@/rest/common/pagination';
+
+export const VIDEO_STATUSES = ['PENDING', 'PROCESSING', 'READY', 'ERRORED'] as const;
+export type VideoStatusValue = (typeof VIDEO_STATUSES)[number];
 
 export class VideoResponseDto {
   @ApiProperty({ description: 'Video ID', example: 'cm123abc456def789ghi0001', type: String })
   id!: string;
 
-  @ApiProperty({ description: 'Video name', example: 'Cool Video', type: String })
+  @ApiProperty({ description: 'Video name', example: 'Tournament Final', type: String })
   name!: string;
 
   @ApiProperty({
     description: 'Video description',
-    example: 'Cool stuff happens',
+    example: 'Final match of the spring tournament',
     type: String,
   })
   description!: string;
@@ -25,14 +28,59 @@ export class VideoResponseDto {
   })
   sportId!: string;
 
-  @ApiProperty({ description: 'Video url', type: String })
-  url!: string;
+  @ApiProperty({
+    description: 'Processing status of the video',
+    enum: VIDEO_STATUSES,
+    example: 'READY',
+  })
+  status!: VideoStatusValue;
 
-  @ApiProperty({ description: 'Video MIME type', example: 'video/mp4', type: String })
-  mimeType!: string;
+  @ApiPropertyOptional({
+    description: 'HLS playback URL — present once status is READY',
+    example: 'https://stream.mux.com/abc123.m3u8',
+    type: String,
+  })
+  playbackUrl!: string | null;
 
-  @ApiProperty({ description: 'Video size in bytes', example: 1048576, type: Number })
-  size!: number;
+  @ApiPropertyOptional({
+    description: 'Thumbnail URL — present once status is READY',
+    example: 'https://image.mux.com/abc123/thumbnail.jpg',
+    type: String,
+  })
+  thumbnailUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Duration in seconds — present once status is READY',
+    example: 123.45,
+    type: Number,
+  })
+  durationSec!: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Aspect ratio (width:height) — present once status is READY',
+    example: '16:9',
+    type: String,
+  })
+  aspectRatio!: string | null;
+
+  @ApiProperty({ description: 'Created timestamp', format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ description: 'Updated timestamp', format: 'date-time' })
+  updatedAt!: Date;
+}
+
+export class VideoCreateResponseDto {
+  @ApiProperty({ description: 'The created video record', type: VideoResponseDto })
+  video!: VideoResponseDto;
+
+  @ApiProperty({
+    description:
+      'Mux direct-upload URL — PUT the video file here. The browser should use UpChunk for chunked, resumable uploads.',
+    example: 'https://storage.googleapis.com/video-storage-...',
+    type: String,
+  })
+  uploadUrl!: string;
 }
 
 export class PaginatedVideoResponseDto {

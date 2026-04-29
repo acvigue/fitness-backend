@@ -57,6 +57,9 @@ model User {
   bans         UserBan[]         @relation("BanUser")
   restrictions UserRestriction[] @relation("RestrictionUser")
 
+  gymSubscriptions GymSubscription[]
+  gymSlotUpdates   GymSlot[]         @relation("GymSlotUpdater")
+
   @@map("users")
 }
 
@@ -596,6 +599,8 @@ model Team {
 
   engagementEvents EngagementEvent[]
 
+  gymSlotReservations GymSlot[] @relation("GymSlotReserver")
+
   @@index([captainId])
   @@index([sportId])
   @@map("teams")
@@ -664,19 +669,24 @@ model GymSlot {
   endsAt   DateTime      @map("ends_at")
   status   GymSlotStatus @default(AVAILABLE)
   reservedByTeamId String? @map("reserved_by_team_id")
+  reservedByTeam   Team?   @relation("GymSlotReserver", fields: [reservedByTeamId], references: [id], onDelete: SetNull)
   note     String?
   updatedById String?    @map("updated_by_id")
+  updatedBy   User?      @relation("GymSlotUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
 
   @@index([gymId, startsAt])
   @@index([status])
+  @@index([reservedByTeamId])
+  @@index([updatedById])
   @@map("gym_slots")
 }
 
 model GymSubscription {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   gymId     String   @map("gym_id")
   gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @map("created_at")
@@ -825,6 +835,13 @@ model EngagementEvent {
   @@map("engagement_events")
 }
 
+enum VideoStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERRORED
+}
+
 model Video {
   id          String   @id @default(cuid())
   uploaderId  String   @map("uploader_id")
@@ -833,14 +850,21 @@ model Video {
   updatedAt   DateTime @updatedAt @map("updated_at")
   sportId     String   @map("sport_id") @db.Uuid
   sport       Sport    @relation(fields: [sportId], references: [id], onDelete: Restrict)
-  url         String
-  mimeType    String   @map("mime_type")
-  size        Int
+
   name        String
   description String
 
-  progress TournamentRecap[]
+  status        VideoStatus @default(PENDING)
+  muxUploadId   String?     @unique @map("mux_upload_id")
+  muxAssetId    String?     @unique @map("mux_asset_id")
+  muxPlaybackId String?     @unique @map("mux_playback_id")
+  durationSec   Float?      @map("duration_sec")
+  aspectRatio   String?     @map("aspect_ratio")
+
+  progress      TournamentRecap[]
   watchProgress VideoProgress[]
+
+  @@index([status])
 }
 
 model VideoProgress {

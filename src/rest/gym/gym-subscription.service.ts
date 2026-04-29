@@ -1,16 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ApiProperty } from '@nestjs/swagger';
 import { prisma } from '@/shared/utils';
 
-export interface GymSubscriptionResponse {
-  id: string;
-  gymId: string;
-  userId: string;
-  createdAt: string;
+export class GymSubscriptionResponseDto {
+  @ApiProperty({ type: String })
+  id!: string;
+
+  @ApiProperty({ type: String })
+  gymId!: string;
+
+  @ApiProperty({ type: String })
+  userId!: string;
+
+  @ApiProperty({ format: 'date-time', type: String })
+  createdAt!: string;
 }
 
 @Injectable()
 export class GymSubscriptionService {
-  async subscribe(userId: string, gymId: string): Promise<GymSubscriptionResponse> {
+  async subscribe(userId: string, gymId: string): Promise<GymSubscriptionResponseDto> {
     const gym = await prisma.gym.findUnique({ where: { id: gymId }, select: { id: true } });
     if (!gym) throw new NotFoundException('Gym not found');
 
@@ -37,7 +45,7 @@ export class GymSubscriptionService {
     await prisma.gymSubscription.delete({ where: { id: existing.id } });
   }
 
-  async listForUser(userId: string): Promise<GymSubscriptionResponse[]> {
+  async listForUser(userId: string): Promise<GymSubscriptionResponseDto[]> {
     const subs = await prisma.gymSubscription.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },

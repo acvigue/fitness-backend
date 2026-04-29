@@ -15,7 +15,11 @@ import {
 } from '@/rest/common/pagination';
 import { VideoService } from './video.service';
 import { VideoCreateDto } from './dto/video-create.dto';
-import { VideoResponseDto, PaginatedVideoResponseDto } from './dto/video-response.dto';
+import {
+  PaginatedVideoResponseDto,
+  VideoCreateResponseDto,
+  VideoResponseDto,
+} from './dto/video-response.dto';
 import { VideoUpdateDto } from './dto/video-update.dto';
 import { UpdateVideoProgressDto, VideoProgressResponseDto } from './dto/video-progress.dto';
 
@@ -26,14 +30,18 @@ export class VideoController {
   constructor(private readonly videoService: VideoService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a video and assign creator as captain' })
-  @ApiResponse({ status: 201, type: VideoResponseDto })
+  @ApiOperation({
+    summary: 'Create a video record and request a Mux direct-upload URL',
+    description:
+      'Creates a Video row in PENDING status and returns a Mux direct-upload URL. The client must PUT the file (chunked, e.g. via UpChunk) to the returned `uploadUrl`. Status transitions to PROCESSING then READY are pushed via Mux webhooks.',
+  })
+  @ApiResponse({ status: 201, type: VideoCreateResponseDto })
   @ApiBadRequestResponse()
   @ApiCommonErrorResponses()
   create(
     @Body() dto: VideoCreateDto,
     @CurrentUser() user: AuthenticatedUser
-  ): Promise<VideoResponseDto> {
+  ): Promise<VideoCreateResponseDto> {
     return this.videoService.create(dto, user.sub);
   }
 

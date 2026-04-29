@@ -1,15 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsString, IsUUID, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class VideoCreateDto {
-  @ApiProperty({ description: 'Video name', example: 'Cool Video', type: String })
+  @ApiProperty({ description: 'Video name', example: 'Tournament Final', type: String })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   name!: string;
 
-  @ApiProperty({ description: 'Video description', example: 'Cool stuff happens', type: String })
+  @ApiProperty({
+    description: 'Video description',
+    example: 'Final match of the spring tournament',
+    type: String,
+  })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(2000)
   description!: string;
 
   @ApiProperty({
@@ -19,19 +25,4 @@ export class VideoCreateDto {
   })
   @IsUUID()
   sportId!: string;
-
-  @ApiProperty({ description: 'Video url', example: '123.123.123', type: String })
-  @IsString()
-  @IsNotEmpty()
-  url!: string;
-
-  @ApiProperty({ description: 'Video MIME type', example: 'video/mp4', type: String })
-  @IsString()
-  @IsNotEmpty()
-  mimeType!: string;
-
-  @ApiProperty({ description: 'Video size in bytes', example: 1048576, type: Number })
-  @IsInt()
-  @Min(0)
-  size!: number;
 }

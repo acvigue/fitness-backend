@@ -36,9 +36,12 @@ function mockVideoRecord(overrides: Record<string, unknown> = {}) {
     description: 'Intro to basketball',
     uploaderId: 'u-1',
     sportId: 'sport-1',
-    url: 'https://cdn.example/v-1.mp4',
-    mimeType: 'video/mp4',
-    size: 1000,
+    status: 'READY',
+    muxUploadId: 'upload-1',
+    muxAssetId: 'asset-1',
+    muxPlaybackId: 'playback-1',
+    durationSec: 120,
+    aspectRatio: '16:9',
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -55,11 +58,12 @@ describe('VideoService', () => {
         { provide: 'NotificationService', useValue: {} },
         { provide: 'UserService', useValue: {} },
         { provide: 'AchievementService', useValue: {} },
+        { provide: 'MuxService', useValue: {} },
       ],
     })
       .overrideProvider(VideoService)
       .useFactory({
-        factory: () => new VideoService({} as never, {} as never, {} as never),
+        factory: () => new VideoService({} as never, {} as never, {} as never, {} as never),
       })
       .compile();
 

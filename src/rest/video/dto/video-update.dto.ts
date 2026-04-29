@@ -1,32 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class VideoUpdateDto {
-  @ApiProperty({ description: 'Video name', example: 'Purdue Badminton A', type: String })
+  @ApiPropertyOptional({ description: 'Video name', example: 'Tournament Final', type: String })
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  @IsOptional()
+  @MaxLength(255)
+  name?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Sport ID (UUID)',
     example: '550e8400-e29b-41d4-a716-446655440000',
     type: String,
   })
   @IsUUID()
-  sportId!: string;
+  @IsOptional()
+  sportId?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Video description',
     example: 'Updated description',
-    required: false,
     type: String,
   })
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   description?: string;
-
-  @ApiProperty({ description: 'Video url', example: '123.123.123', type: String })
-  @IsString()
-  @IsNotEmpty()
-  url!: string;
 }
