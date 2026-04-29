@@ -32,10 +32,10 @@ export class TournamentMatchResponseDto {
 
   @ApiProperty({
     description: 'Match status',
-    enum: ['PENDING', 'COMPLETED', 'BYE'],
+    enum: ['PENDING', 'PENDING_CONFIRMATION', 'COMPLETED', 'BYE', 'FORFEIT'],
     example: 'PENDING',
   })
-  status!: 'PENDING' | 'COMPLETED' | 'BYE';
+  status!: 'PENDING' | 'PENDING_CONFIRMATION' | 'COMPLETED' | 'BYE' | 'FORFEIT';
 
   @ApiPropertyOptional({
     description: 'Next match ID the winner advances to',
@@ -43,4 +43,19 @@ export class TournamentMatchResponseDto {
     type: String,
   })
   nextMatchId!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Team that reported the current pending score, when status is PENDING_CONFIRMATION',
+    type: String,
+    nullable: true,
+  })
+  reportedByTeamId!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'When the current pending score was reported (ISO 8601)',
+    type: String,
+    nullable: true,
+    format: 'date-time',
+  })
+  scoreReportedAt!: string | null;
 }

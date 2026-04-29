@@ -50,4 +50,15 @@ export class UpdateTournamentDto {
   @IsIn(['OPEN', 'CLOSED', 'UPCOMING', 'INPROGRESS', 'COMPLETED'])
   @IsOptional()
   status?: 'OPEN' | 'CLOSED' | 'UPCOMING' | 'INPROGRESS' | 'COMPLETED';
+
+  @ApiPropertyOptional({
+    description:
+      'Registration closing time (ISO 8601). After this, joinTournament rejects new registrations. Pass null to clear.',
+    type: String,
+    nullable: true,
+    example: '2024-05-30T00:00:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  registrationClosesAt?: string | null;
 }

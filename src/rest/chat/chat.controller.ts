@@ -20,6 +20,7 @@ import { MessageResponseDto } from './dto/message-response.dto';
 import { chatPaginationSchema, type ChatPaginationParams } from './dto/chat-history-query.dto';
 import { searchMessagesSchema, type SearchMessagesParams } from './dto/search-messages-query.dto';
 import { SearchMessagesResponseDto } from './dto/search-messages-response.dto';
+import { MarkChatReadResponseDto } from './dto/mark-chat-read-response.dto';
 
 @ApiTags('Chats')
 @ApiBearerAuth()
@@ -101,6 +102,21 @@ export class ChatController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<MessageResponseDto> {
     return this.chatService.sendMessage(dto, user.sub);
+  }
+
+  @Post(':chatId/read')
+  @ApiOperation({
+    summary:
+      'Mark all unread messages in a chat as read (caller must be a chat member). Schema-level limitation: read is a per-message boolean, not per-user.',
+  })
+  @ApiResponse({ status: 201, type: MarkChatReadResponseDto })
+  @ApiForbiddenResponse()
+  @ApiCommonErrorResponses()
+  markChatRead(
+    @Param('chatId') chatId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<MarkChatReadResponseDto> {
+    return this.chatService.markChatRead(chatId, user.sub);
   }
 
   // ─── Announcement Channels ───────────────────────────────

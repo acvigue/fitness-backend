@@ -20,6 +20,7 @@ import type { TournamentBracketResponseDto } from './dto/tournament-bracket-resp
 import type { TournamentMatchResponseDto } from './dto/tournament-match-response.dto';
 import type { TournamentStandingsResponseDto } from './dto/tournament-standings-response.dto';
 import type { Prisma } from '@/generated/prisma/client';
+import type { TournamentStatus } from '@/generated/prisma/enums';
 import { type VideoResponseDto, type VideoStatusValue } from '@/rest/video/dto/video-response.dto';
 import { MuxService } from '@/rest/video/mux.service';
 
@@ -80,6 +81,7 @@ function toResponse(tournament: {
   organizationId: string;
   createdById: string;
   startDate: Date;
+  registrationClosesAt: Date | null;
   createdAt: Date;
   sport: { id: string; name: string; icon: string | null };
   users: { id: string; username: string | null; name: string | null; email: string | null }[];
@@ -94,6 +96,7 @@ function toResponse(tournament: {
     organizationId: tournament.organizationId,
     createdById: tournament.createdById,
     startDate: tournament.startDate.toISOString(),
+    registrationClosesAt: tournament.registrationClosesAt?.toISOString() ?? null,
     createdAt: tournament.createdAt.toISOString(),
     sport: {
       id: tournament.sport.id,
@@ -142,6 +145,7 @@ export class TournamentService {
         createdById: userId,
         maxTeams: dto.maxTeams,
         startDate: new Date(dto.startDate),
+        registrationClosesAt: dto.registrationClosesAt ? new Date(dto.registrationClosesAt) : null,
         format,
       },
       include: TOURNAMENT_INCLUDE,
@@ -241,11 +245,19 @@ export class TournamentService {
       }
     }
 
+    if (dto.status !== undefined && dto.status !== tournament.status) {
+      this.assertValidStatusTransition(tournament.status, dto.status);
+    }
+
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.maxTeams !== undefined) data.maxTeams = dto.maxTeams;
     if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.registrationClosesAt !== undefined) {
+      data.registrationClosesAt =
+        dto.registrationClosesAt === null ? null : new Date(dto.registrationClosesAt);
+    }
 
     const updated = await prisma.tournament.update({
       where: { id },
@@ -254,6 +266,24 @@ export class TournamentService {
     });
 
     return toResponse(updated);
+  }
+
+  private assertValidStatusTransition(from: TournamentStatus, to: TournamentStatus): void {
+    // Forward-only progression. CLOSED bridges OPEN→INPROGRESS so registration
+    // can be locked without immediately starting matches; UPCOMING is a status
+    // for "registration over, not yet started". COMPLETED is terminal.
+    const allowed: Record<TournamentStatus, TournamentStatus[]> = {
+      OPEN: ['CLOSED', 'UPCOMING', 'INPROGRESS', 'COMPLETED'],
+      CLOSED: ['OPEN', 'UPCOMING', 'INPROGRESS', 'COMPLETED'],
+      UPCOMING: ['INPROGRESS', 'COMPLETED'],
+      INPROGRESS: ['COMPLETED'],
+      COMPLETED: [],
+    };
+    if (!allowed[from].includes(to)) {
+      throw new BadRequestException(
+        `Invalid tournament status transition: ${from} → ${to}. Allowed from ${from}: ${allowed[from].join(', ') || '(terminal state)'}.`
+      );
+    }
   }
 
   async delete(id: string, userId: string): Promise<void> {
@@ -296,6 +326,10 @@ export class TournamentService {
 
     if (tournament.status !== 'OPEN') {
       throw new BadRequestException('Tournament is not open for registration');
+    }
+
+    if (tournament.registrationClosesAt && new Date() >= tournament.registrationClosesAt) {
+      throw new BadRequestException('Registration window has closed');
     }
 
     const team = await prisma.team.findUnique({ where: { id: teamId }, include: { users: true } });
@@ -992,6 +1026,327 @@ export class TournamentService {
     return this.toMatchResponse(updated);
   }
 
+  // ─── Captain-driven score reporting (two-team confirmation) ─────────
+
+  /**
+   * A team captain reports a tentative score. The match enters
+   * PENDING_CONFIRMATION; the opposing captain must `confirmMatchResult` to
+   * finalize, or `disputeMatchResult` to escalate to org staff. Org staff can
+   * still bypass the flow entirely with `recordMatchResult`.
+   */
+  async reportMatchResult(
+    tournamentId: string,
+    matchId: string,
+    dto: RecordMatchResultDto,
+    userId: string
+  ): Promise<TournamentMatchResponseDto> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    if (tournament.status !== 'INPROGRESS') {
+      throw new BadRequestException('Tournament is not in progress');
+    }
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      include: MATCH_INCLUDE,
+    });
+    if (!match || match.tournamentId !== tournamentId) {
+      throw new NotFoundException('Match not found in this tournament');
+    }
+    if (match.status !== 'PENDING' && match.status !== 'PENDING_CONFIRMATION') {
+      throw new BadRequestException('Match is not in a reportable state');
+    }
+    if (!match.team1Id || !match.team2Id) {
+      throw new BadRequestException('Both teams must be assigned before reporting a result');
+    }
+
+    const reportingTeamId = await this.requireCaptainOfMatchTeam(match, userId);
+
+    const updated = await prisma.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        team1Score: dto.team1Score,
+        team2Score: dto.team2Score,
+        status: 'PENDING_CONFIRMATION',
+        reportedByTeamId: reportingTeamId,
+        scoreReportedAt: new Date(),
+      },
+      include: MATCH_INCLUDE,
+    });
+
+    // Notify the opposing captain.
+    const opposingTeamId = reportingTeamId === match.team1Id ? match.team2Id : match.team1Id;
+    const opposingCaptain = await prisma.team.findUnique({
+      where: { id: opposingTeamId },
+      select: { captainId: true },
+    });
+    if (opposingCaptain) {
+      await this.notificationService
+        .create(
+          opposingCaptain.captainId,
+          'TOURNAMENT_MATCH_RESULT_PENDING',
+          'Score awaiting your confirmation',
+          'A score has been reported for one of your matches. Confirm or dispute it.',
+          { tournamentId, matchId }
+        )
+        .catch((err) => this.logger.warn('Failed to send score-pending notification', err));
+    }
+
+    return this.toMatchResponse(updated);
+  }
+
+  async confirmMatchResult(
+    tournamentId: string,
+    matchId: string,
+    userId: string
+  ): Promise<TournamentMatchResponseDto> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    if (tournament.status !== 'INPROGRESS') {
+      throw new BadRequestException('Tournament is not in progress');
+    }
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      include: { ...MATCH_INCLUDE, nextMatch: true },
+    });
+    if (!match || match.tournamentId !== tournamentId) {
+      throw new NotFoundException('Match not found in this tournament');
+    }
+    if (match.status !== 'PENDING_CONFIRMATION') {
+      throw new BadRequestException('Match is not awaiting confirmation');
+    }
+    if (!match.team1Id || !match.team2Id || !match.reportedByTeamId) {
+      throw new BadRequestException('Match is missing team or report data');
+    }
+    if (match.team1Score == null || match.team2Score == null) {
+      throw new BadRequestException('Reported scores are missing');
+    }
+
+    const confirmingTeamId = await this.requireCaptainOfMatchTeam(match, userId);
+    if (confirmingTeamId === match.reportedByTeamId) {
+      throw new ForbiddenException('The reporting team cannot confirm their own score');
+    }
+
+    return this.finalizeMatch(tournament, match, match.team1Score, match.team2Score, 'COMPLETED');
+  }
+
+  async disputeMatchResult(
+    tournamentId: string,
+    matchId: string,
+    userId: string
+  ): Promise<TournamentMatchResponseDto> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      include: MATCH_INCLUDE,
+    });
+    if (!match || match.tournamentId !== tournamentId) {
+      throw new NotFoundException('Match not found in this tournament');
+    }
+    if (match.status !== 'PENDING_CONFIRMATION') {
+      throw new BadRequestException('Match is not awaiting confirmation');
+    }
+
+    const disputingTeamId = await this.requireCaptainOfMatchTeam(match, userId);
+    if (disputingTeamId === match.reportedByTeamId) {
+      throw new ForbiddenException('The reporting team cannot dispute their own score');
+    }
+
+    const updated = await prisma.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        team1Score: null,
+        team2Score: null,
+        reportedByTeamId: null,
+        scoreReportedAt: null,
+        status: 'PENDING',
+      },
+      include: MATCH_INCLUDE,
+    });
+
+    // Notify org staff via a simple notification on the tournament creator.
+    await this.notificationService
+      .create(
+        tournament.createdById,
+        'TOURNAMENT_MATCH_RESULT_DISPUTED',
+        'Match score disputed',
+        'A reported tournament score has been disputed and needs staff review.',
+        { tournamentId, matchId }
+      )
+      .catch((err) => this.logger.warn('Failed to send dispute notification', err));
+
+    return this.toMatchResponse(updated);
+  }
+
+  // ─── Forfeit (org staff only) ───────────────────────────────────────
+
+  async forfeitMatch(
+    tournamentId: string,
+    matchId: string,
+    forfeitingTeamId: string,
+    userId: string
+  ): Promise<TournamentMatchResponseDto> {
+    const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!tournament) throw new NotFoundException('Tournament not found');
+    await this.requireOrgManager(tournament.organizationId, userId);
+
+    if (tournament.status !== 'INPROGRESS') {
+      throw new BadRequestException('Tournament is not in progress');
+    }
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      include: { ...MATCH_INCLUDE, nextMatch: true },
+    });
+    if (!match || match.tournamentId !== tournamentId) {
+      throw new NotFoundException('Match not found in this tournament');
+    }
+    if (match.status === 'COMPLETED' || match.status === 'FORFEIT' || match.status === 'BYE') {
+      throw new BadRequestException('Match is already finalized');
+    }
+    if (!match.team1Id || !match.team2Id) {
+      throw new BadRequestException('Both teams must be assigned to forfeit a match');
+    }
+    if (forfeitingTeamId !== match.team1Id && forfeitingTeamId !== match.team2Id) {
+      throw new BadRequestException('Forfeiting team is not in this match');
+    }
+
+    const winnerId = forfeitingTeamId === match.team1Id ? match.team2Id : match.team1Id;
+    const updated = await prisma.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        team1Score: forfeitingTeamId === match.team1Id ? 0 : 1,
+        team2Score: forfeitingTeamId === match.team2Id ? 0 : 1,
+        winnerId,
+        status: 'FORFEIT',
+        reportedByTeamId: null,
+        scoreReportedAt: null,
+      },
+      include: MATCH_INCLUDE,
+    });
+
+    if (tournament.format !== 'ROUND_ROBIN' && match.nextMatchId) {
+      await this.placeWinnerInNextMatch(match.nextMatchId, winnerId);
+    } else if (tournament.format !== 'ROUND_ROBIN' && !match.nextMatchId) {
+      await prisma.tournament.update({
+        where: { id: tournamentId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+
+    const forfeitingCaptain = await prisma.team.findUnique({
+      where: { id: forfeitingTeamId },
+      select: { captainId: true },
+    });
+    if (forfeitingCaptain) {
+      await this.notificationService
+        .create(
+          forfeitingCaptain.captainId,
+          'TOURNAMENT_FORFEIT_RECORDED',
+          'Match forfeit recorded',
+          'A staff member has recorded a forfeit for one of your matches.',
+          { tournamentId, matchId }
+        )
+        .catch((err) => this.logger.warn('Failed to send forfeit notification', err));
+    }
+
+    return this.toMatchResponse(updated);
+  }
+
+  /** Shared finalization path for confirmed matches. */
+  private async finalizeMatch(
+    tournament: { id: string; format: string },
+    match: {
+      id: string;
+      team1Id: string | null;
+      team2Id: string | null;
+      nextMatchId?: string | null;
+    },
+    team1Score: number,
+    team2Score: number,
+    status: 'COMPLETED'
+  ): Promise<TournamentMatchResponseDto> {
+    if (!match.team1Id || !match.team2Id) {
+      throw new BadRequestException('Both teams must be assigned to finalize a match');
+    }
+
+    const isRoundRobin = tournament.format === 'ROUND_ROBIN';
+    if (!isRoundRobin && team1Score === team2Score) {
+      throw new BadRequestException('Scores cannot be tied in single elimination');
+    }
+
+    const winnerId =
+      team1Score === team2Score ? null : team1Score > team2Score ? match.team1Id : match.team2Id;
+
+    const updated = await prisma.tournamentMatch.update({
+      where: { id: match.id },
+      data: {
+        team1Score,
+        team2Score,
+        winnerId,
+        status,
+        reportedByTeamId: null,
+        scoreReportedAt: null,
+      },
+      include: MATCH_INCLUDE,
+    });
+
+    if (isRoundRobin) {
+      const pendingCount = await prisma.tournamentMatch.count({
+        where: { tournamentId: tournament.id, status: { in: ['PENDING', 'PENDING_CONFIRMATION'] } },
+      });
+      if (pendingCount === 0) {
+        await prisma.tournament.update({
+          where: { id: tournament.id },
+          data: { status: 'COMPLETED' },
+        });
+        if (winnerId) {
+          this.awardMatchAchievements(winnerId, false).catch(() => undefined);
+        }
+        this.awardRoundRobinWinner(tournament.id).catch(() => undefined);
+      } else if (winnerId) {
+        this.awardMatchAchievements(winnerId, false).catch(() => undefined);
+      }
+    } else {
+      if (match.nextMatchId && winnerId) {
+        await this.placeWinnerInNextMatch(match.nextMatchId, winnerId);
+      } else if (!match.nextMatchId) {
+        await prisma.tournament.update({
+          where: { id: tournament.id },
+          data: { status: 'COMPLETED' },
+        });
+      }
+      if (winnerId) {
+        this.awardMatchAchievements(winnerId, !match.nextMatchId).catch(() => undefined);
+      }
+    }
+
+    return this.toMatchResponse(updated);
+  }
+
+  private async requireCaptainOfMatchTeam(
+    match: { team1Id: string | null; team2Id: string | null },
+    userId: string
+  ): Promise<string> {
+    const teamIds = [match.team1Id, match.team2Id].filter((id): id is string => Boolean(id));
+    if (teamIds.length === 0) {
+      throw new BadRequestException('Match has no teams assigned');
+    }
+    const captaincies = await prisma.team.findMany({
+      where: { id: { in: teamIds }, captainId: userId },
+      select: { id: true },
+    });
+    if (captaincies.length === 0) {
+      throw new ForbiddenException(
+        'You must be the captain of one of the participating teams to perform this action'
+      );
+    }
+    return captaincies[0].id;
+  }
+
   private async placeWinnerInNextMatch(nextMatchId: string, winnerId: string): Promise<void> {
     const nextMatch = await prisma.tournamentMatch.findUnique({
       where: { id: nextMatchId },
@@ -1044,6 +1399,8 @@ export class TournamentService {
     winner: { id: string; name: string; captainId: string } | null;
     status: string;
     nextMatchId: string | null;
+    reportedByTeamId?: string | null;
+    scoreReportedAt?: Date | null;
   }): TournamentMatchResponseDto {
     return {
       id: match.id,
@@ -1056,6 +1413,8 @@ export class TournamentService {
       winner: match.winner,
       status: match.status as TournamentMatchResponseDto['status'],
       nextMatchId: match.nextMatchId,
+      reportedByTeamId: match.reportedByTeamId ?? null,
+      scoreReportedAt: match.scoreReportedAt?.toISOString() ?? null,
     };
   }
 

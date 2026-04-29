@@ -11,6 +11,9 @@ import { UserService } from '@/rest/user/user.service';
 import { AchievementService } from '@/rest/achievement/achievement.service';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
 import { ModerationService } from '@/rest/moderation/moderation.service';
+import { EngagementService } from '@/rest/engagement/engagement.service';
+import { AuditService } from '@/rest/audit/audit.service';
+import { EngagementType } from '@/generated/prisma/enums';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
@@ -27,7 +30,9 @@ export class TeamService {
     private readonly userService: UserService,
     private readonly achievementService: AchievementService,
     private readonly userBlockService: UserBlockService,
-    private readonly moderationService: ModerationService
+    private readonly moderationService: ModerationService,
+    private readonly engagementService: EngagementService,
+    private readonly auditService: AuditService
   ) {}
 
   async create(dto: TeamCreateDto, userId: string): Promise<TeamResponseDto> {
@@ -154,6 +159,16 @@ export class TeamService {
       `You have transferred captaincy of team "${team.name}"`
     );
 
+    this.auditService
+      .log({
+        actorId: userId,
+        action: 'TEAM_CAPTAIN_TRANSFERRED',
+        targetType: 'team',
+        targetId: id,
+        metadata: { fromUserId: userId, toUserId: dto.captainId },
+      })
+      .catch((err) => this.logger.warn('Failed to audit captain transfer', err));
+
     return this.toResponse(updatedTeam);
   }
 
@@ -194,6 +209,20 @@ export class TeamService {
       }
     }
 
+    this.auditService
+      .log({
+        actorId: userId,
+        action: 'TEAM_DISBANDED',
+        targetType: 'team',
+        targetId: id,
+        metadata: {
+          name: team.name,
+          memberCount: team.users.length,
+          tournamentCount: team.tournaments.length,
+        },
+      })
+      .catch((err) => this.logger.warn('Failed to audit team disband', err));
+
     return { warning };
   }
 
@@ -229,6 +258,22 @@ export class TeamService {
       'Member Left Team',
       `A member has left team "${team.name}"`
     );
+
+    this.engagementService
+      .recordEvent({ userId, type: EngagementType.TEAM_LEAVE, teamId })
+      .catch((err) =>
+        this.logger.warn(`Failed to record TEAM_LEAVE engagement for ${userId}`, err)
+      );
+
+    this.auditService
+      .log({
+        actorId: userId,
+        action: 'TEAM_MEMBER_LEFT',
+        targetType: 'team',
+        targetId: teamId,
+        metadata: { userId },
+      })
+      .catch((err) => this.logger.warn('Failed to audit team leave', err));
   }
 
   async removeMember(teamId: string, targetUserId: string, userId: string): Promise<void> {
@@ -265,6 +310,26 @@ export class TeamService {
       'Removed from Team',
       `You have been removed from team "${team.name}"`
     );
+
+    this.engagementService
+      .recordEvent({
+        userId: targetUserId,
+        type: EngagementType.TEAM_LEAVE,
+        teamId,
+      })
+      .catch((err) =>
+        this.logger.warn(`Failed to record TEAM_LEAVE engagement for ${targetUserId}`, err)
+      );
+
+    this.auditService
+      .log({
+        actorId: userId,
+        action: 'TEAM_MEMBER_REMOVED',
+        targetType: 'team',
+        targetId: teamId,
+        metadata: { removedUserId: targetUserId },
+      })
+      .catch((err) => this.logger.warn('Failed to audit member removal', err));
   }
 
   // ─── Invitations ───────────────────────────────────────
@@ -400,6 +465,26 @@ export class TeamService {
         .catch((err) =>
           this.logger.error(`Failed to award TEAM_JOIN achievement for ${invitation.userId}`, err)
         );
+
+      this.engagementService
+        .recordEvent({
+          userId: invitation.userId,
+          type: EngagementType.TEAM_JOIN,
+          teamId: invitation.teamId,
+        })
+        .catch((err) =>
+          this.logger.warn(`Failed to record TEAM_JOIN engagement for ${invitation.userId}`, err)
+        );
+
+      this.auditService
+        .log({
+          actorId: userId,
+          action: 'TEAM_MEMBER_JOINED',
+          targetType: 'team',
+          targetId: invitation.teamId,
+          metadata: { userId: invitation.userId, invitationType: invitation.type },
+        })
+        .catch((err) => this.logger.warn(`Failed to write audit log on team join`, err));
     }
 
     // Notify the other party

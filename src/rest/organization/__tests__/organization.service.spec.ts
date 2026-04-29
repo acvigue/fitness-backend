@@ -16,17 +16,33 @@ const mockOrganizationMember = {
   findMany: vi.fn(),
   create: vi.fn(),
   delete: vi.fn(),
+  update: vi.fn(),
   count: vi.fn(),
+};
+
+const mockOrganizationInvitation = {
+  findUnique: vi.fn(),
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+};
+
+const mockUser = {
+  findUnique: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
   prisma: {
     organization: mockOrganization,
     organizationMember: mockOrganizationMember,
+    organizationInvitation: mockOrganizationInvitation,
+    user: mockUser,
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         organization: mockOrganization,
         organizationMember: mockOrganizationMember,
+        organizationInvitation: mockOrganizationInvitation,
       })
     ),
   },
@@ -84,11 +100,18 @@ describe('OrganizationService', () => {
   let service: InstanceType<typeof OrganizationService>;
 
   beforeAll(async () => {
+    const { AuditService } = await import('../../audit/audit.service');
+    const { NotificationService } = await import('../../notification/notification.service');
     const module = await Test.createTestingModule({
       providers: [
         OrganizationService,
         { provide: UserService, useValue: mockUserService },
         { provide: AchievementService, useValue: mockAchievementService },
+        { provide: AuditService, useValue: { log: vi.fn().mockResolvedValue(undefined) } },
+        {
+          provide: NotificationService,
+          useValue: { create: vi.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

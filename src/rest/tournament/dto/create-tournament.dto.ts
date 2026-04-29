@@ -67,4 +67,14 @@ export class CreateTournamentDto {
   @IsOptional()
   @IsIn(['SINGLE_ELIMINATION', 'ROUND_ROBIN'])
   format?: 'SINGLE_ELIMINATION' | 'ROUND_ROBIN';
+
+  @ApiPropertyOptional({
+    description:
+      'Registration closing time (ISO 8601). After this time, joinTournament rejects new registrations.',
+    type: String,
+    example: '2024-05-30T00:00:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  registrationClosesAt?: string;
 }

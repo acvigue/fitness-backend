@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { NOTIFICATION_TYPES, type NotificationType } from '../notification-types';
 
 export class NotificationResponseDto {
   @ApiProperty({
@@ -8,8 +9,12 @@ export class NotificationResponseDto {
   })
   id!: string;
 
-  @ApiProperty({ description: 'Notification type', example: 'TEAM_INVITE', type: String })
-  type!: string;
+  @ApiProperty({
+    description: 'Notification type',
+    example: 'TEAM_INVITE',
+    enum: NOTIFICATION_TYPES,
+  })
+  type!: NotificationType;
 
   @ApiProperty({ description: 'Notification title', example: 'Team Invitation', type: String })
   title!: string;

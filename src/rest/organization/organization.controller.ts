@@ -34,8 +34,12 @@ import {
 import { OrganizationMemberResponseDto } from './dto/organization-member-response.dto';
 import {
   PaginatedOrganizationMemberListDto,
+  OrganizationMemberListItemDto,
   OrganizationMemberProfileResponseDto,
 } from './dto/organization-member-detail-response.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
+import { OrganizationInvitationResponseDto } from './dto/organization-invitation-response.dto';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -149,5 +153,117 @@ export class OrganizationController {
   @ApiCommonErrorResponses()
   leave(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.organizationService.leave(id, user.sub);
+  }
+
+  // ─── Role administration (ADMIN only) ───────────────────
+
+  @Patch(':id/members/:userId/role')
+  @ApiOperation({ summary: 'Change a member’s role (ADMIN only)' })
+  @ApiResponse({ status: 200, type: OrganizationMemberListItemDto })
+  @ApiBadRequestResponse('Cannot demote the last admin')
+  @ApiForbiddenResponse('Requires ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  updateMemberRole(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationMemberListItemDto> {
+    return this.organizationService.updateMemberRole(id, userId, dto.role, user.sub);
+  }
+
+  @Delete(':id/members/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a member from an organization (ADMIN only)' })
+  @ApiResponse({ status: 204, description: 'Member removed' })
+  @ApiBadRequestResponse('Cannot remove the last admin')
+  @ApiForbiddenResponse('Requires ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  removeMember(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.organizationService.removeMember(id, userId, user.sub);
+  }
+
+  // ─── Invitations ────────────────────────────────────────
+
+  @Post(':id/invitations')
+  @ApiOperation({ summary: 'Invite a user to join the organization (ADMIN only)' })
+  @ApiResponse({ status: 201, type: OrganizationInvitationResponseDto })
+  @ApiBadRequestResponse()
+  @ApiForbiddenResponse('Requires ADMIN')
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  createInvitation(
+    @Param('id') id: string,
+    @Body() dto: CreateOrganizationInvitationDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationInvitationResponseDto> {
+    return this.organizationService.createInvitation(id, dto.invitedUserId, dto.role, user.sub);
+  }
+
+  @Get(':id/invitations')
+  @ApiOperation({ summary: 'List pending invitations for an organization (STAFF or ADMIN)' })
+  @ApiResponse({ status: 200, type: [OrganizationInvitationResponseDto] })
+  @ApiForbiddenResponse('Requires STAFF or ADMIN')
+  @ApiCommonErrorResponses()
+  listInvitations(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationInvitationResponseDto[]> {
+    return this.organizationService.listInvitations(id, user.sub);
+  }
+
+  @Delete('invitations/:invitationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke a pending invitation (ADMIN of the inviting org)' })
+  @ApiResponse({ status: 204, description: 'Invitation revoked' })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  revokeInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    return this.organizationService.revokeInvitation(invitationId, user.sub);
+  }
+
+  @Get('invitations/mine')
+  @ApiOperation({ summary: 'List the authenticated user’s pending organization invitations' })
+  @ApiResponse({ status: 200, type: [OrganizationInvitationResponseDto] })
+  @ApiCommonErrorResponses()
+  listMyInvitations(
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationInvitationResponseDto[]> {
+    return this.organizationService.listMyInvitations(user.sub);
+  }
+
+  @Patch('invitations/:invitationId/accept')
+  @ApiOperation({ summary: 'Accept an organization invitation' })
+  @ApiResponse({ status: 200, type: OrganizationInvitationResponseDto })
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse('Invitation no longer pending')
+  @ApiCommonErrorResponses()
+  acceptInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationInvitationResponseDto> {
+    return this.organizationService.respondToInvitation(invitationId, user.sub, true);
+  }
+
+  @Patch('invitations/:invitationId/decline')
+  @ApiOperation({ summary: 'Decline an organization invitation' })
+  @ApiResponse({ status: 200, type: OrganizationInvitationResponseDto })
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse('Invitation no longer pending')
+  @ApiCommonErrorResponses()
+  declineInvitation(
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<OrganizationInvitationResponseDto> {
+    return this.organizationService.respondToInvitation(invitationId, user.sub, false);
   }
 }

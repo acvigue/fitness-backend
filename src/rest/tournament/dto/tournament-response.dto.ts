@@ -55,6 +55,15 @@ export class TournamentResponseDto {
   startDate!: string;
 
   @ApiProperty({
+    description:
+      'Registration closing time (ISO 8601). Null when registration stays open until status changes.',
+    nullable: true,
+    type: String,
+    format: 'date-time',
+  })
+  registrationClosesAt!: string | null;
+
+  @ApiProperty({
     description: 'Tournament creation date (ISO 8601)',
     example: '2024-03-01T12:00:00.000Z',
     format: 'date-time',

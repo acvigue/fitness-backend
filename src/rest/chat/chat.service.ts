@@ -220,6 +220,31 @@ export class ChatService {
     );
   }
 
+  async markChatRead(chatId: string, userId: string): Promise<{ markedCount: number }> {
+    const chat = await prisma.chat.findFirst({
+      where: { id: chatId, members: { some: { id: userId } } },
+      select: { id: true },
+    });
+
+    if (!chat) {
+      throw new ForbiddenException('You are not a member of this chat');
+    }
+
+    const result = await prisma.message.updateMany({
+      where: { chatId, senderId: { not: userId }, read: false },
+      data: { read: true },
+    });
+
+    if (result.count > 0) {
+      await redis.publish(
+        'chat:messages-read',
+        JSON.stringify({ chatId, readByUserId: userId, markedCount: result.count })
+      );
+    }
+
+    return { markedCount: result.count };
+  }
+
   async sendMessage(dto: SendMessageDto, senderId: string): Promise<MessageResponseDto> {
     await this.moderationService.assertAllowed(senderId, 'MESSAGING');
 

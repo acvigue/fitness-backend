@@ -355,6 +355,7 @@ export class UserService {
         organizationId: tournament.organizationId,
         createdById: tournament.createdById,
         startDate: tournament.startDate.toISOString(),
+        registrationClosesAt: null,
         createdAt: tournament.createdAt.toISOString(),
         sport: {
           id: tournament.sport.id,

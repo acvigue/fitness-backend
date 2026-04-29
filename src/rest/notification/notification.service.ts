@@ -92,7 +92,7 @@ export class NotificationService {
   }): NotificationResponseDto {
     return {
       id: notification.id,
-      type: notification.type,
+      type: notification.type as NotificationResponseDto['type'],
       title: notification.title,
       content: notification.content,
       metadata: (notification.metadata as Record<string, unknown> | null) ?? null,

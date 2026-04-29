@@ -325,6 +325,78 @@ export class TournamentController {
     return this.tournamentService.recordMatchResult(id, matchId, dto, user.sub);
   }
 
+  @Post(':id/matches/:matchId/report')
+  @ApiOperation({
+    summary:
+      'Report a tentative match result (team captain). Result enters PENDING_CONFIRMATION; opposing captain confirms or disputes.',
+  })
+  @ApiResponse({ status: 201, type: TournamentMatchResponseDto })
+  @ApiForbiddenResponse('Must be captain of a participating team')
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  reportMatchResult(
+    @Param('id') id: string,
+    @Param('matchId') matchId: string,
+    @Body() dto: RecordMatchResultDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentMatchResponseDto> {
+    return this.tournamentService.reportMatchResult(id, matchId, dto, user.sub);
+  }
+
+  @Post(':id/matches/:matchId/confirm')
+  @ApiOperation({
+    summary: 'Confirm a reported match score (opposing team captain). Finalizes the match.',
+  })
+  @ApiResponse({ status: 201, type: TournamentMatchResponseDto })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  confirmMatchResult(
+    @Param('id') id: string,
+    @Param('matchId') matchId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentMatchResponseDto> {
+    return this.tournamentService.confirmMatchResult(id, matchId, user.sub);
+  }
+
+  @Post(':id/matches/:matchId/dispute')
+  @ApiOperation({
+    summary:
+      'Dispute a reported match score (opposing captain). Reverts to PENDING for staff review.',
+  })
+  @ApiResponse({ status: 201, type: TournamentMatchResponseDto })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  disputeMatchResult(
+    @Param('id') id: string,
+    @Param('matchId') matchId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentMatchResponseDto> {
+    return this.tournamentService.disputeMatchResult(id, matchId, user.sub);
+  }
+
+  @Post(':id/matches/:matchId/forfeit/:teamId')
+  @ApiOperation({
+    summary: 'Record a forfeit for a team — opposing team is awarded the win (STAFF/ADMIN).',
+  })
+  @ApiResponse({ status: 201, type: TournamentMatchResponseDto })
+  @ApiForbiddenResponse('Insufficient role — requires STAFF or ADMIN')
+  @ApiNotFoundResponse()
+  @ApiBadRequestResponse()
+  @ApiCommonErrorResponses()
+  forfeitMatch(
+    @Param('id') id: string,
+    @Param('matchId') matchId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<TournamentMatchResponseDto> {
+    return this.tournamentService.forfeitMatch(id, matchId, teamId, user.sub);
+  }
+
   // ─── Tournament Invitations ─────────────────────────────
 
   @Post(':id/invitations/:teamId')

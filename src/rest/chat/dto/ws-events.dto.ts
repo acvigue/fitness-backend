@@ -95,3 +95,19 @@ export class WsTypingStopEventDto {
   })
   userId!: string;
 }
+
+export class WsMarkReadDto {
+  @ApiProperty({ description: 'Chat ID to mark as read', type: String })
+  chatId!: string;
+}
+
+export class WsMessagesReadEventDto {
+  @ApiProperty({ description: 'Chat ID', type: String })
+  chatId!: string;
+
+  @ApiProperty({ description: 'User ID who marked the chat as read', type: String })
+  readByUserId!: string;
+
+  @ApiProperty({ description: 'How many messages were flipped to read', type: Number })
+  markedCount!: number;
+}

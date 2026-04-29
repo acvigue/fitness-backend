@@ -60,6 +60,9 @@ model User {
   gymSubscriptions GymSubscription[]
   gymSlotUpdates   GymSlot[]         @relation("GymSlotUpdater")
 
+  organizationInvitesReceived OrganizationInvitation[] @relation("OrganizationInviteRecipient")
+  organizationInvitesIssued   OrganizationInvitation[] @relation("OrganizationInviteIssuer")
+
   @@map("users")
 }
 
@@ -256,6 +259,7 @@ model Organization {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   members     OrganizationMember[]
+  invitations OrganizationInvitation[]
   tournaments Tournament[]
   chats       Chat[]
 
@@ -283,6 +287,31 @@ model OrganizationMember {
 
   @@unique([userId, organizationId])
   @@map("organization_members")
+}
+
+enum OrganizationInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+}
+
+model OrganizationInvitation {
+  id             String                       @id @default(cuid())
+  organizationId String                       @map("organization_id")
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedUserId  String                       @map("invited_user_id")
+  invitedUser    User                         @relation("OrganizationInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  invitedById    String                       @map("invited_by_id")
+  invitedBy      User                         @relation("OrganizationInviteIssuer", fields: [invitedById], references: [id], onDelete: Cascade)
+  role           OrganizationRole
+  status         OrganizationInvitationStatus @default(PENDING)
+  createdAt      DateTime                     @default(now()) @map("created_at")
+  updatedAt      DateTime                     @updatedAt @map("updated_at")
+
+  @@index([invitedUserId, status])
+  @@index([organizationId, status])
+  @@map("organization_invitations")
 }
 
 enum StatusOnReport {
@@ -432,9 +461,10 @@ model Tournament {
   format TournamentFormat @default(SINGLE_ELIMINATION)
   status TournamentStatus @default(OPEN)
 
-  maxTeams  Int      @map("max_teams")
-  startDate DateTime @map("start_date")
-  createdAt DateTime @default(now()) @map("created_at")
+  maxTeams              Int       @map("max_teams")
+  startDate             DateTime  @map("start_date")
+  registrationClosesAt  DateTime? @map("registration_closes_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
 
   createdById    String       @map("created_by_id")
   createdBy      User         @relation("TournamentCreator", fields: [createdById], references: [id], onDelete: Cascade)
@@ -493,8 +523,10 @@ enum TournamentStatus {
 
 enum MatchStatus {
   PENDING
+  PENDING_CONFIRMATION
   COMPLETED
   BYE
+  FORFEIT
 }
 
 model TournamentMatch {
@@ -514,6 +546,12 @@ model TournamentMatch {
   winner     Team?   @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
 
   status MatchStatus @default(PENDING)
+
+  // Two-team confirmation flow: when a captain reports a score it lands in
+  // PENDING_CONFIRMATION, recording who reported. The other captain (or org
+  // staff) confirms or disputes. Cleared when the match is finalized.
+  reportedByTeamId   String?  @map("reported_by_team_id")
+  scoreReportedAt    DateTime? @map("score_reported_at")
 
   nextMatchId     String?           @map("next_match_id")
   nextMatch       TournamentMatch?  @relation("BracketProgression", fields: [nextMatchId], references: [id], onDelete: SetNull)

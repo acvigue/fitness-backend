@@ -21,6 +21,8 @@ import {
   WsTypingDto,
   WsTypingEventDto,
   WsTypingStopEventDto,
+  WsMarkReadDto,
+  WsMessagesReadEventDto,
 } from './dto/ws-events.dto';
 
 interface AuthenticatedSocket extends Socket {
@@ -30,6 +32,7 @@ interface AuthenticatedSocket extends Socket {
 }
 
 const REDIS_CHANNEL = 'chat:messages';
+const REDIS_READ_CHANNEL = 'chat:messages-read';
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -179,23 +182,47 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     client.to(`chat:${payload.chatId}`).emit('typing_stop', event);
   }
 
+  @SubscribeMessage('mark_read')
+  async handleMarkRead(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: WsMarkReadDto
+  ): Promise<WsAckResponseDto> {
+    if (!payload.chatId || typeof payload.chatId !== 'string') {
+      return { success: false, error: 'chatId is required' };
+    }
+    try {
+      await this.chatService.markChatRead(payload.chatId, client.data.user.sub);
+      return { success: true };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to mark chat as read';
+      return { success: false, error: msg };
+    }
+  }
+
+  emitMessagesRead(event: WsMessagesReadEventDto): void {
+    this.server.to(`chat:${event.chatId}`).emit('messages_read', event);
+  }
+
   // ─── Redis Pub/Sub ──────────────────────────────────────
 
   private subscribeToRedis(): void {
-    redisSub.subscribe(REDIS_CHANNEL, (err) => {
+    redisSub.subscribe(REDIS_CHANNEL, REDIS_READ_CHANNEL, (err) => {
       if (err) {
-        this.logger.error(`Failed to subscribe to ${REDIS_CHANNEL}: ${err.message}`);
+        this.logger.error(`Failed to subscribe to chat channels: ${err.message}`);
       } else {
-        this.logger.log(`Subscribed to Redis channel: ${REDIS_CHANNEL}`);
+        this.logger.log(`Subscribed to Redis chat channels`);
       }
     });
 
     redisSub.on('message', (channel: string, rawMessage: string) => {
-      if (channel !== REDIS_CHANNEL) return;
-
       try {
-        const message = JSON.parse(rawMessage) as MessageResponseDto;
-        this.emitNewMessage(message);
+        if (channel === REDIS_CHANNEL) {
+          const message = JSON.parse(rawMessage) as MessageResponseDto;
+          this.emitNewMessage(message);
+        } else if (channel === REDIS_READ_CHANNEL) {
+          const event = JSON.parse(rawMessage) as WsMessagesReadEventDto;
+          this.emitMessagesRead(event);
+        }
       } catch (error) {
         this.logger.error(`Failed to parse Redis message: ${(error as Error).message}`);
       }

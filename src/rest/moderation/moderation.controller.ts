@@ -30,6 +30,10 @@ import {
   SuspendUserDto,
   UnrestrictUserDto,
 } from './dto/moderation.dto';
+import {
+  DecideSuspensionAppealDto,
+  SuspensionAppealResponseDto,
+} from './dto/suspension-appeal.dto';
 
 @ApiTags('Moderation')
 @ApiBearerAuth()
@@ -134,5 +138,26 @@ export class ModerationController {
     @CurrentUser() user: AuthenticatedUser
   ): Promise<void> {
     return this.moderationService.unrestrictUser(userId, dto, user.sub);
+  }
+
+  @Get('suspension-appeals')
+  @ApiOperation({ summary: 'List pending suspension appeals (mod queue)' })
+  @ApiResponse({ status: 200, type: [SuspensionAppealResponseDto] })
+  @ApiCommonErrorResponses()
+  listPendingAppeals(): Promise<SuspensionAppealResponseDto[]> {
+    return this.moderationService.listPendingAppeals();
+  }
+
+  @Post('suspension-appeals/:id/decide')
+  @ApiOperation({ summary: 'Approve or deny a suspension appeal' })
+  @ApiResponse({ status: 201, type: SuspensionAppealResponseDto })
+  @ApiNotFoundResponse()
+  @ApiCommonErrorResponses()
+  decideSuspensionAppeal(
+    @Param('id') id: string,
+    @Body() dto: DecideSuspensionAppealDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<SuspensionAppealResponseDto> {
+    return this.moderationService.decideSuspensionAppeal(id, dto, user.sub);
   }
 }
