@@ -375,6 +375,11 @@ export class TeamService {
 
     if (accept) {
       await this.moderationService.assertAllowed(invitation.userId, 'TEAM_JOIN');
+      if (await this.userBlockService.isBlocked(invitation.userId, invitation.team.captainId)) {
+        throw new ForbiddenException(
+          'Cannot complete: you are blocked by the captain or have blocked them'
+        );
+      }
     }
 
     const status = accept ? 'ACCEPTED' : 'DECLINED';

@@ -21,6 +21,7 @@ import type { UserLookupResponseDto } from './dto/user-lookup-response.dto';
 import type { EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import type { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
 import type { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
+import type { AccountStatusResponseDto } from './dto/account-status-response.dto';
 import { KeycloakAdminService } from './keycloak-admin.service';
 import type { TournamentResponseDto } from '~/rest/tournament/dto/tournament-response.dto';
 import { UpdateUserProfilePrivacyDto } from '~/rest/user/dto/update-user-profile-privacy.dto';
@@ -38,7 +39,7 @@ export class UserService {
       select: { active: true },
     });
 
-    await prisma.user.upsert({
+    const upserted = await prisma.user.upsert({
       where: { id: user.sub },
       update: {
         email: user.email,
@@ -56,6 +57,7 @@ export class UserService {
         lastName: user.lastName,
         username: user.username,
       },
+      select: { role: true },
     });
 
     if (existing && !existing.active) {
@@ -76,6 +78,7 @@ export class UserService {
       lastName: user.lastName,
       email: user.email,
       scopes: user.scopes,
+      systemRole: upserted.role,
     };
   }
 
@@ -409,6 +412,56 @@ export class UserService {
     }));
   }
 
+  async getAccountStatus(userId: string): Promise<AccountStatusResponseDto> {
+    const now = new Date();
+    const [activeBan, activeSuspension, activeRestrictions] = await Promise.all([
+      prisma.userBan.findFirst({
+        where: { userId, revokedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { reason: true },
+      }),
+      prisma.userSuspension.findFirst({
+        where: { userId, revokedAt: null, endsAt: { gt: now } },
+        orderBy: { endsAt: 'desc' },
+        select: { endsAt: true, reason: true },
+      }),
+      prisma.userRestriction.findMany({
+        where: { userId, revokedAt: null, endsAt: { gt: now } },
+        select: { action: true, endsAt: true, reason: true },
+        orderBy: { endsAt: 'asc' },
+      }),
+    ]);
+
+    const restrictions = activeRestrictions.map((r) => ({
+      action: r.action,
+      endsAt: r.endsAt.toISOString(),
+      reason: r.reason,
+    }));
+
+    if (activeBan) {
+      return {
+        status: 'BANNED',
+        suspendedUntil: null,
+        reason: activeBan.reason,
+        restrictions,
+      };
+    }
+    if (activeSuspension) {
+      return {
+        status: 'SUSPENDED',
+        suspendedUntil: activeSuspension.endsAt.toISOString(),
+        reason: activeSuspension.reason,
+        restrictions,
+      };
+    }
+    return {
+      status: 'ACTIVE',
+      suspendedUntil: null,
+      reason: null,
+      restrictions,
+    };
+  }
+
   async getSessions(
     userId: string,
     currentSessionId?: string
@@ -484,6 +537,7 @@ export class UserService {
         firstName: true,
         lastName: true,
         email: true,
+        role: true,
       },
     });
 
@@ -495,6 +549,7 @@ export class UserService {
       lastName: user.lastName ?? undefined,
       email: user.email ?? undefined,
       scopes: [],
+      systemRole: user.role,
     };
   }
 

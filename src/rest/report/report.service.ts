@@ -85,7 +85,7 @@ export class ReportService {
     });
 
     if (!adminMembership) {
-      throw new ForbiddenException('Only organization admins can list all reports');
+      throw new ForbiddenException('Only organization admins can perform this action');
     }
   }
 
@@ -97,7 +97,13 @@ export class ReportService {
     return reports.map((r) => this.toResponse(r));
   }
 
-  async updateStatus(reportId: string, status: StatusOnReport): Promise<ReportResponseDto> {
+  async updateStatus(
+    reportId: string,
+    status: StatusOnReport,
+    requesterId: string
+  ): Promise<ReportResponseDto> {
+    await this.ensureOrgAdmin(requesterId);
+
     const report = await prisma.report.findUnique({ where: { id: reportId } });
     if (!report) {
       throw new NotFoundException('Report not found');

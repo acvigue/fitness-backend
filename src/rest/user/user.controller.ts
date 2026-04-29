@@ -27,6 +27,8 @@ import { UpdateNameDto } from './dto/update-name.dto';
 import { EnrichSessionDto, EnrichSessionResponseDto } from './dto/enrich-session.dto';
 import { DeactivateAccountResponseDto } from './dto/deactivate-account-response.dto';
 import { DeleteAccountResponseDto } from './dto/delete-account-response.dto';
+import { AccountStatusResponseDto } from './dto/account-status-response.dto';
+import { AllowSuspended } from '@/rest/auth/allow-suspended.decorator';
 import { Body, Patch } from '@nestjs/common';
 
 @ApiTags('User')
@@ -73,6 +75,18 @@ export class UserController {
   @ApiCommonErrorResponses()
   getMemberships(@CurrentUser() user: AuthenticatedUser): Promise<UserMembershipResponseDto[]> {
     return this.userService.getMemberships(user.sub);
+  }
+
+  @Get('me/account-status')
+  @AllowSuspended()
+  @ApiOperation({
+    summary:
+      'Get current user account status (active/suspended/banned + active restrictions). Reachable while suspended/banned so the frontend can render an appropriate banner.',
+  })
+  @ApiResponse({ status: 200, type: AccountStatusResponseDto })
+  @ApiCommonErrorResponses()
+  getAccountStatus(@CurrentUser() user: AuthenticatedUser): Promise<AccountStatusResponseDto> {
+    return this.userService.getAccountStatus(user.sub);
   }
 
   @Get('profile')

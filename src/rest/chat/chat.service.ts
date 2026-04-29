@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@/generated/prisma/client';
 import { prisma, redis } from '@/shared/utils';
 import { paginate } from '@/rest/common/pagination';
 import { UserBlockService } from '@/rest/user-block/user-block.service';
@@ -173,20 +174,28 @@ export class ChatService {
   ): Promise<ChatHistoryResponseDto> {
     const chat = await prisma.chat.findFirst({
       where: { id: chatId, members: { some: { id: userId } } },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!chat) {
       throw new ForbiddenException('You are not a member of this chat');
     }
 
+    // Hide messages from blocked users in non-shared chats.
+    const filterBlocks = chat.type === 'DIRECT' || chat.type === 'GROUP';
+    const hiddenIds = filterBlocks ? await this.userBlockService.hiddenFrom(userId) : null;
+    const where =
+      hiddenIds && hiddenIds.size > 0
+        ? { chatId, senderId: { notIn: Array.from(hiddenIds) } }
+        : { chatId };
+
     return paginate<MessageResponseDto>(
       pagination,
-      () => prisma.message.count({ where: { chatId } }),
+      () => prisma.message.count({ where }),
       ({ skip, take }) =>
         prisma.message
           .findMany({
-            where: { chatId },
+            where,
             orderBy: { createdAt: 'desc' },
             skip,
             take,
@@ -317,7 +326,7 @@ export class ChatService {
   ): Promise<SearchMessagesResponseDto> {
     const chat = await prisma.chat.findFirst({
       where: { id: chatId, members: { some: { id: userId } } },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!chat) {
@@ -325,6 +334,13 @@ export class ChatService {
     }
 
     const searchTerm = `%${params.q.replace(/[%_]/g, '\\$&')}%`;
+
+    const filterBlocks = chat.type === 'DIRECT' || chat.type === 'GROUP';
+    const hiddenIds = filterBlocks ? await this.userBlockService.hiddenFrom(userId) : null;
+    const hiddenList = hiddenIds && hiddenIds.size > 0 ? Array.from(hiddenIds) : null;
+    const hiddenFilter = hiddenList
+      ? Prisma.sql`AND m.sender_id NOT IN (${Prisma.join(hiddenList)})`
+      : Prisma.empty;
 
     // Single query: assign row numbers (DESC order matching history pagination),
     // then filter by content ILIKE and return matches with their position.
@@ -348,7 +364,7 @@ export class ChatService {
           ROW_NUMBER() OVER (ORDER BY m.created_at DESC) - 1 AS row_idx
         FROM messages m
         JOIN users u ON u.id = m.sender_id
-        WHERE m.chat_id = ${chatId}
+        WHERE m.chat_id = ${chatId} ${hiddenFilter}
       )
       SELECT id, content, sender_name, sender_id, created_at, row_idx
       FROM numbered
@@ -360,8 +376,8 @@ export class ChatService {
     // Count total matches (separate lightweight query)
     const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(*) AS count
-      FROM messages
-      WHERE chat_id = ${chatId} AND content ILIKE ${searchTerm}
+      FROM messages m
+      WHERE m.chat_id = ${chatId} AND m.content ILIKE ${searchTerm} ${hiddenFilter}
     `;
 
     return {

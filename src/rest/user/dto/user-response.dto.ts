@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SystemRole } from '@/generated/prisma/enums';
 
 export class UserResponseDto {
   @ApiProperty({
@@ -51,4 +52,12 @@ export class UserResponseDto {
     isArray: true,
   })
   scopes!: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'System-wide role for the user. Only populated on /v1/user/me; absent when this DTO appears as a member subobject (e.g. team members).',
+    enum: SystemRole,
+    example: 'STUDENT',
+  })
+  systemRole?: keyof typeof SystemRole;
 }

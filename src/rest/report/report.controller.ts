@@ -44,11 +44,14 @@ export class ReportController {
   }
 
   @Patch('status')
-  @ApiOperation({ summary: 'Update a report status' })
+  @ApiOperation({ summary: 'Update a report status (organization admins only)' })
   @ApiResponse({ status: 200, type: ReportResponseDto })
   @ApiNotFoundResponse()
   @ApiCommonErrorResponses()
-  setReportStatus(@Body() dto: UpdateReportStatusDto): Promise<ReportResponseDto> {
-    return this.reportService.updateStatus(dto.reportId, dto.status);
+  setReportStatus(
+    @Body() dto: UpdateReportStatusDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<ReportResponseDto> {
+    return this.reportService.updateStatus(dto.reportId, dto.status, user.sub);
   }
 }

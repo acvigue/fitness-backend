@@ -63,6 +63,24 @@ export class UserBlockService {
     return count > 0;
   }
 
+  /**
+   * Returns the set of user ids that should be hidden from `userId` in any
+   * shared context: anyone they've blocked plus anyone who has blocked them.
+   */
+  async hiddenFrom(userId: string): Promise<Set<string>> {
+    const rows = await prisma.userBlock.findMany({
+      where: {
+        OR: [{ blockerId: userId }, { blockedId: userId }],
+      },
+      select: { blockerId: true, blockedId: true },
+    });
+    const ids = new Set<string>();
+    for (const r of rows) {
+      ids.add(r.blockerId === userId ? r.blockedId : r.blockerId);
+    }
+    return ids;
+  }
+
   private toResponse(b: {
     id: string;
     blockerId: string;

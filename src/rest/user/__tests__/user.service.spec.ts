@@ -146,7 +146,7 @@ describe('UserService', () => {
   describe('getOrCreateMe', () => {
     it('should upsert user and profile, then return user info', async () => {
       mockUser.findUnique.mockResolvedValue({ active: true });
-      mockUser.upsert.mockResolvedValue({});
+      mockUser.upsert.mockResolvedValue({ role: 'STUDENT' });
       mockUserProfile.upsert.mockResolvedValue({});
 
       const user = mockAuthUser();
@@ -160,12 +160,13 @@ describe('UserService', () => {
         lastName: 'User',
         email: 'test@example.com',
         scopes: ['openid', 'profile'],
+        systemRole: 'STUDENT',
       });
     });
 
     it('should call prisma.user.upsert with correct data', async () => {
       mockUser.findUnique.mockResolvedValue({ active: true });
-      mockUser.upsert.mockResolvedValue({});
+      mockUser.upsert.mockResolvedValue({ role: 'STUDENT' });
       mockUserProfile.upsert.mockResolvedValue({});
 
       await service.getOrCreateMe(mockAuthUser());
@@ -188,12 +189,13 @@ describe('UserService', () => {
           lastName: 'User',
           username: 'testuser',
         },
+        select: { role: true },
       });
     });
 
     it('should call prisma.userProfile.upsert to ensure profile exists', async () => {
       mockUser.findUnique.mockResolvedValue({ active: true });
-      mockUser.upsert.mockResolvedValue({});
+      mockUser.upsert.mockResolvedValue({ role: 'STUDENT' });
       mockUserProfile.upsert.mockResolvedValue({});
 
       await service.getOrCreateMe(mockAuthUser());
@@ -207,7 +209,7 @@ describe('UserService', () => {
 
     it('should handle optional fields being undefined', async () => {
       mockUser.findUnique.mockResolvedValue({ active: true });
-      mockUser.upsert.mockResolvedValue({});
+      mockUser.upsert.mockResolvedValue({ role: 'STUDENT' });
       mockUserProfile.upsert.mockResolvedValue({});
 
       const user = mockAuthUser({ username: undefined, name: undefined, email: undefined });
@@ -804,6 +806,7 @@ describe('UserService', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         email: 'test@example.com',
+        role: 'STUDENT',
       });
 
       const result = await service.updateName('user-1', {
@@ -819,6 +822,7 @@ describe('UserService', () => {
         lastName: 'Smith',
         email: 'test@example.com',
         scopes: [],
+        systemRole: 'STUDENT',
       });
     });
 
@@ -830,6 +834,7 @@ describe('UserService', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         email: 'test@example.com',
+        role: 'STUDENT',
       });
 
       await service.updateName('user-1', { firstName: 'Jane', lastName: 'Smith' });
@@ -848,6 +853,7 @@ describe('UserService', () => {
           firstName: true,
           lastName: true,
           email: true,
+          role: true,
         },
       });
     });
@@ -860,6 +866,7 @@ describe('UserService', () => {
         firstName: 'Jane',
         lastName: null,
         email: null,
+        role: 'STUDENT',
       });
 
       const result = await service.updateName('user-1', { firstName: 'Jane', lastName: '' });

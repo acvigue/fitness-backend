@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
 const mockUserModel = {
@@ -231,7 +231,18 @@ describe('ReportService', () => {
   // ─── updateStatus ────────────────────────────────────────────
 
   describe('updateStatus', () => {
-    it('should update the status of the report', async () => {
+    it('rejects non-org-admin requesters', async () => {
+      mockOrganizationMemberModel.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.updateStatus('report-1', 'RESOLVED', 'non-admin')).rejects.toThrow(
+        ForbiddenException
+      );
+      expect(mockReportModel.findUnique).not.toHaveBeenCalled();
+      expect(mockReportModel.update).not.toHaveBeenCalled();
+    });
+
+    it('updates the status when caller is an org admin', async () => {
+      mockOrganizationMemberModel.findFirst.mockResolvedValueOnce({ id: 'member-1' });
       mockReportModel.findUnique.mockResolvedValueOnce({ id: 'report-1' });
       mockReportModel.update.mockResolvedValue({
         userId1: 'user-1',
@@ -241,7 +252,7 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
 
-      const result = await service.updateStatus('report-1', 'RESOLVED');
+      const result = await service.updateStatus('report-1', 'RESOLVED', 'admin-1');
 
       expect(result).toEqual({
         reporterId: 'user-1',
@@ -251,10 +262,12 @@ describe('ReportService', () => {
         createdAt: NOW,
       });
     });
-    it('should throw NotFoundException when the report does not exist', async () => {
+
+    it('throws NotFoundException when the report does not exist', async () => {
+      mockOrganizationMemberModel.findFirst.mockResolvedValueOnce({ id: 'member-1' });
       mockReportModel.findUnique.mockResolvedValueOnce(null);
 
-      await expect(service.updateStatus('missing-report', 'RESOLVED')).rejects.toThrow(
+      await expect(service.updateStatus('missing-report', 'RESOLVED', 'admin-1')).rejects.toThrow(
         NotFoundException
       );
       expect(mockReportModel.update).not.toHaveBeenCalled();

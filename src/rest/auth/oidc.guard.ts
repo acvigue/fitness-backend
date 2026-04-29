@@ -5,6 +5,7 @@ import type { Request } from 'express';
 import { OidcAuthService, type AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import type { AuthenticatedRequest } from '@/rest/auth/auth.types';
 import { IS_PUBLIC_KEY } from '@/rest/auth/public.decorator';
+import { ALLOW_SUSPENDED_KEY } from '@/rest/auth/allow-suspended.decorator';
 import { prisma, redis } from '@/shared/utils';
 
 @Injectable()
@@ -47,7 +48,13 @@ export class OidcAuthGuard implements CanActivate {
       throw new UnauthorizedException('Session has been revoked');
     }
 
-    await this.ensureNotSuspendedOrBanned(user.sub);
+    const allowSuspended = this.reflector.getAllAndOverride<boolean>(ALLOW_SUSPENDED_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (!allowSuspended) {
+      await this.ensureNotSuspendedOrBanned(user.sub);
+    }
 
     request.user = user;
 
