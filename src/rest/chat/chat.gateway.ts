@@ -34,6 +34,11 @@ interface AuthenticatedSocket extends Socket {
 const REDIS_CHANNEL = 'chat:messages';
 const REDIS_READ_CHANNEL = 'chat:messages-read';
 
+// Sliding-window rate limit for high-frequency WS events (typing/read).
+// Drops events that exceed the window to prevent broadcast spam DOS.
+const WS_RATE_WINDOW_MS = 10_000;
+const WS_RATE_LIMIT = 30;
+
 @WebSocketGateway({
   namespace: '/chat',
   cors: {
@@ -46,12 +51,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   server!: Server;
 
   private readonly logger = new LoggerService();
+  private readonly wsEventTimestamps = new Map<string, number[]>();
 
   constructor(
     private readonly authService: OidcAuthService,
     private readonly chatService: ChatService
   ) {
     this.logger.setContext('ChatGateway');
+  }
+
+  private isRateLimited(userId: string, eventType: string): boolean {
+    const key = `${userId}:${eventType}`;
+    const now = Date.now();
+    const windowStart = now - WS_RATE_WINDOW_MS;
+    const recent = (this.wsEventTimestamps.get(key) ?? []).filter((t) => t > windowStart);
+    if (recent.length >= WS_RATE_LIMIT) {
+      this.wsEventTimestamps.set(key, recent);
+      return true;
+    }
+    recent.push(now);
+    this.wsEventTimestamps.set(key, recent);
+    return false;
   }
 
   // ─── Lifecycle ──────────────────────────────────────────
@@ -92,6 +112,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   handleDisconnect(client: AuthenticatedSocket): void {
     const userId = client.data?.user?.sub ?? 'unknown';
+    if (userId !== 'unknown') {
+      this.wsEventTimestamps.delete(`${userId}:typing`);
+      this.wsEventTimestamps.delete(`${userId}:mark_read`);
+    }
     this.logger.log(`Client disconnected: ${userId}`);
   }
 
@@ -161,6 +185,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @MessageBody() payload: WsTypingDto
   ): void {
     if (!payload.chatId) return;
+    if (this.isRateLimited(client.data.user.sub, 'typing')) return;
     const event: WsTypingEventDto = {
       chatId: payload.chatId,
       userId: client.data.user.sub,
@@ -175,6 +200,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @MessageBody() payload: WsTypingDto
   ): void {
     if (!payload.chatId) return;
+    if (this.isRateLimited(client.data.user.sub, 'typing')) return;
     const event: WsTypingStopEventDto = {
       chatId: payload.chatId,
       userId: client.data.user.sub,
@@ -189,6 +215,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   ): Promise<WsAckResponseDto> {
     if (!payload.chatId || typeof payload.chatId !== 'string') {
       return { success: false, error: 'chatId is required' };
+    }
+    if (this.isRateLimited(client.data.user.sub, 'mark_read')) {
+      return { success: false, error: 'Rate limit exceeded' };
     }
     try {
       await this.chatService.markChatRead(payload.chatId, client.data.user.sub);

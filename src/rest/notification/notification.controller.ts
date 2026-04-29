@@ -1,10 +1,18 @@
-import { Controller, Get, Param, Patch } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import { ApiCommonErrorResponses, ApiNotFoundResponse } from '@/rest/common';
+import {
+  ZodValidationPipe,
+  paginationSchema,
+  type PaginationParams,
+} from '@/rest/common/pagination';
 import { NotificationService } from './notification.service';
-import { NotificationResponseDto } from './dto/notification-response.dto';
+import {
+  NotificationResponseDto,
+  PaginatedNotificationResponseDto,
+} from './dto/notification-response.dto';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
@@ -14,10 +22,15 @@ export class NotificationController {
 
   @Get()
   @ApiOperation({ summary: 'List all notifications for the current user' })
-  @ApiResponse({ status: 200, type: [NotificationResponseDto] })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiResponse({ status: 200, type: PaginatedNotificationResponseDto })
   @ApiCommonErrorResponses()
-  findAll(@CurrentUser() user: AuthenticatedUser): Promise<NotificationResponseDto[]> {
-    return this.notificationService.findAll(user.sub);
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams
+  ): Promise<PaginatedNotificationResponseDto> {
+    return this.notificationService.findAll(user.sub, pagination);
   }
 
   @Patch(':id/dismiss')

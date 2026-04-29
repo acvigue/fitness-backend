@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PaginationMetaDto } from '@/rest/common/pagination';
 import { UserResponseDto } from '@/rest/user/dto/user-response.dto';
 
 export class TeamResponseDto {
@@ -27,4 +28,12 @@ export class TeamResponseDto {
 
   @ApiProperty({ description: 'List of team members', type: () => [UserResponseDto] })
   members!: UserResponseDto[];
+}
+
+export class PaginatedTeamResponseDto {
+  @ApiProperty({ type: [TeamResponseDto] })
+  data!: TeamResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta!: PaginationMetaDto;
 }

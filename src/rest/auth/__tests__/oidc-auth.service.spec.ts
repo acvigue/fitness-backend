@@ -119,11 +119,9 @@ describe('OidcAuthService', () => {
     expect(user.username).toBe('fallback');
   });
 
-  it('should return "unknown" for sub when sub claim is missing', async () => {
+  it('should reject tokens with a missing sub claim', async () => {
     const token = await issuer.issueToken({ sub: undefined });
-    const user = await service.verifyToken(token);
-
-    expect(user.sub).toBe('unknown');
+    await expect(service.verifyToken(token)).rejects.toThrow('Token missing required sub claim');
   });
 
   it('should include the raw JWT payload', async () => {

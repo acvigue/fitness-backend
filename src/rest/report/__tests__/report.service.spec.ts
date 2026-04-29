@@ -12,6 +12,7 @@ const mockReportModel = {
   findFirst: vi.fn(),
   findMany: vi.fn(),
   update: vi.fn(),
+  count: vi.fn(),
 };
 
 const mockOrganizationMemberModel = {
@@ -156,8 +157,11 @@ describe('ReportService', () => {
   // ─── get ────────────────────────────────────────────
 
   describe('get', () => {
+    const PAGINATION = { page: 1, per_page: 20 };
+
     it('should return all reports for an org admin', async () => {
       mockOrganizationMemberModel.findFirst.mockResolvedValueOnce({ id: 'member-1' });
+      mockReportModel.count.mockResolvedValue(2);
       mockReportModel.findMany.mockResolvedValue([
         {
           userId1: 'user-1',
@@ -175,9 +179,9 @@ describe('ReportService', () => {
         },
       ]);
 
-      const result = await service.getAllReports('admin-1');
+      const result = await service.getAllReports('admin-1', PAGINATION);
 
-      expect(result).toEqual([
+      expect(result.data).toEqual([
         {
           reporterId: 'user-1',
           reportedId: 'user-2',
@@ -193,17 +197,19 @@ describe('ReportService', () => {
           createdAt: NOW,
         },
       ]);
+      expect(result.meta.total).toBe(2);
     });
 
     it('should throw when requester is not an org admin', async () => {
       mockOrganizationMemberModel.findFirst.mockResolvedValueOnce(null);
 
-      await expect(service.getAllReports('non-admin')).rejects.toThrow();
+      await expect(service.getAllReports('non-admin', PAGINATION)).rejects.toThrow();
 
       expect(mockReportModel.findMany).not.toHaveBeenCalled();
     });
 
     it('should return only reports that the user made', async () => {
+      mockReportModel.count.mockResolvedValue(1);
       mockReportModel.findMany.mockResolvedValue([
         {
           userId1: 'user-1',
@@ -214,9 +220,9 @@ describe('ReportService', () => {
         },
       ]);
 
-      const result = await service.getReportsForUser('user-1');
+      const result = await service.getReportsForUser('user-1', PAGINATION);
 
-      expect(result).toEqual([
+      expect(result.data).toEqual([
         {
           reporterId: 'user-1',
           reportedId: 'user-2',
@@ -225,6 +231,7 @@ describe('ReportService', () => {
           createdAt: NOW,
         },
       ]);
+      expect(result.meta.total).toBe(1);
     });
   });
 

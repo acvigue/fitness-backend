@@ -8,6 +8,7 @@ const mockTeam = {
   create: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
+  count: vi.fn(),
 };
 
 const mockTeamInvitation = {
@@ -94,8 +95,8 @@ function mockInv(overrides: Record<string, unknown> = {}) {
 describe('TeamService', () => {
   let service: InstanceType<typeof TeamService>;
   const mockUserBlockService = {
-    isBlocked: vi.fn().mockResolvedValue(false),
-    didBlock: vi.fn().mockResolvedValue(false),
+    isBlockedEitherWay: vi.fn().mockResolvedValue(false),
+    hasBlocked: vi.fn().mockResolvedValue(false),
   };
 
   beforeAll(async () => {
@@ -133,22 +134,27 @@ describe('TeamService', () => {
   });
 
   describe('findAll', () => {
+    const PAGINATION = { page: 1, per_page: 20 };
+
     it('should return all teams', async () => {
+      mockTeam.count.mockResolvedValue(2);
       mockTeam.findMany.mockResolvedValue([
         mockT({ users: [{ id: 'captain-1', username: 'cap', name: 'Cap', email: null }] }),
         mockT({ id: 'team-2', name: 'Another Team', users: [] }),
       ]);
 
-      const result = await service.findAll();
+      const result = await service.findAll(PAGINATION);
 
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('team-1');
-      expect(result[1].id).toBe('team-2');
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].id).toBe('team-1');
+      expect(result.data[1].id).toBe('team-2');
+      expect(result.meta.total).toBe(2);
     });
 
     it('passes name + sport filters to prisma', async () => {
+      mockTeam.count.mockResolvedValue(0);
       mockTeam.findMany.mockResolvedValue([]);
-      await service.findAll({ q: 'eagles', sportId: 'sport-1' });
+      await service.findAll(PAGINATION, { q: 'eagles', sportId: 'sport-1' });
       expect(mockTeam.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {

@@ -3,6 +3,11 @@ import { prisma } from '@/shared/utils';
 import { EngagementType } from '@/generated/prisma/enums';
 import type { Prisma } from '@/generated/prisma/client';
 import { AchievementService } from '@/rest/achievement/achievement.service';
+import { paginate, type PaginationParams, type PaginatedResult } from '@/rest/common/pagination';
+import type {
+  EngagementCountResponseDto,
+  EngagementEventResponseDto,
+} from './dto/engagement-event-response.dto';
 
 // Event types that are inherently cumulative — each occurrence is a distinct data point.
 const COUNTABLE_EVENT_TYPES = new Set<EngagementType>([
@@ -80,30 +85,53 @@ export class EngagementService {
     return event;
   }
 
-  async getUserEngagement(userId: string) {
-    return this.prisma.engagementEvent.findMany({
-      where: { userId },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  async getUserEngagement(
+    userId: string,
+    pagination: PaginationParams
+  ): Promise<PaginatedResult<EngagementEventResponseDto>> {
+    return paginate(
+      pagination,
+      () => this.prisma.engagementEvent.count({ where: { userId } }),
+      ({ skip, take }) =>
+        this.prisma.engagementEvent
+          .findMany({
+            where: { userId },
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
+          })
+          .then((events) =>
+            events.map((e) => ({
+              id: e.id,
+              userId: e.userId,
+              type: e.type,
+              targetUserId: e.targetUserId,
+              teamId: e.teamId,
+              chatId: e.chatId,
+              metadata: (e.metadata as Record<string, unknown> | null) ?? null,
+              createdAt: e.createdAt,
+            }))
+          )
+    );
   }
 
-  async getProfileViews(userId: string) {
-    return this.prisma.engagementEvent.count({
+  async getProfileViews(userId: string): Promise<EngagementCountResponseDto> {
+    const count = await this.prisma.engagementEvent.count({
       where: {
         targetUserId: userId,
         type: EngagementType.PROFILE_VIEW,
       },
     });
+    return { count };
   }
 
-  async getMessagesSent(userId: string) {
-    return this.prisma.engagementEvent.count({
+  async getMessagesSent(userId: string): Promise<EngagementCountResponseDto> {
+    const count = await this.prisma.engagementEvent.count({
       where: {
         userId,
         type: EngagementType.MESSAGE_SENT,
       },
     });
+    return { count };
   }
 }

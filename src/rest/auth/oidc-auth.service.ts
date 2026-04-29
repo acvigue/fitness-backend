@@ -57,8 +57,12 @@ export class OidcAuthService {
       const firstName = payloadRecord.given_name;
       const lastName = payloadRecord.family_name;
 
+      if (!payload.sub) {
+        throw new UnauthorizedException('Token missing required sub claim');
+      }
+
       return {
-        sub: payload.sub ?? 'unknown',
+        sub: payload.sub,
         username: payloadRecord.preferred_username ?? payloadRecord.username,
         name,
         firstName,

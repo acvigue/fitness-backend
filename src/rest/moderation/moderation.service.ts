@@ -9,7 +9,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { prisma } from '@/shared/utils';
 import { AuditService } from '@/rest/audit/audit.service';
 import { NotificationService } from '@/rest/notification/notification.service';
+import { paginate, type PaginatedResult } from '@/rest/common/pagination';
 import type { RestrictionAction } from '@/generated/prisma/enums';
+import type { ModerationMessageResponseDto } from './dto/moderation-message-response.dto';
 import type {
   BanUserDto,
   DeleteMessageDto,
@@ -94,7 +96,9 @@ export class ModerationService {
     }
   }
 
-  async listInterTeamMessages(query: ListMessagesQueryDto) {
+  async listInterTeamMessages(
+    query: ListMessagesQueryDto
+  ): Promise<PaginatedResult<ModerationMessageResponseDto>> {
     const where: Record<string, unknown> = {
       chat: { type: 'TEAM' },
       deletedAt: null,
@@ -112,11 +116,26 @@ export class ModerationService {
         OR: [{ team1Id: query.teamId }, { team2Id: query.teamId }],
       };
     }
-    return prisma.message.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    const page = query.page ?? 1;
+    const per_page = Math.min(query.per_page ?? 20, 100);
+    return paginate(
+      { page, per_page },
+      () => prisma.message.count({ where }),
+      ({ skip, take }) =>
+        prisma.message
+          .findMany({ where, orderBy: { createdAt: 'desc' }, skip, take })
+          .then((rows) =>
+            rows.map((m) => ({
+              id: m.id,
+              chatId: m.chatId,
+              senderId: m.senderId,
+              content: m.content,
+              type: m.type,
+              hiddenAt: m.hiddenAt,
+              createdAt: m.createdAt,
+            }))
+          )
+    );
   }
 
   async flagMessage(messageId: string, dto: FlagMessageDto, managerId: string): Promise<void> {

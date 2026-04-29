@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { ApiCommonErrorResponses, ApiForbiddenResponse, ApiNotFoundResponse } from '@/rest/common';
@@ -17,6 +18,7 @@ export class BroadcastController {
   constructor(private readonly broadcastService: BroadcastService) {}
 
   @Post('teams/:teamId/broadcasts')
+  @Throttle({ short: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Send a broadcast to all team members (captain only)' })
   @ApiResponse({ status: 201, type: BroadcastResponseDto })
   @ApiForbiddenResponse('Only team captains can broadcast')

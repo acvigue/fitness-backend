@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@/shared/utils';
 import type { StatusOnReport } from '@/generated/prisma/enums';
+import { paginate, type PaginationParams, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateReportDto } from './dto/create-report.dto';
 import type { ReportResponseDto } from './dto/report-response.dto';
 
@@ -71,11 +72,20 @@ export class ReportService {
     return this.toResponse(report);
   }
 
-  async getAllReports(requesterId: string): Promise<ReportResponseDto[]> {
+  async getAllReports(
+    requesterId: string,
+    pagination: PaginationParams
+  ): Promise<PaginatedResult<ReportResponseDto>> {
     await this.ensureOrgAdmin(requesterId);
 
-    const reports = await prisma.report.findMany({ orderBy: { createdAt: 'desc' } });
-    return reports.map((r) => this.toResponse(r));
+    return paginate(
+      pagination,
+      () => prisma.report.count(),
+      ({ skip, take }) =>
+        prisma.report
+          .findMany({ skip, take, orderBy: { createdAt: 'desc' } })
+          .then((reports) => reports.map((r) => this.toResponse(r)))
+    );
   }
 
   private async ensureOrgAdmin(userId: string) {
@@ -89,12 +99,23 @@ export class ReportService {
     }
   }
 
-  async getReportsForUser(userId: string): Promise<ReportResponseDto[]> {
-    const reports = await prisma.report.findMany({
-      where: { userId1: userId },
-      orderBy: { createdAt: 'desc' },
-    });
-    return reports.map((r) => this.toResponse(r));
+  async getReportsForUser(
+    userId: string,
+    pagination: PaginationParams
+  ): Promise<PaginatedResult<ReportResponseDto>> {
+    return paginate(
+      pagination,
+      () => prisma.report.count({ where: { userId1: userId } }),
+      ({ skip, take }) =>
+        prisma.report
+          .findMany({
+            where: { userId1: userId },
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
+          })
+          .then((reports) => reports.map((r) => this.toResponse(r)))
+    );
   }
 
   async updateStatus(

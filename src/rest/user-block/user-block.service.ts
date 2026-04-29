@@ -44,7 +44,8 @@ export class UserBlockService {
     return blocks.map((b) => this.toResponse(b));
   }
 
-  async isBlocked(aId: string, bId: string): Promise<boolean> {
+  /** Returns true if either user has blocked the other (bidirectional). */
+  async isBlockedEitherWay(aId: string, bId: string): Promise<boolean> {
     const count = await prisma.userBlock.count({
       where: {
         OR: [
@@ -56,7 +57,8 @@ export class UserBlockService {
     return count > 0;
   }
 
-  async didBlock(blockerId: string, blockedId: string): Promise<boolean> {
+  /** Returns true if `blockerId` has blocked `blockedId` (unidirectional). */
+  async hasBlocked(blockerId: string, blockedId: string): Promise<boolean> {
     const count = await prisma.userBlock.count({
       where: { blockerId, blockedId },
     });

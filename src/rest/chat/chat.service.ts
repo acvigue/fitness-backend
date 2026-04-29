@@ -108,7 +108,7 @@ export class ChatService {
     }
 
     for (const recipientId of uniqueRecipientIds) {
-      if (await this.userBlockService.isBlocked(creatorId, recipientId)) {
+      if (await this.userBlockService.isBlockedEitherWay(creatorId, recipientId)) {
         throw new ForbiddenException('Cannot start a chat with a blocked user');
       }
     }
@@ -262,7 +262,7 @@ export class ChatService {
     // Enforce user-to-user block for direct messages
     if (chat.type === 'DIRECT') {
       const other = chat.members.find((m) => m.id !== senderId);
-      if (other && (await this.userBlockService.isBlocked(senderId, other.id))) {
+      if (other && (await this.userBlockService.isBlockedEitherWay(senderId, other.id))) {
         throw new ForbiddenException('Cannot send messages to a blocked user');
       }
     }

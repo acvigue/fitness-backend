@@ -19,9 +19,14 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
 } from '@/rest/common';
+import {
+  ZodValidationPipe,
+  paginationSchema,
+  type PaginationParams,
+} from '@/rest/common/pagination';
 import { TeamService } from './team.service';
 import { TeamCreateDto } from './dto/team-create.dto';
-import { TeamResponseDto } from './dto/team-response.dto';
+import { TeamResponseDto, PaginatedTeamResponseDto } from './dto/team-response.dto';
 import { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
 import { TeamUpdateDto } from './dto/team-update.dto';
 import { TeamInviteDto } from './dto/team-invite.dto';
@@ -55,10 +60,16 @@ export class TeamController {
     description: 'Filter by team name (case-insensitive)',
   })
   @ApiQuery({ name: 'sportId', required: false, type: String, description: 'Filter by sport' })
-  @ApiResponse({ status: 200, type: [TeamResponseDto] })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiResponse({ status: 200, type: PaginatedTeamResponseDto })
   @ApiCommonErrorResponses()
-  findAll(@Query('q') q?: string, @Query('sportId') sportId?: string): Promise<TeamResponseDto[]> {
-    return this.teamService.findAll({ q, sportId });
+  findAll(
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams,
+    @Query('q') q?: string,
+    @Query('sportId') sportId?: string
+  ): Promise<PaginatedTeamResponseDto> {
+    return this.teamService.findAll(pagination, { q, sportId });
   }
 
   @Get('invitations/mine')

@@ -17,6 +17,7 @@ const mockTeamBlockModel = {
   findFirst: vi.fn(),
   findMany: vi.fn(),
   delete: vi.fn(),
+  count: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -162,31 +163,31 @@ describe('TeamBlockService', () => {
     });
   });
 
-  // ─── isBlocked ────────────────────────────────────────
+  // ─── isBlockedEitherWay ────────────────────────────────────────
 
-  describe('isBlocked', () => {
+  describe('isBlockedEitherWay', () => {
     it('should return true when a block exists', async () => {
-      mockTeamBlockModel.findFirst.mockResolvedValue({ id: 'block-1' });
+      mockTeamBlockModel.count.mockResolvedValue(1);
 
-      const result = await service.isBlocked('team-1', 'team-2');
+      const result = await service.isBlockedEitherWay('team-1', 'team-2');
 
       expect(result).toBe(true);
     });
 
     it('should return false when no block exists', async () => {
-      mockTeamBlockModel.findFirst.mockResolvedValue(null);
+      mockTeamBlockModel.count.mockResolvedValue(0);
 
-      const result = await service.isBlocked('team-1', 'team-2');
+      const result = await service.isBlockedEitherWay('team-1', 'team-2');
 
       expect(result).toBe(false);
     });
 
     it('should check bidirectionally', async () => {
-      mockTeamBlockModel.findFirst.mockResolvedValue(null);
+      mockTeamBlockModel.count.mockResolvedValue(0);
 
-      await service.isBlocked('team-1', 'team-2');
+      await service.isBlockedEitherWay('team-1', 'team-2');
 
-      expect(mockTeamBlockModel.findFirst).toHaveBeenCalledWith({
+      expect(mockTeamBlockModel.count).toHaveBeenCalledWith({
         where: {
           OR: [
             { blockingTeamId: 'team-1', blockedTeamId: 'team-2' },

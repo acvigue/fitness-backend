@@ -85,4 +85,16 @@ export class ListMessagesQueryDto {
   @IsOptional()
   @IsString()
   teamId?: string;
+
+  @ApiPropertyOptional({ type: Number, example: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ type: Number, example: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  per_page?: number;
 }

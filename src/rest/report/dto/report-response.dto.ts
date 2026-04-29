@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginationMetaDto } from '@/rest/common/pagination';
 
 export class ReportResponseDto {
   @ApiProperty({ description: 'Report ID', example: 'rep-123', type: String })
@@ -28,4 +29,12 @@ export class ReportResponseDto {
 
   @ApiProperty({ description: 'Created timestamp', format: 'date-time' })
   createdAt!: Date;
+}
+
+export class PaginatedReportResponseDto {
+  @ApiProperty({ type: [ReportResponseDto] })
+  data!: ReportResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta!: PaginationMetaDto;
 }

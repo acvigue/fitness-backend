@@ -77,8 +77,8 @@ function mockMessage(overrides: Record<string, unknown> = {}) {
 describe('ChatService', () => {
   let service: InstanceType<typeof ChatService>;
   const mockUserBlockService = {
-    isBlocked: vi.fn().mockResolvedValue(false),
-    didBlock: vi.fn().mockResolvedValue(false),
+    isBlockedEitherWay: vi.fn().mockResolvedValue(false),
+    hasBlocked: vi.fn().mockResolvedValue(false),
   };
   const mockEngagementService = { recordEvent: vi.fn().mockResolvedValue({}) };
   const mockModerationService = { assertAllowed: vi.fn().mockResolvedValue(undefined) };

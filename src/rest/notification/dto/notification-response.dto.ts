@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PaginationMetaDto } from '@/rest/common/pagination';
 import { NOTIFICATION_TYPES, type NotificationType } from '../notification-types';
 
 export class NotificationResponseDto {
@@ -53,4 +54,12 @@ export class NotificationResponseDto {
 
   @ApiProperty({ description: 'Creation timestamp', format: 'date-time', type: String })
   createdAt!: string;
+}
+
+export class PaginatedNotificationResponseDto {
+  @ApiProperty({ type: [NotificationResponseDto] })
+  data!: NotificationResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta!: PaginationMetaDto;
 }

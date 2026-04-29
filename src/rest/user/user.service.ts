@@ -84,7 +84,7 @@ export class UserService {
 
   async getProfile(userId: string, viewerId?: string): Promise<UserProfileResponseDto> {
     if (viewerId && viewerId !== userId) {
-      if (await this.userBlockService.didBlock(userId, viewerId)) {
+      if (await this.userBlockService.hasBlocked(userId, viewerId)) {
         throw new ForbiddenException('You are not allowed to view this profile');
       }
       this.engagementService
@@ -125,15 +125,18 @@ export class UserService {
     },
     viewerId?: string
   ): UserProfileResponseDto {
-    if (viewerId === undefined || viewerId === profile.userId) {
-      return response;
-    }
+    const isSelf = viewerId === undefined || viewerId === profile.userId;
     return {
       ...response,
-      bio: profile.privateBio ? null : response.bio,
-      favoriteSports: profile.privateSports ? [] : response.favoriteSports,
-      tournaments: profile.privateTournaments ? [] : response.tournaments,
-      featuredAchievements: profile.privateAchievements ? [] : response.featuredAchievements,
+      bio: !isSelf && profile.privateBio ? null : response.bio,
+      favoriteSports: !isSelf && profile.privateSports ? [] : response.favoriteSports,
+      tournaments: !isSelf && profile.privateTournaments ? [] : response.tournaments,
+      featuredAchievements:
+        !isSelf && profile.privateAchievements ? [] : response.featuredAchievements,
+      privateBio: profile.privateBio,
+      privateSports: profile.privateSports,
+      privateTournaments: profile.privateTournaments,
+      privateAchievements: profile.privateAchievements,
     };
   }
 
@@ -306,6 +309,10 @@ export class UserService {
     userId: string;
     user: { firstName: string | null; lastName: string | null };
     bio: string | null;
+    privateBio: boolean;
+    privateSports: boolean;
+    privateTournaments: boolean;
+    privateAchievements: boolean;
     favoriteSports: { id: string; name: string; icon: string | null }[];
     tournaments: {
       id: string;
@@ -394,6 +401,10 @@ export class UserService {
           threshold: ua.achievement.threshold,
         },
       })),
+      privateBio: profile.privateBio,
+      privateSports: profile.privateSports,
+      privateTournaments: profile.privateTournaments,
+      privateAchievements: profile.privateAchievements,
     };
   }
 

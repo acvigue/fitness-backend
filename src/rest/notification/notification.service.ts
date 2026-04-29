@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/shared/utils';
+import { paginate, type PaginationParams, type PaginatedResult } from '@/rest/common/pagination';
 import type { NotificationResponseDto } from './dto/notification-response.dto';
 
 export interface CreateNotificationInput {
@@ -13,13 +14,23 @@ export interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationService {
-  async findAll(userId: string): Promise<NotificationResponseDto[]> {
-    const notifications = await prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return notifications.map((n) => this.toResponse(n));
+  async findAll(
+    userId: string,
+    pagination: PaginationParams
+  ): Promise<PaginatedResult<NotificationResponseDto>> {
+    return paginate(
+      pagination,
+      () => prisma.notification.count({ where: { userId } }),
+      ({ skip, take }) =>
+        prisma.notification
+          .findMany({
+            where: { userId },
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
+          })
+          .then((items) => items.map((n) => this.toResponse(n)))
+    );
   }
 
   async dismiss(id: string, userId: string): Promise<NotificationResponseDto> {
@@ -76,6 +87,7 @@ export class NotificationService {
         content: e.content,
         metadata: e.metadata,
       })),
+      skipDuplicates: true,
     });
     return result.count;
   }

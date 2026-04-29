@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthenticatedUser } from '@/rest/auth/oidc-auth.service';
 import { CurrentUser } from '@/shared/current-user.decorator';
 import { ApiCommonErrorResponses, ApiBadRequestResponse, ApiNotFoundResponse } from '@/rest/common';
@@ -114,15 +115,6 @@ export class UserController {
   ): Promise<UpdateUserProfilePrivacyDto> {
     return this.userService.getPrivacy(user.sub);
   }
-  @Patch('profile/user/privacy')
-  @ApiOperation({ summary: 'Update current user profile privacy' })
-  @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
-  async getUserProfilePrivacy(
-    @Body() userId: UserLookupQueryDto
-  ): Promise<UpdateUserProfilePrivacyDto> {
-    return this.userService.getPrivacy(userId.q);
-  }
-
   @Patch('profile/privacy')
   @ApiOperation({ summary: 'Update current user profile privacy' })
   @ApiResponse({ status: 200, type: UpdateUserProfilePrivacyDto })
@@ -134,6 +126,7 @@ export class UserController {
   }
 
   @Post('sessions/enrich')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Store refresh token for the current session to enable offline session revocation',
   })
@@ -160,6 +153,7 @@ export class UserController {
   }
 
   @Delete('sessions/:id')
+  @Throttle({ short: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific identity provider session' })
   @ApiResponse({ status: 204, description: 'Session revoked' })
@@ -173,6 +167,7 @@ export class UserController {
   }
 
   @Post('sessions/logout')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Revoke all of the current user's identity provider sessions" })
   @ApiResponse({ status: 200, type: RevokeSessionsResponseDto })
@@ -182,6 +177,7 @@ export class UserController {
   }
 
   @Post('me/deactivate')
+  @Throttle({ short: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Deactivate current user account' })
   @ApiResponse({ status: 200, type: DeactivateAccountResponseDto })
@@ -191,6 +187,7 @@ export class UserController {
   }
 
   @Delete('me')
+  @Throttle({ short: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Permanently delete current user account' })
   @ApiResponse({ status: 200, type: DeleteAccountResponseDto })

@@ -50,4 +50,19 @@ export class UserProfileResponseDto {
     description: 'Tournament History',
   })
   tournaments!: TournamentResponseDto[];
+
+  @ApiProperty({ description: 'Whether bio is hidden from the viewer', type: Boolean })
+  privateBio!: boolean;
+
+  @ApiProperty({ description: 'Whether favorite sports are hidden from the viewer', type: Boolean })
+  privateSports!: boolean;
+
+  @ApiProperty({ description: 'Whether tournaments are hidden from the viewer', type: Boolean })
+  privateTournaments!: boolean;
+
+  @ApiProperty({
+    description: 'Whether featured achievements are hidden from the viewer',
+    type: Boolean,
+  })
+  privateAchievements!: boolean;
 }

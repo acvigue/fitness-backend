@@ -12,6 +12,7 @@ const mockMeetupModel = {
   findUnique: vi.fn(),
   findMany: vi.fn(),
   update: vi.fn(),
+  count: vi.fn(),
 };
 
 const mockTeamBlockModel = {
@@ -95,7 +96,7 @@ describe('MeetupService', () => {
       mockTeamModel.findUnique
         .mockResolvedValueOnce({ id: 'team-1', users: [{ id: 'captain-1' }] })
         .mockResolvedValueOnce({ id: 'team-2' });
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(false);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(false);
       mockMeetupModel.create.mockResolvedValue(mockMeetup());
 
       const result = await service.proposeMeetup(
@@ -126,7 +127,7 @@ describe('MeetupService', () => {
           users: [{ id: 'captain-1' }],
         })
         .mockResolvedValueOnce({ id: 'team-2' });
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(true);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(true);
 
       await expect(
         service.proposeMeetup(
@@ -283,17 +284,21 @@ describe('MeetupService', () => {
   // ─── getTeamMeetups ──────────────────────────────────
 
   describe('getTeamMeetups', () => {
+    const PAGINATION = { page: 1, per_page: 20 };
+
     it('should return meetups for a team member', async () => {
       mockTeamModel.findUnique.mockResolvedValue({
         id: 'team-1',
         users: [{ id: 'captain-1' }],
       });
+      mockMeetupModel.count.mockResolvedValue(1);
       mockMeetupModel.findMany.mockResolvedValue([mockMeetup()]);
 
-      const result = await service.getTeamMeetups('team-1', 'captain-1');
+      const result = await service.getTeamMeetups('team-1', 'captain-1', PAGINATION);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].title).toBe('Saturday Scrimmage');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].title).toBe('Saturday Scrimmage');
+      expect(result.meta.total).toBe(1);
     });
 
     it('should throw when user is not a team member', async () => {
@@ -302,7 +307,7 @@ describe('MeetupService', () => {
         users: [{ id: 'captain-1' }],
       });
 
-      await expect(service.getTeamMeetups('team-1', 'outsider')).rejects.toThrow(
+      await expect(service.getTeamMeetups('team-1', 'outsider', PAGINATION)).rejects.toThrow(
         ForbiddenException
       );
     });
@@ -312,9 +317,10 @@ describe('MeetupService', () => {
         id: 'team-1',
         users: [{ id: 'captain-1' }],
       });
+      mockMeetupModel.count.mockResolvedValue(0);
       mockMeetupModel.findMany.mockResolvedValue([]);
 
-      await service.getTeamMeetups('team-1', 'captain-1', 'ACCEPTED');
+      await service.getTeamMeetups('team-1', 'captain-1', PAGINATION, 'ACCEPTED');
 
       expect(mockMeetupModel.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

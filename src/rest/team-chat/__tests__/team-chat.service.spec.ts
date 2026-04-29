@@ -76,8 +76,8 @@ describe('TeamChatService', () => {
         {
           provide: UserBlockService,
           useValue: {
-            isBlocked: vi.fn().mockResolvedValue(false),
-            didBlock: vi.fn().mockResolvedValue(false),
+            isBlockedEitherWay: vi.fn().mockResolvedValue(false),
+            hasBlocked: vi.fn().mockResolvedValue(false),
           },
         },
         { provide: EngagementService, useValue: { recordEvent: vi.fn().mockResolvedValue({}) } },
@@ -103,7 +103,7 @@ describe('TeamChatService', () => {
       mockTeamModel.findUnique
         .mockResolvedValueOnce(mockTeam())
         .mockResolvedValueOnce(mockTeam({ id: 'team-2', name: 'Team Beta', users: TEAM2_USERS }));
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(false);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(false);
       mockChatModel.findUnique.mockResolvedValue(null);
       mockChatModel.create.mockResolvedValue({
         id: 'chat-1',
@@ -132,7 +132,7 @@ describe('TeamChatService', () => {
       mockTeamModel.findUnique
         .mockResolvedValueOnce(mockTeam())
         .mockResolvedValueOnce(mockTeam({ id: 'team-2', users: TEAM2_USERS }));
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(false);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(false);
       mockChatModel.findUnique.mockResolvedValue({
         id: 'existing-chat',
         name: 'Team Alpha x Team Beta',
@@ -153,7 +153,7 @@ describe('TeamChatService', () => {
 
     it('should throw when teams are blocked', async () => {
       mockTeamModel.findUnique.mockResolvedValue(mockTeam());
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(true);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(true);
 
       await expect(
         service.createOrGetTeamChat({ fromTeamId: 'team-1', toTeamId: 'team-2' }, 'user-1')
@@ -214,7 +214,7 @@ describe('TeamChatService', () => {
         team1Id: 'team-1',
         team2Id: 'team-2',
       });
-      vi.spyOn(teamBlockService, 'isBlocked').mockResolvedValue(true);
+      vi.spyOn(teamBlockService, 'isBlockedEitherWay').mockResolvedValue(true);
 
       await expect(
         service.sendTeamMessage('chat-1', { content: 'Hello!' }, 'user-1')

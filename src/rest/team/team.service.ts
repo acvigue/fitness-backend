@@ -14,6 +14,7 @@ import { ModerationService } from '@/rest/moderation/moderation.service';
 import { EngagementService } from '@/rest/engagement/engagement.service';
 import { AuditService } from '@/rest/audit/audit.service';
 import { EngagementType } from '@/generated/prisma/enums';
+import { paginate, type PaginationParams, type PaginatedResult } from '@/rest/common/pagination';
 import type { TeamCreateDto } from './dto/team-create.dto';
 import type { TeamResponseDto } from './dto/team-response.dto';
 import type { TeamUpdateCaptainDto } from './dto/team-update-captain.dto';
@@ -57,7 +58,10 @@ export class TeamService {
     return this.toResponse(team);
   }
 
-  async findAll(filters?: { q?: string; sportId?: string }): Promise<TeamResponseDto[]> {
+  async findAll(
+    pagination: PaginationParams,
+    filters?: { q?: string; sportId?: string }
+  ): Promise<PaginatedResult<TeamResponseDto>> {
     const where: Record<string, unknown> = {};
     if (filters?.q) {
       where.name = { contains: filters.q, mode: 'insensitive' };
@@ -66,13 +70,20 @@ export class TeamService {
       where.sportId = filters.sportId;
     }
 
-    const teams = await prisma.team.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      include: { users: { select: { id: true, username: true, name: true } } },
-    });
-
-    return teams.map((team) => this.toResponse(team));
+    return paginate(
+      pagination,
+      () => prisma.team.count({ where }),
+      ({ skip, take }) =>
+        prisma.team
+          .findMany({
+            where,
+            skip,
+            take,
+            orderBy: { name: 'asc' },
+            include: { users: { select: { id: true, username: true, name: true } } },
+          })
+          .then((teams) => teams.map((team) => this.toResponse(team)))
+    );
   }
 
   async findOne(id: string): Promise<TeamResponseDto> {
@@ -349,7 +360,7 @@ export class TeamService {
       throw new ForbiddenException('Only the team captain can send invitations');
     }
 
-    if (await this.userBlockService.isBlocked(userId, targetUserId)) {
+    if (await this.userBlockService.isBlockedEitherWay(userId, targetUserId)) {
       throw new ForbiddenException('Cannot invite a blocked user or a user who has blocked you');
     }
 
@@ -384,7 +395,7 @@ export class TeamService {
       throw new NotFoundException('Team not found');
     }
 
-    if (await this.userBlockService.isBlocked(userId, team.captainId)) {
+    if (await this.userBlockService.isBlockedEitherWay(userId, team.captainId)) {
       throw new ForbiddenException('Cannot request to join — the team captain blocked you');
     }
 
@@ -440,7 +451,7 @@ export class TeamService {
 
     if (accept) {
       await this.moderationService.assertAllowed(invitation.userId, 'TEAM_JOIN');
-      if (await this.userBlockService.isBlocked(invitation.userId, invitation.team.captainId)) {
+      if (await this.userBlockService.isBlockedEitherWay(invitation.userId, invitation.team.captainId)) {
         throw new ForbiddenException(
           'Cannot complete: you are blocked by the captain or have blocked them'
         );

@@ -9,6 +9,7 @@ import { TeamBlockService } from '@/rest/team-block/team-block.service';
 import { NotificationService } from '@/rest/notification/notification.service';
 import { EngagementService } from '@/rest/engagement/engagement.service';
 import { EngagementType, type MeetupStatus } from '@/generated/prisma/enums';
+import { paginate, type PaginationParams, type PaginatedResult } from '@/rest/common/pagination';
 import type { CreateMeetupDto } from './dto/create-meetup.dto';
 import type { MeetupResponseDto } from './dto/meetup-response.dto';
 
@@ -40,7 +41,7 @@ export class MeetupService {
     });
     if (!receivingTeam) throw new NotFoundException('Receiving team not found');
 
-    const blocked = await this.teamBlockService.isBlocked(dto.proposingTeamId, dto.receivingTeamId);
+    const blocked = await this.teamBlockService.isBlockedEitherWay(dto.proposingTeamId, dto.receivingTeamId);
     if (blocked) {
       throw new ForbiddenException('Cannot propose a meetup with a blocked team');
     }
@@ -183,8 +184,9 @@ export class MeetupService {
   async getTeamMeetups(
     teamId: string,
     userId: string,
+    pagination: PaginationParams,
     status?: MeetupStatus
-  ): Promise<MeetupResponseDto[]> {
+  ): Promise<PaginatedResult<MeetupResponseDto>> {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
       include: { users: { select: { id: true } } },
@@ -200,16 +202,23 @@ export class MeetupService {
     };
     if (status) where.status = status;
 
-    const meetups = await prisma.meetup.findMany({
-      where,
-      include: {
-        proposingTeam: { select: { name: true, captainId: true } },
-        receivingTeam: { select: { name: true, captainId: true } },
-      },
-      orderBy: { dateTime: 'asc' },
-    });
-
-    return meetups.map((m) => this.toResponse(m));
+    return paginate(
+      pagination,
+      () => prisma.meetup.count({ where }),
+      ({ skip, take }) =>
+        prisma.meetup
+          .findMany({
+            where,
+            skip,
+            take,
+            include: {
+              proposingTeam: { select: { name: true, captainId: true } },
+              receivingTeam: { select: { name: true, captainId: true } },
+            },
+            orderBy: { dateTime: 'asc' },
+          })
+          .then((meetups) => meetups.map((m) => this.toResponse(m)))
+    );
   }
 
   async getMeetup(meetupId: string, userId: string): Promise<MeetupResponseDto> {

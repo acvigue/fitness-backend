@@ -99,9 +99,9 @@ export class TeamBlockService {
     await prisma.teamBlock.delete({ where: { id: block.id } });
   }
 
-  /** Bidirectional block check — used by team-chat and meetup modules */
-  async isBlocked(teamAId: string, teamBId: string): Promise<boolean> {
-    const block = await prisma.teamBlock.findFirst({
+  /** Returns true if either team has blocked the other (bidirectional). */
+  async isBlockedEitherWay(teamAId: string, teamBId: string): Promise<boolean> {
+    const count = await prisma.teamBlock.count({
       where: {
         OR: [
           { blockingTeamId: teamAId, blockedTeamId: teamBId },
@@ -109,6 +109,6 @@ export class TeamBlockService {
         ],
       },
     });
-    return !!block;
+    return count > 0;
   }
 }

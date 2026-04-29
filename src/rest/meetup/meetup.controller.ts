@@ -8,9 +8,14 @@ import {
   ApiBadRequestResponse,
   ApiForbiddenResponse,
 } from '@/rest/common';
+import {
+  ZodValidationPipe,
+  paginationSchema,
+  type PaginationParams,
+} from '@/rest/common/pagination';
 import { MeetupService } from './meetup.service';
 import { CreateMeetupDto } from './dto/create-meetup.dto';
-import { MeetupResponseDto } from './dto/meetup-response.dto';
+import { MeetupResponseDto, PaginatedMeetupResponseDto } from './dto/meetup-response.dto';
 
 @ApiTags('Meetups')
 @ApiBearerAuth()
@@ -34,15 +39,18 @@ export class MeetupController {
   @Get('team/:teamId')
   @ApiOperation({ summary: 'List meetups for a team (optionally filter by status)' })
   @ApiQuery({ name: 'status', required: false, enum: MeetupStatus })
-  @ApiResponse({ status: 200, type: [MeetupResponseDto] })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiResponse({ status: 200, type: PaginatedMeetupResponseDto })
   @ApiForbiddenResponse()
   @ApiCommonErrorResponses()
   getTeamMeetups(
     @Param('teamId') teamId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(paginationSchema)) pagination: PaginationParams,
     @Query('status') status?: keyof typeof MeetupStatus
-  ): Promise<MeetupResponseDto[]> {
-    return this.meetupService.getTeamMeetups(teamId, user.sub, status);
+  ): Promise<PaginatedMeetupResponseDto> {
+    return this.meetupService.getTeamMeetups(teamId, user.sub, pagination, status);
   }
 
   @Get(':id')

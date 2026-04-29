@@ -108,8 +108,8 @@ const mockKeycloakAdmin = {
 describe('UserService', () => {
   let service: InstanceType<typeof UserService>;
   const mockUserBlockService = {
-    isBlocked: vi.fn().mockResolvedValue(false),
-    didBlock: vi.fn().mockResolvedValue(false),
+    isBlockedEitherWay: vi.fn().mockResolvedValue(false),
+    hasBlocked: vi.fn().mockResolvedValue(false),
   };
   const mockEngagementService = { recordEvent: vi.fn().mockResolvedValue({}) };
 
@@ -250,6 +250,10 @@ describe('UserService', () => {
         ],
         tournaments: [],
         featuredAchievements: [],
+        privateBio: false,
+        privateSports: false,
+        privateTournaments: false,
+        privateAchievements: false,
       });
     });
 

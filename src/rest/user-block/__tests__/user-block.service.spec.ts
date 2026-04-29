@@ -70,10 +70,10 @@ describe('UserBlockService', () => {
     });
   });
 
-  describe('isBlocked', () => {
+  describe('isBlockedEitherWay', () => {
     it('returns true if either direction exists', async () => {
       mockUserBlock.count.mockResolvedValue(1);
-      expect(await service.isBlocked('a', 'b')).toBe(true);
+      expect(await service.isBlockedEitherWay('a', 'b')).toBe(true);
       expect(mockUserBlock.count).toHaveBeenCalledWith({
         where: {
           OR: [
@@ -86,14 +86,14 @@ describe('UserBlockService', () => {
 
     it('returns false when none exists', async () => {
       mockUserBlock.count.mockResolvedValue(0);
-      expect(await service.isBlocked('a', 'b')).toBe(false);
+      expect(await service.isBlockedEitherWay('a', 'b')).toBe(false);
     });
   });
 
-  describe('didBlock', () => {
+  describe('hasBlocked', () => {
     it('returns true only when a specific direction exists', async () => {
       mockUserBlock.count.mockResolvedValue(1);
-      expect(await service.didBlock('a', 'b')).toBe(true);
+      expect(await service.hasBlocked('a', 'b')).toBe(true);
       expect(mockUserBlock.count).toHaveBeenCalledWith({
         where: { blockerId: 'a', blockedId: 'b' },
       });

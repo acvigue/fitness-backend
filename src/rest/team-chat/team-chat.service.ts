@@ -55,7 +55,7 @@ export class TeamChatService {
     }
 
     // Check block status
-    const blocked = await this.teamBlockService.isBlocked(dto.fromTeamId, dto.toTeamId);
+    const blocked = await this.teamBlockService.isBlockedEitherWay(dto.fromTeamId, dto.toTeamId);
     if (blocked) {
       throw new ForbiddenException('Messaging between these teams is blocked');
     }
@@ -166,7 +166,7 @@ export class TeamChatService {
     const team2Id = assertTeamId(chat.team2Id, chat.id);
 
     // Re-check block status
-    const blocked = await this.teamBlockService.isBlocked(team1Id, team2Id);
+    const blocked = await this.teamBlockService.isBlockedEitherWay(team1Id, team2Id);
     if (blocked) {
       throw new ForbiddenException('Messaging between these teams is blocked');
     }

@@ -8,6 +8,7 @@ const mockNotification = {
   update: vi.fn(),
   create: vi.fn(),
   createMany: vi.fn(),
+  count: vi.fn(),
 };
 
 vi.mock('@/shared/utils', () => ({
@@ -56,26 +57,32 @@ describe('NotificationService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all notifications for a user', async () => {
+    it('should return paginated notifications for a user', async () => {
+      mockNotification.count.mockResolvedValue(2);
       mockNotification.findMany.mockResolvedValue([mockN(), mockN({ id: 'notif-2' })]);
 
-      const result = await service.findAll('user-1');
+      const result = await service.findAll('user-1', { page: 1, per_page: 20 });
 
       expect(mockNotification.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
+        skip: 0,
+        take: 20,
         orderBy: { createdAt: 'desc' },
       });
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('notif-1');
-      expect(result[0].type).toBe('TEAM_INVITE');
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].id).toBe('notif-1');
+      expect(result.data[0].type).toBe('TEAM_INVITE');
+      expect(result.meta).toEqual({ page: 1, per_page: 20, total: 2, total_pages: 1 });
     });
 
-    it('should return empty array when user has no notifications', async () => {
+    it('should return empty page when user has no notifications', async () => {
+      mockNotification.count.mockResolvedValue(0);
       mockNotification.findMany.mockResolvedValue([]);
 
-      const result = await service.findAll('user-1');
+      const result = await service.findAll('user-1', { page: 1, per_page: 20 });
 
-      expect(result).toEqual([]);
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
     });
   });
 
@@ -193,6 +200,7 @@ describe('NotificationService', () => {
           { userId: 'u1', type: 'X', title: 'T', content: 'C', metadata: undefined },
           { userId: 'u2', type: 'X', title: 'T', content: 'C', metadata: { a: 1 } },
         ],
+        skipDuplicates: true,
       });
     });
   });

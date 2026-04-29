@@ -34,6 +34,7 @@ import {
   DecideSuspensionAppealDto,
   SuspensionAppealResponseDto,
 } from './dto/suspension-appeal.dto';
+import { PaginatedModerationMessageResponseDto } from './dto/moderation-message-response.dto';
 
 @ApiTags('Moderation')
 @ApiBearerAuth()
@@ -45,9 +46,10 @@ export class ModerationController {
 
   @Get('messages')
   @ApiOperation({ summary: 'List inter-team messages for moderation (dept manager only)' })
+  @ApiResponse({ status: 200, type: PaginatedModerationMessageResponseDto })
   @ApiForbiddenResponse()
   @ApiCommonErrorResponses()
-  listMessages(@Query() query: ListMessagesQueryDto) {
+  listMessages(@Query() query: ListMessagesQueryDto): Promise<PaginatedModerationMessageResponseDto> {
     return this.moderationService.listInterTeamMessages(query);
   }
 
