@@ -32,6 +32,7 @@
     "@types/node": "^25.2.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.16.0",
+    "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^9.39.2",
@@ -60,6 +61,7 @@
     "@nestjs/swagger": "^11.2.5",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.15",
+    "@parse/node-apn": "^8.1.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "7.3.0",
     "@prisma/client-runtime-utils": "^7.3.0",
@@ -78,6 +80,7 @@
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
   "packageManager": "pnpm@11.0.0-dev.1005+sha512.91f84a392eea348ea4852a182912d2520273a4336f933b78cc44bc931eb999923c097e9433a9b355adc1f725725ea99082fc9f032a559df832632e764c92c798"

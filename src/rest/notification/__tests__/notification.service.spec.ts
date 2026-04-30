@@ -41,12 +41,17 @@ function mockN(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const { PushService } = await import('@/rest/push/push.service');
+
 describe('NotificationService', () => {
   let service: InstanceType<typeof NotificationService>;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [NotificationService],
+      providers: [
+        NotificationService,
+        { provide: PushService, useValue: { sendToUser: vi.fn().mockResolvedValue(undefined) } },
+      ],
     }).compile();
 
     service = module.get(NotificationService);

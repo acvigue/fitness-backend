@@ -63,6 +63,9 @@ model User {
   organizationInvitesReceived OrganizationInvitation[] @relation("OrganizationInviteRecipient")
   organizationInvitesIssued   OrganizationInvitation[] @relation("OrganizationInviteIssuer")
 
+  pushDevices       PushDevice[]
+  pushPreferences   PushPreference[]
+
   @@map("users")
 }
 
@@ -933,4 +936,39 @@ model TournamentRecap {
   @@unique([tournamentId, videoId])
   @@index([tournamentId])
   @@map("tournament_recaps")
+}
+
+enum PushPlatform {
+  IOS
+  WEB
+}
+
+model PushDevice {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform     PushPlatform
+  token        String       // APNs device token (IOS) or unique key derived from endpoint (WEB)
+  subscription Json?        // Full PushSubscription JSON (WEB only)
+  userAgent    String?      @map("user_agent")
+  lastSeenAt   DateTime     @default(now()) @map("last_seen_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@map("push_devices")
+}
+
+model PushPreference {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // matches NotificationType (e.g. "TEAM_INVITE")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("push_preferences")
 }
